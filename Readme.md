@@ -1,1 +1,0 @@
-# self-racing-rc-platform

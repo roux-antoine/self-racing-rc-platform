@@ -1,0 +1,12 @@
+float64 steering_angle_rx
+float64 throttle_angle_rx
+float64 steering_angle_pi
+float64 throttle_angle_pi
+float64 steering_angle_final
+float64 throttle_angle_final
+int64 tmp_pulse_width_1
+int64 tmp_pulse_width_2
+int64 tmp_pulse_width_3
+bool engaged_mode
+bool override_steering
+bool override_throttle

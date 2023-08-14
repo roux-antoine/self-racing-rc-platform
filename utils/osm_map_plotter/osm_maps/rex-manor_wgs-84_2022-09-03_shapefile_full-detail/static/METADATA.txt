@@ -1,0 +1,7 @@
+title               = "OpenStreetMap-Daten im Datenmodell OSMaxx v.2"
+abstract            = "OpenStreetMap-Daten aufbereitet zur Kartenerstellung, POI-Suche und Analyse"
+geodatatype         = Vector
+source_owner        = http://www.openstreetmap.org
+keywords            = Base Data, Open Data, OpenStreetMap
+license             = See LICENSE.txt
+update_period       = hourly

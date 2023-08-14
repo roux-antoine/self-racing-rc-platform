@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>rex_manor_parking_lot_waypoints.kml</name>
+	<StyleMap id="m_ylw-pushpin">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="s_ylw-pushpin">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="s_ylw-pushpin_hl">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Placemark>
+		<name>rex_manor_parking_lot_waypoints</name>
+		<styleUrl>#m_ylw-pushpin</styleUrl>
+		<LineString>
+			<tessellate>1</tessellate>
+			<coordinates>
+				-122.0832233414718,37.40550223332897,0 -122.0832294645278,37.4054765642657,0 -122.0832372463993,37.4054491292163,0 -122.0832440504205,37.40542572344656,0 -122.08325095547,37.40539971693739,0 -122.0832574533514,37.4053777602517,0 -122.0832635655419,37.40535586482189,0 -122.0832708788081,37.4053274151757,0 -122.0832776159598,37.40530398486957,0 -122.0832838274769,37.40527951255505,0 -122.0832903076001,37.40525201728039,0 -122.0832980568741,37.40522561040693,0 -122.0833042447545,37.40520114803686,0 -122.0833126641304,37.40516768148152,0 -122.0833140015486,37.40513941237896,0 -122.0833028823016,37.40511591848381,0 -122.0832678652651,37.40509918421676,0 -122.0832228313249,37.40508887686666,0 -122.0831801637255,37.40508685456829,0 -122.0831481927916,37.40509496794112,0 -122.0831321265193,37.40511621607568,0 -122.0831176397025,37.40514061718505,0 -122.0831066101835,37.40516829451153,0 -122.0830973869731,37.40519148849448,0 -122.0830891155218,37.4052173030475,0 -122.0830810973444,37.40524060081692,0 -122.0830747099235,37.40526045807038,0 -122.08306789927,37.40528433998729,0 -122.0830589191615,37.40531666147458,0 -122.0830499676031,37.40534347039672,0 -122.0830448167303,37.40536450180763,0 -122.0830368099375,37.40538784455948,0 -122.0830294662172,37.40541789168152,0 -122.0830224279745,37.40543776609824,0 -122.0830168602285,37.40546233539444,0
+			</coordinates>
+		</LineString>
+	</Placemark>
+</Document>
+</kml>
