@@ -12,8 +12,9 @@ WIP
 
 All the code runs in a Docker, built and started with Docker compose.
 
+* Add the following line to your `~/.bashrc`: `export CURRENT_UID=$(id -u):(id -g)`
 * Build the Docker: `cd ~/workspace/self_racing_rc_platform_ws/src && docker compose build`
-* Start the Docker: `docker compose up` (for now, requires `/dev/ttyACM0` and `/dev/ttyUSB0` to exist)
+* Start the Docker: `docker compose up`
 * Terminals in the Docker can be entered with `docker exec -it src-app-1 /bin/bash`
 
 ### Install pre-commit hooks
@@ -21,6 +22,10 @@ All the code runs in a Docker, built and started with Docker compose.
 To install the pre-commit hooks, run: `pre-commit install`
 
 It is possible to commit without running the commit hooks by running `git commit --no-verify`
+
+## Building the catkin packages
+
+Run `catkin build` from the top of the repo
 
 ## Building the `arduino_pkg` package
 

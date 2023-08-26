@@ -1,5 +1,7 @@
 adafruit-circuitpython-gps==3.10.4
 matplotlib
 pre-commit
+pynmeagps
+pyserial
 pyshp
 utm
