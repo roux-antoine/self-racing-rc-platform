@@ -1,6 +1,9 @@
 #!/bin/bash
 
-setup_bash_path='/home/antoine/workspace/self_racing_rc_platform_ws/devel/setup.bash'
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+ABS_SCRIPT_DIR=$(readlink -f "$SCRIPT_DIR")
+
+setup_bash_path="$ABS_SCRIPT_DIR/../../devel/setup.bash"
 
 session="self_racing_rc_platform-all"
 
@@ -26,7 +29,6 @@ tmux split-window -t 6 -h
 
 # roscore
 tmux select-pane -t 0
-# tmux send-keys 'source /home/antoine/.bashrc' C-m
 tmux send-keys 'roscore' C-m
 # sleeping 10 seconds so that roscore has time to start
 echo "Waiting 10 seconds for roscore to start..."
@@ -34,31 +36,31 @@ sleep 10
 
 # gps publisher
 tmux select-pane -t 1
-tmux send-keys "cd '/home/antoine/workspace/self_racing_rc_platform_ws/src/autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun autonomous_software_pkg gps_publisher.py" C-m
 
 # vehicle state publisher
 tmux select-pane -t 2
-tmux send-keys "cd '/home/antoine/workspace/self_racing_rc_platform_ws/src/autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun autonomous_software_pkg vehicle_state_publisher.py" C-m
 
-# pane for the controller
+# controller
 tmux select-pane -t 3
-tmux send-keys "cd '/home/antoine/workspace/self_racing_rc_platform_ws/src/autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun autonomous_software_pkg controller.py" C-m
 
 # rosserial arduino
 tmux select-pane -t 4
-tmux send-keys "cd '/home/antoine/workspace/self_racing_rc_platform_ws/src/autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun rosserial_python serial_node.py _port:=/dev/ttyACM0 _baud:=57600" C-m
 
 # rostopic echo /arduino_logging
 tmux select-pane -t 5
-tmux send-keys "cd '/home/antoine/workspace/self_racing_rc_platform_ws/src/autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rostopic echo /arduino_logging" C-m
 

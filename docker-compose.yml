@@ -10,12 +10,12 @@ services:
       - DISPLAY=${DISPLAY}
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix # for GUI purposes
-      - /home/antoine:/home/antoine
+      - /home/${USER}:/home/${USER}
       - /etc/passwd:/etc/passwd # so that the user is found inside the docker
       - /etc/group:/etc/group # so that the group of the user is found inside the docker
       - /dev:/dev # mounting all devices, a bit hacky but works
     network_mode: host
-    user: ${CURRENT_UID} # this env var needs to be exported before running `docker compose up`
+    user: ${CURRENT_UID} # this env var needs to be exported before running `docker compose up`, see README
     privileged: true # to give root capability on all devices
     group_add:
       - dialout # so that the user belongs to the `dialout` group, who owns `/dev/ttyACM0`
