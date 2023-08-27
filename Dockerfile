@@ -11,7 +11,8 @@ RUN apt update && apt install --yes \
     ros-noetic-rosserial-arduino \
     ros-noetic-nmea-msgs \
     rtklib \
-    python3-tk
+    python3-tk \
+    ros-noetic-foxglove-bridge
 
 RUN python3 -m pip install \
     pre-commit \
