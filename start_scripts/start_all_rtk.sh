@@ -49,7 +49,7 @@ tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun autonomous_software_pkg rtk_gps_serial_reader.py" C-m
 
-# # vehicle state publisher
+# vehicle state publisher
 tmux select-pane -t 3
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
@@ -61,17 +61,17 @@ tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun autonomous_software_pkg controller.py" C-m
 
-# # rosserial arduino
-# tmux select-pane -t 5
-# tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
-# tmux send-keys "source $setup_bash_path" C-m
-# tmux send-keys "rosrun rosserial_python serial_node.py _port:=/dev/ttyACM0 _baud:=57600" C-m
+# rosserial arduino
+tmux select-pane -t 5
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "source $setup_bash_path" C-m
+tmux send-keys "rosrun rosserial_python serial_node.py _port:=/dev/ttyACM1 _baud:=57600" C-m
 
-# # rostopic echo /arduino_logging
-# tmux select-pane -t 6
-# tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
-# tmux send-keys "source $setup_bash_path" C-m
-# tmux send-keys "rostopic echo /arduino_logging" C-m
+# rostopic echo /arduino_logging
+tmux select-pane -t 6
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "source $setup_bash_path" C-m
+tmux send-keys "rostopic echo /arduino_logging" C-m
 
 # attaching the session
 tmux attach-session -t $session

@@ -13,6 +13,6 @@ add_definitions(-DUSB_CON)
 generate_arduino_firmware(aim
   SRCS aim.cpp ${ROS_LIB_DIR}/time.cpp
   BOARD mega2560
-  PORT /dev/ttyACM0
+  PORT /dev/ttyACM1
   # SERIAL picocom /dev/ttyACM0  # found in https://github.com/ros-drivers/rosserial/issues/459, seems to work without
 )
