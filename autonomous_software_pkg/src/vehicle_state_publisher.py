@@ -1,35 +1,45 @@
 #!/usr/bin/python3
-
+"""
+ROS node that subscribes to the NMEA sentence published by the gps serial reader node
+and transforms it into two topics: gps_pose and gps_velocity
+TODO: 
+- Handle the situation where the location is exactly the same as in the previous message.
+In this case, the best is probably to not publish
+"""
 
 import math
-
 import rospy
+import tf
 import utm
 
-from self_racing_car_msgs.msg import RmcNmea, VehicleState
-
+from geometry_msgs.msg import PoseStamped, TwistStamped
+from nmea_msgs.msg import Gprmc
 
 class VehicleStatePublisher:
     def __init__(self):
         rospy.init_node("vehicle_state_publisher", anonymous=True)
 
-        self.sub = rospy.Subscriber("gps_info", RmcNmea, self.callback, queue_size=10)
-        self.pub = rospy.Publisher("vehicle_state", VehicleState, queue_size=10)
+        # Subscribers
+        self.sub = rospy.Subscriber("gps_info", Gprmc, self.callback, queue_size=10)
+        
+        # Publishers
+        self.pub_pose = rospy.Publisher("gps_pose", PoseStamped, queue_size=10)
+        self.pub_velocity = rospy.Publisher("gps_velocity", PoseStamped, queue_size=10)
+
         self.rate = rospy.Rate(1000)
 
-        self.last_state = None
         self.last_msg_seq = None
         self.JUMPING_MESSAGE_FACTOR = 1
 
-        print("Finished init")
+        rospy.logwarn("Finished init")
 
     def callback(self, rmc_msg):
 
         # small logic to skip messages if we want
         if self.last_msg_seq:
             if rmc_msg.header.seq - self.last_msg_seq < 0:
-                print("The header sequence id has jumped back")
-                print(
+                rospy.logwarn("The header sequence id has jumped back")
+                rospy.logwarn(
                     "Either you restarted the gps_publisher (or a rosbag play) or there is a problem"
                 )
             elif rmc_msg.header.seq - self.last_msg_seq < self.JUMPING_MESSAGE_FACTOR:
@@ -37,33 +47,59 @@ class VehicleStatePublisher:
 
         self.last_msg_seq = rmc_msg.header.seq
 
-        # TODO handle the situation where the location is exactly the same as in the previous message
-        # in this case, the best is probably to not publish
+        """ Read subscriber """
+        latitude = rmc_msg.lat
+        longitude = rmc_msg.lon
+        speed_knots = rmc_msg.speed 
+        track_angle_deg = rmc_msg.track
 
-        # read RMC message
-        latitude = rmc_msg.latitude
-        longitude = rmc_msg.longitude
+        """ Convert to utm coordinates"""
+        x_utm, y_utm = utm.from_latlon(latitude, longitude)
 
-        # convert to utm
-        utm_values = utm.from_latlon(latitude, longitude)
+        """ Build the /gps_pose [PoseStamped] message """
+        pose_msg = PoseStamped()
+        pose_msg.header.stamp = rospy.Time.now()
+        pose_msg.header.frame_id = 'world'
+        pose_msg.pose.position.x = x_utm
+        pose_msg.pose.position.y = y_utm
+        pose_msg.pose.position.z = 0
 
-        # build the vehicle state message
-        vehicle_state_msg = VehicleState()
-        vehicle_state_msg.x = utm_values[0]
-        vehicle_state_msg.y = utm_values[1]
-        vehicle_state_msg.z = 0
-        vehicle_state_msg.vx = -1  # TODO project the speed
-        vehicle_state_msg.vy = -1  # TODO project the speed
-        vehicle_state_msg.vz = -1  # TODO project the speed
+        # yaw_rad = (math.pi / 2) - track_angle_deg * math.pi / 180 # Radians. Origin is horizontal axis
 
-        # using the track angle degree for the angle
-        angle = -rmc_msg.track_angle_deg * math.pi / 180
-        vehicle_state_msg.angle = angle
+        # This is the angle we are using for now and for which the controller works fine. Not updating it 
+        # right now, but later we might switch it to the version above, which has its origin on the horizontal axis, 
+        # which should be a little more standard. The speed projection might not he good at the moment. 
+        yaw_rad = -track_angle_deg * math.pi / 180
 
-        # publishing
-        self.pub.publish(vehicle_state_msg)
+        # Convert to quaternions
+        quaternion = tf.transformations.quaternion_from_euler(0, 0, yaw_rad)
+        pose_msg.pose.orientation.x = quaternion[0]
+        pose_msg.pose.orientation.y = quaternion[1]
+        pose_msg.pose.orientation.z = quaternion[2]
+        pose_msg.pose.orientation.w = quaternion[3]
 
-        self.last_state = vehicle_state_msg
+        """ Build the /gps_velocity [TwistStamped] message """
+        speed_mps = speed_knots * 0.5144 # m/s
+
+        vel_msg = TwistStamped()
+        vel_msg.header.stamp = rospy.Time.now()
+        vel_msg.header.frame_id = 'world'
+        vel_msg.twist.linear.x = speed_mps * math.cos(yaw_rad)
+        vel_msg.twist.linear.y = speed_mps * math.sin(yaw_rad)
+
+        """ Publish /tf """
+        # Publish the tf between 'world' and 'car' for visualization purposes.
+        # It's easier to make the camera in foxglove follow a frame than another kind of object
+        br = tf.TransformBroadcaster()
+        br.sendTransform((x_utm, y_utm, 0),
+                        quaternion,
+                        rospy.Time.now(),
+                        "car",
+                        "world")    
+    
+        """ Publish topics """
+        self.pub_pose.publish(pose_msg)
+        self.pub_velocity.publish(vel_msg)
 
 
 if __name__ == "__main__":

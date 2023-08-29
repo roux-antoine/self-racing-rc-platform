@@ -7,8 +7,18 @@ import numpy as np
 import rospy
 from matplotlib.animation import FuncAnimation
 
-from self_racing_car_msgs.msg import VehicleCommand, VehicleState
+from self_racing_car_msgs.msg import VehicleCommand
+from geometry_msgs.msg import PoseStamped
 
+class State:
+    def __init__(self, x = 0, y = 0, z = 0, vx = 0, vy = 0, vz = 0, angle = 0):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.vx = vx
+        self.vy = vy
+        self.vz = vz
+        self.angle = angle
 
 class Waypoint:
     def __init__(self, id, x, y, z):
@@ -30,7 +40,7 @@ class Controller:
     def __init__(self, gui_flag):
 
         # Parameters
-        topic_current_state = rospy.get_param("~topic_current_state", "vehicle_state")
+        topic_current_state = rospy.get_param("~topic_current_state", "gps_pose")
         self.lookahead_distance = rospy.get_param(
             "~lookahead_distance", 10
         )  # max = 40m, min = half width of the track
@@ -53,7 +63,7 @@ class Controller:
         self.START_LINE_WP_THRESHOLD = 5  # TODO improve
 
         # Initial values
-        self.current_state = VehicleState(0, 0, 0, 0, 0, 0, 0)
+        self.current_state = State()
         self.past_n_states = []
         self.target_wp = Waypoint(-1, -1, -1, -1)
 
@@ -76,7 +86,7 @@ class Controller:
                 Waypoint(5, 0, 5, 0),
                 Waypoint(6, 0, 6, 0),
             ]
-            self.current_state = VehicleState()
+            self.current_state = State()
             self.current_state.x = 1
             self.current_state.y = 0
             self.current_state.z = 0.0
@@ -101,7 +111,7 @@ class Controller:
 
             # Subscribers
             rospy.Subscriber(
-                topic_current_state, VehicleState, self.callback_current_state
+                topic_current_state, PoseStamped, self.callback_current_state
             )
 
             # Publishers
@@ -113,7 +123,14 @@ class Controller:
 
     def callback_current_state(self, msg):
 
-        self.current_state = msg
+        self.current_state.x = msg.x
+        self.current_state.y = msg.y
+        self.current_state.z = msg.z
+        self.current_state.vx = msg.vx
+        self.current_state.vy = msg.vy
+        self.current_state.vz = msg.vz
+        self.current_state.angle = msg.angle
+
         self.past_n_states.append(self.current_state)
         if len(self.past_n_states) > self.PAST_STATES_WINDOW_SIZE:
             self.state_to_unscatter = self.past_n_states.pop(0)
