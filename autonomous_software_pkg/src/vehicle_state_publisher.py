@@ -24,7 +24,7 @@ class VehicleStatePublisher:
         
         # Publishers
         self.pub_pose = rospy.Publisher("gps_pose", PoseStamped, queue_size=10)
-        self.pub_velocity = rospy.Publisher("gps_velocity", PoseStamped, queue_size=10)
+        self.pub_velocity = rospy.Publisher("gps_velocity", TwistStamped, queue_size=10)
 
         self.rate = rospy.Rate(1000)
 
@@ -54,7 +54,8 @@ class VehicleStatePublisher:
         track_angle_deg = rmc_msg.track
 
         """ Convert to utm coordinates"""
-        x_utm, y_utm = utm.from_latlon(latitude, longitude)
+        utm_values = utm.from_latlon(latitude, longitude)
+        x_utm, y_utm = utm_values[0], utm_values[1]
 
         """ Build the /gps_pose [PoseStamped] message """
         pose_msg = PoseStamped()

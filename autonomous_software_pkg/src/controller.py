@@ -5,6 +5,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 import rospy
+import tf
 from matplotlib.animation import FuncAnimation
 
 from self_racing_car_msgs.msg import VehicleCommand
@@ -50,8 +51,8 @@ class Controller:
         # self.frequency          = rospy.get_param('~frequency', 2.0)
         # self.rate               = rospy.Rate(self.frequency)
         # self.rate_init          = rospy.Rate(1.0)   # Rate while we wait for topic
-        wp_file = "/home/antoine/workspace/2022_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_waypoints_detail_3m.txt"
-        edges_file = "/home/antoine/workspace/2022_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_inner_edge.txt"
+        wp_file = "/home/mattia/workspace/self_racing_rc_platform_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_waypoints_detail_3m.txt"
+        edges_file = "/home/mattia/workspace/self_racing_rc_platform_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_inner_edge.txt"
 
         self.PAST_STATES_WINDOW_SIZE = 10
         self.X_AXIS_LIM = 50
@@ -123,13 +124,13 @@ class Controller:
 
     def callback_current_state(self, msg):
 
-        self.current_state.x = msg.x
-        self.current_state.y = msg.y
-        self.current_state.z = msg.z
-        self.current_state.vx = msg.vx
-        self.current_state.vy = msg.vy
-        self.current_state.vz = msg.vz
-        self.current_state.angle = msg.angle
+        self.current_state.x = msg.pose.position.x
+        self.current_state.y = msg.pose.position.y
+        self.current_state.z = msg.pose.position.z
+        
+        orientation_list = [msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w]
+        (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(orientation_list)
+        self.current_state.angle = yaw
 
         self.past_n_states.append(self.current_state)
         if len(self.past_n_states) > self.PAST_STATES_WINDOW_SIZE:
