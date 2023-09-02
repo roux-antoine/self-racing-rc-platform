@@ -37,32 +37,17 @@ class RtkGpsSerialReader:
 
             # If data received, print it
             if serial_data:
-                print("Received data from serial port: ", serial_data)
-
                 # uncomment to handle RMC
                 if "GNRMC" in serial_data:
-                    print(serial_data)
                     parsed_msg = NMEAReader.parse(serial_data)
                     print(parsed_msg)
-                    # print("Lat: {}, Lon: {}".format(parsed_msg.lat, parsed_msg.lon))
-                    # print(parsed_msg)
                     self.publish_nmea_sentence_rmc(parsed_msg)
-
-                # uncomment to handle GGA
-                # NOTE interestingly there is no velocity info in this message
-                # if('GNGGA' in serial_data):
-                #     print(serial_data)
-                #     parsed_msg = NMEAReader.parse(serial_data)
-                #     print(parsed_msg)
-                #     # print("Lat: {}, Lon: {}".format(parsed_msg.lat, parsed_msg.lon))
-                #     # print(parsed_msg)
-                #     self.publish_nmea_sentence_gga(parsed_msg)
 
             self.rate.sleep()
 
     def publish_nmea_sentence_rmc(self, parsed_msg):
         """
-        TODO
+        Formats the parsed line from the serial into a nmea_msgs/Gprmc message and publishes it
         """
         # we need to construct the date and time by hand
         date_time_string = f"{parsed_msg.date}_{parsed_msg.time}"
@@ -80,19 +65,15 @@ class RtkGpsSerialReader:
         msg.lon_dir = parsed_msg.EW
         msg.speed = parsed_msg.spd
         msg.track = parsed_msg.cog
-        msg.date = parsed_msg.date
-        msg.mag_var = parsed_msg.mv
+        msg.date = parsed_msg.date.strftime("%Y-%m-%d")
+        try:
+            msg.mag_var = float(parsed_msg.mv)
+        except Exception:
+            msg.mag_var = -1
         msg.mag_var_direction = parsed_msg.mvEW
         msg.mode_indicator = parsed_msg.posMode
 
         self.pub.publish(msg)
-
-    def publish_nmea_sentence_gga(self, parsed_msg):
-        """
-        TODO
-        """
-        # TODO
-        pass
 
 
 if __name__ == "__main__":
