@@ -1,0 +1,4 @@
+float64[] target_point_coords
+int32 waypoint_after_lookahead_circle_id
+int32 waypoint_before_lookahead_circle_id
+float64 control_loop_runtime

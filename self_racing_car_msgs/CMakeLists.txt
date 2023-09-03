@@ -51,6 +51,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   ArduinoLogging.msg
+  ControllerDebugInfo.msg
   RmcNmea.msg
   VehicleCommand.msg
   VehicleState.msg
