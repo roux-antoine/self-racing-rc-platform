@@ -1,13 +1,14 @@
 #!/usr/bin/python3
 
 import math
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rospy
 from matplotlib.animation import FuncAnimation
 
-from self_racing_car_msgs.msg import VehicleCommand, VehicleState
+from self_racing_car_msgs.msg import ControllerDebugInfo, VehicleCommand,VehicleState
 
 
 class Waypoint:
@@ -28,11 +29,10 @@ class Waypoint:
 
 class Controller:
     def __init__(self, gui_flag):
-
         # Parameters
         topic_current_state = rospy.get_param("~topic_current_state", "vehicle_state")
         self.lookahead_distance = rospy.get_param(
-            "~lookahead_distance", 10
+            "~lookahead_distance", 5
         )  # max = 40m, min = half width of the track
         self.wheel_base = rospy.get_param("~wheel_base", 0.26)
         self.max_curvature = rospy.get_param("~max_curvature", 100000)
@@ -40,12 +40,13 @@ class Controller:
         # self.frequency          = rospy.get_param('~frequency', 2.0)
         # self.rate               = rospy.Rate(self.frequency)
         # self.rate_init          = rospy.Rate(1.0)   # Rate while we wait for topic
-        wp_file = "/home/antoine/workspace/2022_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_waypoints_detail_3m.txt"
-        edges_file = "/home/antoine/workspace/2022_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_inner_edge.txt"
+        # TODO fix these two paths
+        wp_file = "/home/antoine/workspace/self_racing_rc_platform_ws/src/utils/utm_map_generation/x_y_files/rex_manor_parking_lot_waypoints.txt"
+        # edges_file = "/home/antoine/workspace/self_racing_rc_platform_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_inner_edge.txt"
 
         self.PAST_STATES_WINDOW_SIZE = 10
-        self.X_AXIS_LIM = 50
-        self.Y_AXIS_LIM = 50
+        self.X_AXIS_LIM = 30
+        self.Y_AXIS_LIM = 30
         self.WAYPOINTS_BEHIND_NBR = 6
         self.WAYPOINTS_AFTER_NBR = 12
         self.THROTTLE_START_LINE = 40  # TODO improve
@@ -55,7 +56,7 @@ class Controller:
         # Initial values
         self.current_state = VehicleState(0, 0, 0, 0, 0, 0, 0)
         self.past_n_states = []
-        self.target_wp = Waypoint(-1, -1, -1, -1)
+        self.target_point = Waypoint(-1, -1, -1, -1)
 
         self.gui_flag = gui_flag
 
@@ -96,22 +97,32 @@ class Controller:
             # for id, x, y in zip(range(len(waypoints_xs)), waypoints_xs, waypoints_ys):
             #     plt.annotate(id, (x, y))
 
-            self.edges_xs_list, self.edges_ys_list = self.load_edges(edges_file)
-            # self.edges_xs_list, self.edges_ys_list = [], []
+            # self.edges_xs_list, self.edges_ys_list = self.load_edges(edges_file)
+            self.edges_xs_list, self.edges_ys_list = [], []
 
             # Subscribers
             rospy.Subscriber(
-                topic_current_state, VehicleState, self.callback_current_state
+                topic_current_state,
+                VehicleState,
+                self.callback_current_state,
             )
 
             # Publishers
-            self.pub_vehicle_cmd = rospy.Publisher(
-                "vehicle_command", VehicleCommand, queue_size=10
+            self.vehicle_cmd_pub = rospy.Publisher(
+                "vehicle_command",
+                VehicleCommand,
+                queue_size=10,
+            )
+            self.controller_debug_info_pub = rospy.Publisher(
+                "controller_debug_info",
+                ControllerDebugInfo,
+                queue_size=10,
             )
 
     # ##################### PURE PURSUIT FUNCTIONS #####################
 
     def callback_current_state(self, msg):
+        function_start_time = time.time()
 
         self.current_state = msg
         self.past_n_states.append(self.current_state)
@@ -123,36 +134,35 @@ class Controller:
         #     self.rate_init.sleep()
 
         if True:
-
             # Find lookahead waypoint = First waypoint further than lookahead distance and in front of vehicle
-            self.lookahead_wp, self.id_lookahead_wp = self.getNextWaypoint()
-
-            print(self.id_lookahead_wp)
+            self.lookahead_wp, self.lookahead_wp_id = self.getNextWaypoint()
+            self.wp_before_lookahead_wp_id = (
+                self.lookahead_wp_id - 1
+            )  # TODO handle the case when it is 0
 
             # Figure out if we are at the start line
-            at_start_line = self.id_lookahead_wp < self.START_LINE_WP_THRESHOLD
+            at_start_line = self.lookahead_wp_id < self.START_LINE_WP_THRESHOLD
 
             if not at_start_line:
-
-                # Get target waypoint - Linear interpolation between lookahead waypoint and waypoint before it
+                # Get target point - Linear interpolation between lookahead waypoint and waypoint before it
                 # Equation linear equation: "ax + by + c = 0"
                 # if there are two points (x1,y1) , (x2,y2), a = "y2-y1, b = "(-1) * x2 - x1" ,c = "(-1) * (y2-y1)x1 + (x2-x1)y1"
-                a, b, c = self.getLinearEquation(
-                    self.current_waypoints[self.id_lookahead_wp],
-                    self.current_waypoints[self.id_lookahead_wp - 1],
-                )
+                # a, b, c = self.getLinearEquation(
+                #     self.current_waypoints[self.lookahead_wp_id],
+                #     self.current_waypoints[self.wp_before_lookahead_wp_id],
+                # )
 
                 # Find intersection between line and circle around vehicle
                 intersections = self.circle_line_segment_intersection(
                     (self.current_state.x, self.current_state.y),
                     self.lookahead_distance,
                     (
-                        self.current_waypoints[self.id_lookahead_wp].x,
-                        self.current_waypoints[self.id_lookahead_wp].y,
+                        self.current_waypoints[self.lookahead_wp_id].x,
+                        self.current_waypoints[self.lookahead_wp_id].y,
                     ),
                     (
-                        self.current_waypoints[self.id_lookahead_wp - 1].x,
-                        self.current_waypoints[self.id_lookahead_wp - 1].y,
+                        self.current_waypoints[self.wp_before_lookahead_wp_id].x,
+                        self.current_waypoints[self.wp_before_lookahead_wp_id].y,
                     ),
                 )
 
@@ -172,24 +182,24 @@ class Controller:
                     )
 
                     if d1 < d2:
-                        # Set the target waypoint id as -1
-                        self.target_wp = Waypoint(
+                        # Set the target point id as -1
+                        self.target_point = Waypoint(
                             -1, intersections[0][0], intersections[0][1], 0
                         )
                     else:
-                        self.target_wp = Waypoint(
+                        self.target_point = Waypoint(
                             -1, intersections[1][0], intersections[1][1], 0
                         )
 
                 elif len(intersections) == 1:
-                    # If only one intersection, maybe the target waypoint should be the lookahead waypoint
-                    self.target_wp = self.lookahead_wp
+                    # If only one intersection, maybe the target point should be the lookahead waypoint
+                    self.target_point = self.lookahead_wp
 
                 else:
-                    self.target_wp = self.lookahead_wp
+                    self.target_point = self.lookahead_wp
 
                 # Compute curvature between vehicle and target waypoint
-                self.curvature = self.ComputeCurvature(self.target_wp)
+                self.curvature = self.ComputeCurvature(self.target_point)
 
                 # Convert curvature into steering angle
                 self.steering_angle = self.ConvertCurvatureToSteeringAngle(
@@ -201,8 +211,13 @@ class Controller:
                 self.steering_angle = 0
                 self.throttle = self.THROTTLE_START_LINE
 
+            self.runtime = time.time() - function_start_time
+
             # Publish cmd
             self.publish_vehicle_cmd()
+
+            # Publish controller debug info
+            self.publish_controller_debug_info()
 
         # self.rate.sleep()
 
@@ -277,7 +292,7 @@ class Controller:
     def ComputeCurvature(self, target):
         # Inputs:
         #   - current_state (type VehicleState)
-        #   - target_wp (type Waypoint)
+        #   - target_point (type Waypoint)
         # Ouput:
         #   - Curvature of the circle arc between the two points
 
@@ -322,7 +337,6 @@ class Controller:
         return np.arctan(curvature * self.wheel_base)
 
     def getLinearEquation(self, pt_a, pt_b):
-
         a = abs(pt_b.y - pt_a.y)
         b = pt_a.x - pt_b.x
         c = -1 * (pt_b.y - pt_a.y) * pt_a.x + (pt_b.x - pt_a.x) * pt_a.y
@@ -400,10 +414,18 @@ class Controller:
         cmd_msg.steering_value_rad = self.steering_angle
         cmd_msg.throttle_value = self.throttle
 
-        self.pub_vehicle_cmd.publish(cmd_msg)
+        self.vehicle_cmd_pub.publish(cmd_msg)
+
+    def publish_controller_debug_info(self):
+        debug_msg = ControllerDebugInfo()
+        debug_msg.target_point_coords = [self.target_point.x, self.target_point.y]
+        debug_msg.waypoint_after_lookahead_circle_id = self.lookahead_wp_id
+        debug_msg.waypoint_before_lookahead_circle_id = self.wp_before_lookahead_wp_id
+        debug_msg.control_loop_runtime = self.runtime
+
+        self.controller_debug_info_pub.publish(debug_msg)
 
     def load_waypoints(self, file):
-
         with open(file) as waypoints_file:
             waypoints_xs_ys = [
                 [float(line.split()[0]), float(line.split()[1])]
@@ -494,7 +516,6 @@ class Controller:
         )
 
     def prepare_map(self):
-
         self.ax.scatter(self.waypoints_xs, self.waypoints_ys)
 
         for id, x, y in zip(
@@ -517,12 +538,10 @@ class Controller:
         self.last_angle = self.current_state.angle
 
     def plot_states_etc(self, _):
-
-        if self.target_wp.x == -1:
+        if self.target_point.x == -1:
             return
 
         if self.current_state.x != 0 and self.current_state.y != 0:
-
             plt.cla()
 
             # Previous car locations
@@ -538,7 +557,10 @@ class Controller:
 
             # Target waypoint
             self.ax.scatter(
-                self.target_wp.x, self.target_wp.y, color="r", label="target waypoint"
+                self.target_point.x,
+                self.target_point.y,
+                color="r",
+                label="target waypoint",
             )
 
             for edges_xs, edges_ys in zip(self.edges_xs_list, self.edges_ys_list):
@@ -560,9 +582,9 @@ class Controller:
 
             # Waypoints
             for idx in range(
-                max(self.id_lookahead_wp - self.WAYPOINTS_BEHIND_NBR, 0),
+                max(self.lookahead_wp_id - self.WAYPOINTS_BEHIND_NBR, 0),
                 min(
-                    self.id_lookahead_wp + self.WAYPOINTS_AFTER_NBR,
+                    self.lookahead_wp_id + self.WAYPOINTS_AFTER_NBR,
                     len(self.waypoints_xs),
                 ),
             ):
