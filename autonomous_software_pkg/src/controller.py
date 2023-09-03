@@ -5,6 +5,7 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import rospy
 import tf
 from matplotlib.animation import FuncAnimation
@@ -53,8 +54,14 @@ class Controller:
         # self.frequency          = rospy.get_param('~frequency', 2.0)
         # self.rate               = rospy.Rate(self.frequency)
         # self.rate_init          = rospy.Rate(1.0)   # Rate while we wait for topic
-        wp_file = "/home/mattia/workspace/self_racing_rc_platform_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_waypoints_detail_3m.txt"
-        edges_file = "/home/mattia/workspace/self_racing_rc_platform_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_inner_edge.txt"
+        x_y_folder_path = os.path.join(
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ),
+            "utils/utm_map_generation/x_y_files",
+        )
+        wp_file = os.path.join(x_y_folder_path, "rex_manor_parking_lot_waypoints.txt")
+        edges_file = os.path.join(x_y_folder_path, "rex_manor_parking_lot_edges.txt")
 
         self.PAST_STATES_WINDOW_SIZE = 10
         self.X_AXIS_LIM = 30
