@@ -117,7 +117,7 @@ if __name__ == "__main__":
         utm_xs.append(utm_x)
         utm_ys.append(utm_y)
 
-    # Option checking if distances make sense
+    # Option: Checking if distances make sense
     check_if_3_distance_computations_match = False
     if check_if_3_distance_computations_match:
         distances_haversine = []
@@ -190,33 +190,38 @@ if __name__ == "__main__":
     track_angle_data_derivatives = []
     angle_diffs = []
     radiuses_from_velocity = []
-    step = 1
-    for i in range(0, len(track_angle_data_smoothed) - step, step):
-        angle_diff = track_angle_data_smoothed[i + step] - track_angle_data_smoothed[i]
+    accelerations_from_velocity = []
+    for i in range(len(track_angle_data) - 1):
+        angle_diff = track_angle_data[i + 1] - track_angle_data[i]
         # assumption: if the difference between 2 timestamps is greater than 180 degrees, we assume the 360 mark was crossed
         if angle_diff > 180:
             angle_diff = 360 - angle_diff
         elif angle_diff < -180:
             angle_diff = 360 + angle_diff
-        time_diff = timestamps[i + step] - timestamps[i]
+        time_diff = timestamps[i + 1] - timestamps[i]
         track_angle_data_derivative = angle_diff / time_diff
+
         if track_angle_data_derivative != 0:
             radius_from_velocity = speed_data_smoothed[i] / abs(
                 (track_angle_data_derivative * np.pi / 180)
             )
         else:
             radius_from_velocity = 0
+
+        acceleration = (
+            radius_from_velocity * (track_angle_data_derivative * np.pi / 180) ** 2
+        )
+
         angle_diffs.append(angle_diff)
         track_angle_data_derivatives.append(track_angle_data_derivative)
         radiuses_from_velocity.append(radius_from_velocity)
-        for i in range(step - 1):
-            angle_diffs.append(0)
-            track_angle_data_derivatives.append(0)
-            radiuses_from_velocity.append(0)
-    for i in range(step):
-        angle_diffs.append(0)
-        track_angle_data_derivatives.append(0)
-        radiuses_from_velocity.append(0)
+        accelerations_from_velocity.append(acceleration)
+    # adding some 0s to have an array of the correct length
+    angle_diffs.append(0)
+    track_angle_data_derivatives.append(0)
+    radiuses_from_velocity.append(0)
+    accelerations_from_velocity.append(0)
+    # bounding the very large radiuses
     radiuses_from_velocity = [
         radius if radius < MAX_RADIUS_THRESHOLD else MAX_RADIUS_THRESHOLD
         for radius in radiuses_from_velocity
@@ -251,18 +256,30 @@ if __name__ == "__main__":
         x=timestamps,
         y=radiuses_from_velocity,
         mode="lines",
-        name="Turning radius computed form gps velocities (m)",
+        name="Turning radius computed from gps velocities (m)",
     )
     steering_angles_trace = go.Scatter(
         x=timestamps, y=steering_angles, mode="lines", name="Steering command"
+    )
+    accelerations_from_velocity_trace = go.Scatter(
+        x=timestamps,
+        y=accelerations_from_velocity,
+        mode="lines",
+        name="Acceleration computed from gps velocities (m/s^2)",
     )
 
     # Create a subplot with two subplots (Speed and Track Angle)
     # if start_time != -1 and end_time != -1:
     fig = sp.make_subplots(
-        rows=4,
+        rows=5,
         cols=1,
-        subplot_titles=("Speed", "Track Angle", "Turning radius", "Steering command"),
+        subplot_titles=(
+            "Speed",
+            "Track Angle",
+            "Turning radius",
+            "Steering command",
+            "Acceleration",
+        ),
     )
 
     # fig.update_layout(xaxis_range=[args.start_time, args.end_time])
@@ -275,6 +292,7 @@ if __name__ == "__main__":
     fig.add_trace(radiuses_from_utm_trace, row=3, col=1)
     fig.add_trace(radiuses_from_velocity_trace, row=3, col=1)
     fig.add_trace(steering_angles_trace, row=4, col=1)
+    fig.add_trace(accelerations_from_velocity_trace, row=5, col=1)
 
     # Update the layout of the subplots
     fig.update_xaxes(title_text="Time", row=1, col=1)
@@ -283,7 +301,7 @@ if __name__ == "__main__":
     fig.update_yaxes(title_text="Track Angle (degrees)", row=2, col=1)
     fig.update_yaxes(title_text="Turning radius (m)", row=3, col=1)
     fig.update_yaxes(title_text="Steering angle final cmd", row=4, col=1)
-    # TODO the rest
+    fig.update_yaxes(title_text="Acceleration (m/s^2)", row=5, col=1)
 
     fig.update_xaxes(range=[args.start_time, args.end_time])
 
