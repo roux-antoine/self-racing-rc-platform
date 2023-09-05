@@ -1,5 +1,8 @@
 import argparse
+import csv
 import math
+import os
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,6 +16,7 @@ KNOTS_TO_MPS = 0.514444
 EARTH_RADIUS = 6371000  # approximately 6,371 kilometers
 MAX_RADIUS_THRESHOLD = 30  # m
 GPS_PUBLISHING_RATE = 10
+STEERING_CENTER = 98
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -59,7 +63,7 @@ def define_circle(p1, p2, p3):
 
 
 class BagPlotter:
-    def __init__(self, bag_path, start_time, end_time) -> None:
+    def __init__(self, bag_path, start_time=None, end_time=None) -> None:
 
         self.bag_path = bag_path
         self.start_time = start_time
@@ -344,23 +348,22 @@ class BagPlotter:
                 y=self.mean_window_steering_angle, line_dash="solid", row=4, col=1
             )
             fig.add_hline(
-                y=self.mean_window_acceleration_from_velocity_window,
+                y=self.mean_window_acceleration_from_velocity,
                 line_dash="solid",
                 row=5,
                 col=1,
             )
 
         # Save the subplots
-        fig.write_image("combined_subplot.png")
         fig.write_html("combined_subplot.html")
 
         # Show the subplots
         fig.show()
 
-    def compute_average_values_in_window(self):
+    def compute_average_values_in_window(self, window_start_time, window_end_time):
         """Asks the user for the time window to compute the average values in"""
-        self.window_start_time = float(input("Enter start time for the window: "))
-        self.window_end_time = float(input("Enter end time for the window: "))
+        self.window_start_time = window_start_time
+        self.window_end_time = window_end_time
 
         window_start_index = next(
             (
@@ -395,7 +398,7 @@ class BagPlotter:
             np.mean(radiuses_from_velocity_window), 2
         )
         self.mean_window_steering_angle = round(np.mean(steering_angles_window), 2)
-        self.mean_window_acceleration_from_velocity_window = round(
+        self.mean_window_acceleration_from_velocity = round(
             np.mean(accelerations_from_velocity_window), 2
         )
 
@@ -405,7 +408,7 @@ class BagPlotter:
         )
         print(f"mean_window_steering_angle: {self.mean_window_steering_angle}")
         print(
-            f"mean_window_acceleration_from_velocity_window: {self.mean_window_acceleration_from_velocity_window}"
+            f"mean_window_acceleration_from_velocity: {self.mean_window_acceleration_from_velocity}"
         )
 
 
@@ -415,31 +418,101 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Process bag files with start and end times."
     )
-    parser.add_argument("--bag-path", "-b", type=str, help="Path to the bag file.")
+    parser.add_argument(
+        "--bag-path", "-b", type=str, default="", help="Path to the bag file."
+    )
     parser.add_argument(
         "--start-time",
         "-s",
         type=float,
         default=None,
-        help="Start time (in bag time) for plotting.",
+        help="Start time (in bag time) for plotting a single bag.",
     )
     parser.add_argument(
         "--end-time",
         "-e",
         type=float,
         default=None,
-        help="End time (in bag time) for plotting.",
+        help="End time (in bag time) for plotting a single bag.",
+    )
+    parser.add_argument(
+        "--folder-path",
+        "-f",
+        type=str,
+        default="",
+        help="Folder of bags to process",
     )
     args = parser.parse_args()
-    bag_path = args.bag_path
-    start_time = args.start_time
-    end_time = args.end_time
 
-    bag_plotter = BagPlotter(
-        bag_path=bag_path, start_time=start_time, end_time=end_time
-    )
-    bag_plotter.compute_radius_from_smoothed_utm()
-    bag_plotter.compute_radius_from_smoothed_velocities()
-    bag_plotter.plot_traces()
-    bag_plotter.compute_average_values_in_window()
-    bag_plotter.plot_traces()
+    if args.bag_path:
+        print(
+            "You passed the bag_path argument. The script will process a single bagfile."
+        )
+
+        bag_plotter = BagPlotter(
+            bag_path=args.bag_path, start_time=args.start_time, end_time=args.end_time
+        )
+        bag_plotter.compute_radius_from_smoothed_utm()
+        bag_plotter.compute_radius_from_smoothed_velocities()
+        bag_plotter.plot_traces()
+    elif args.folder_path:
+        print(
+            "You passed the folder_path argument. The script will process bags sequentially and ask you for time windows to process."
+        )
+
+        csv_path = f"csvs/{os.path.basename(args.folder_path)}_{int(datetime.now().timestamp())}.csv"
+        print(f"Will save to file: {csv_path}")
+
+        with open(csv_path, "a", newline="") as csv_file:
+            writer = csv.writer(csv_file)
+
+            header_row = [
+                "bag_name",
+                "mean_window_speed",
+                "mean_window_radius_from_velocity",
+                "mean_window_steering_angle",
+                "mean_window_acceleration_from_velocity",
+                "mean_window_steering_angle_deviation_from_center",
+            ]
+            writer.writerow(header_row)
+
+            for bag_name in os.listdir(args.folder_path):
+                if not bag_name.endswith(".bag"):
+                    continue
+                print()
+                print(f"Processing bag {bag_name}")
+                bag_plotter = BagPlotter(
+                    bag_path=os.path.join(args.folder_path, bag_name)
+                )
+                bag_plotter.compute_radius_from_smoothed_utm()
+                bag_plotter.compute_radius_from_smoothed_velocities()
+                bag_plotter.plot_traces()
+
+                window_start_time_input = input("Enter start time for the window: ")
+                window_end_time_input = input("Enter end time for the window: ")
+
+                if not window_start_time_input or not window_end_time_input:
+                    print("Nothing entered, skipping this bag")
+                    continue
+                try:
+                    window_start_time = float(window_start_time_input)
+                    window_end_time = float(window_end_time_input)
+                except Exception:
+                    print("Could not convert these times, skipping this bag")
+                    continue
+
+                bag_plotter.compute_average_values_in_window(
+                    window_start_time, window_end_time
+                )
+                bag_plotter.plot_traces()
+
+                input("Press Enter if you're happy, Ctrl+C to exit. ")
+                data_row = [
+                    bag_name,
+                    bag_plotter.mean_window_speed,
+                    bag_plotter.mean_window_radius_from_velocity,
+                    bag_plotter.mean_window_steering_angle,
+                    bag_plotter.mean_window_acceleration_from_velocity,
+                    abs(STEERING_CENTER - bag_plotter.mean_window_steering_angle),
+                ]
+                writer.writerow(data_row)
