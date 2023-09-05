@@ -1,13 +1,13 @@
-import rosbag
+import argparse
 import math
+
+import matplotlib.pyplot as plt
+import numpy as np
 import plotly.graph_objs as go
 import plotly.subplots as sp
-import numpy as np
-import utm
-import matplotlib.pyplot as plt
+import rosbag
 import scipy
-import argparse
-
+import utm
 
 KNOTS_TO_MPS = 0.514444
 EARTH_RADIUS = 6371000  # approximately 6,371 kilometers
@@ -65,15 +65,17 @@ class BagPlotter:
         self.start_time = start_time
         self.end_time = end_time
 
-        # Initialize lists
+        # Initialize things
         self.timestamps = []
-        self.speed_data = []  # in m/s
-        self.track_angle_data = []  # in deg
+        self.speeds = []  # in m/s
+        self.track_angles = []  # in deg
         self.latitudes = []
         self.longitudes = []
         self.steering_angles = []
         self.utm_xs = []
         self.utm_ys = []
+        self.window_start_time = None
+        self.window_end_time = None
 
         # Open the bagfile
         with rosbag.Bag(bag_path, "r") as bag:
@@ -82,8 +84,8 @@ class BagPlotter:
             ):
                 if topic == "/gps_info":
                     self.timestamps.append(t.to_sec())
-                    self.speed_data.append(msg.speed * KNOTS_TO_MPS)
-                    self.track_angle_data.append(msg.track)
+                    self.speeds.append(msg.speed * KNOTS_TO_MPS)
+                    self.track_angles.append(msg.track)
                     self.latitudes.append(msg.lat)
                     self.longitudes.append(msg.lon)
                 elif topic == "/arduino_logging":
@@ -93,10 +95,10 @@ class BagPlotter:
         self.zeroed_timestamps = np.array(self.timestamps) - self.timestamps[0]
 
         # Smooth some signals
-        self.track_angle_data_smoothed = scipy.ndimage.gaussian_filter1d(
-            self.track_angle_data, 1
+        self.track_angles_smoothed = scipy.ndimage.gaussian_filter1d(
+            self.track_angles, 1
         )
-        self.speed_data_smoothed = scipy.ndimage.gaussian_filter1d(self.speed_data, 1)
+        self.speeds_smoothed = scipy.ndimage.gaussian_filter1d(self.speeds, 1)
         self.latitudes_smoothed = scipy.ndimage.gaussian_filter1d(self.latitudes, 1)
         self.longitudes_smoothed = scipy.ndimage.gaussian_filter1d(self.longitudes, 1)
 
@@ -148,7 +150,7 @@ class BagPlotter:
             np.array(distances_utm) * GPS_PUBLISHING_RATE,
             label="speed utm",
         )  # factor 10 because 10Hz
-        plt.plot(self.zeroed_timestamps, np.array(self.speed_data), label="speed gps")
+        plt.plot(self.zeroed_timestamps, np.array(self.speeds), label="speed gps")
         plt.legend()
         plt.show()
 
@@ -201,35 +203,35 @@ class BagPlotter:
     def compute_radius_from_smoothed_velocities(self):
         """Compute the radius of the turn using the linear and angular velocities from the GPS"""
         # Computing the radius using the smoothed velocities from the GPS, valid with assumption of circle motion
-        self.track_angle_data_derivatives = []
+        self.track_angles_derivatives = []
         self.radiuses_from_velocity = []
         self.accelerations_from_velocity = []
-        for i in range(len(self.track_angle_data) - 1):
-            angle_diff = self.track_angle_data[i + 1] - self.track_angle_data[i]
+        for i in range(len(self.track_angles) - 1):
+            angle_diff = self.track_angles[i + 1] - self.track_angles[i]
             # assumption: if the difference between 2 timestamps is greater than 180 degrees, we assume the 360 mark was crossed
             if angle_diff > 180:
                 angle_diff = 360 - angle_diff
             elif angle_diff < -180:
                 angle_diff = 360 + angle_diff
             time_diff = self.timestamps[i + 1] - self.timestamps[i]
-            track_angle_data_derivative = angle_diff / time_diff
+            track_angles_derivative = angle_diff / time_diff
 
-            if track_angle_data_derivative != 0:
-                radius_from_velocity = self.speed_data_smoothed[i] / abs(
-                    (track_angle_data_derivative * np.pi / 180)
+            if track_angles_derivative != 0:
+                radius_from_velocity = self.speeds_smoothed[i] / abs(
+                    (track_angles_derivative * np.pi / 180)
                 )
             else:
                 radius_from_velocity = 0
 
             acceleration = (
-                radius_from_velocity * (track_angle_data_derivative * np.pi / 180) ** 2
+                radius_from_velocity * (track_angles_derivative * np.pi / 180) ** 2
             )
 
-            self.track_angle_data_derivatives.append(track_angle_data_derivative)
+            self.track_angles_derivatives.append(track_angles_derivative)
             self.radiuses_from_velocity.append(radius_from_velocity)
             self.accelerations_from_velocity.append(acceleration)
         # adding some 0s to have an array of the correct length
-        self.track_angle_data_derivatives.append(0)
+        self.track_angles_derivatives.append(0)
         self.radiuses_from_velocity.append(0)
         self.accelerations_from_velocity.append(0)
         # bounding the very large radiuses
@@ -242,25 +244,25 @@ class BagPlotter:
         """Plot traces of the different signals"""
         speed_trace = go.Scatter(
             x=self.zeroed_timestamps,
-            y=self.speed_data,
+            y=self.speeds,
             mode="lines",
             name="Speed (m/s)",
         )
         speed_trace_smoothed = go.Scatter(
             x=self.zeroed_timestamps,
-            y=self.speed_data_smoothed,
+            y=self.speeds_smoothed,
             mode="lines",
             name="Speed smoothed (m/s)",
         )
         track_angle_trace = go.Scatter(
             x=self.zeroed_timestamps,
-            y=self.track_angle_data,
+            y=self.track_angles,
             mode="lines",
             name="Track Angle (degrees)",
         )
         track_angle_smoothed_trace = go.Scatter(
             x=self.zeroed_timestamps,
-            y=self.track_angle_data_smoothed,
+            y=self.track_angles_smoothed,
             mode="lines",
             name="Track Angle smoothed (degrees)",
         )
@@ -289,7 +291,7 @@ class BagPlotter:
             name="Acceleration computed from gps velocities (m/s^2)",
         )
 
-        # Create a subplot with two subplots (Speed and Track Angle)
+        # Create a subplot with subplots
         fig = sp.make_subplots(
             rows=5,
             cols=1,
@@ -323,12 +325,88 @@ class BagPlotter:
 
         fig.update_xaxes(range=[self.start_time, self.end_time])
 
-        # Save the subplots to a single PNG file
+        # adding the horizontal lines if they have been computed
+        if self.window_start_time and self.window_end_time:
+            fig.add_vrect(
+                self.window_start_time,
+                self.window_end_time,
+                row="all",
+                col="all",
+                fillcolor="green",
+                opacity=0.25,
+                line_width=0,
+            )
+            fig.add_hline(y=self.mean_window_speed, line_dash="solid", row=1, col=1)
+            fig.add_hline(
+                y=self.mean_window_radius_from_velocity, line_dash="solid", row=3, col=1
+            )
+            fig.add_hline(
+                y=self.mean_window_steering_angle, line_dash="solid", row=4, col=1
+            )
+            fig.add_hline(
+                y=self.mean_window_acceleration_from_velocity_window,
+                line_dash="solid",
+                row=5,
+                col=1,
+            )
+
+        # Save the subplots
         fig.write_image("combined_subplot.png")
         fig.write_html("combined_subplot.html")
 
         # Show the subplots
         fig.show()
+
+    def compute_average_values_in_window(self):
+        """Asks the user for the time window to compute the average values in"""
+        self.window_start_time = float(input("Enter start time for the window: "))
+        self.window_end_time = float(input("Enter end time for the window: "))
+
+        window_start_index = next(
+            (
+                i
+                for i, x in enumerate(self.zeroed_timestamps)
+                if x > self.window_start_time
+            ),
+            -1,
+        )
+        window_end_index = next(
+            (
+                i
+                for i, x in enumerate(self.zeroed_timestamps)
+                if x > self.window_end_time
+            ),
+            -1,
+        )
+
+        speeds_window = self.speeds[window_start_index:window_end_index]
+        radiuses_from_velocity_window = self.radiuses_from_velocity[
+            window_start_index:window_end_index
+        ]
+        steering_angles_window = self.steering_angles[
+            window_start_index:window_end_index
+        ]
+        accelerations_from_velocity_window = self.accelerations_from_velocity[
+            window_start_index:window_end_index
+        ]
+
+        self.mean_window_speed = round(np.mean(speeds_window), 2)
+        self.mean_window_radius_from_velocity = round(
+            np.mean(radiuses_from_velocity_window), 2
+        )
+        self.mean_window_steering_angle = round(np.mean(steering_angles_window), 2)
+        self.mean_window_acceleration_from_velocity_window = round(
+            np.mean(accelerations_from_velocity_window), 2
+        )
+
+        print(f"mean_window_speed: {self.mean_window_speed}")
+        print(
+            f"mean_window_radius_from_velocity: {self.mean_window_radius_from_velocity}"
+        )
+        print(f"mean_window_steering_angle: {self.mean_window_steering_angle}")
+        print(
+            f"mean_window_acceleration_from_velocity_window: {self.mean_window_acceleration_from_velocity_window}"
+        )
 
 
 if __name__ == "__main__":
@@ -362,4 +440,6 @@ if __name__ == "__main__":
     )
     bag_plotter.compute_radius_from_smoothed_utm()
     bag_plotter.compute_radius_from_smoothed_velocities()
+    bag_plotter.plot_traces()
+    bag_plotter.compute_average_values_in_window()
     bag_plotter.plot_traces()
