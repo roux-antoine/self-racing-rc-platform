@@ -29,12 +29,12 @@ echo "Waiting 5 seconds for roscore to start..."
 sleep 5
 
 tmux select-pane -t 1
-tmux send-keys "cd '/home/nico/workspace/self_racing_rc_platform_ws/src/mapviz/mapvis_helpers/src'" C-m
+tmux send-keys "cd '/home/nico/workspace/self_racing_rc_platform_ws/src/mapvis_helpers/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun mapviz_helpers bag_listener.py" C-m
 
 tmux select-pane -t 3
-tmux send-keys "cd '/home/nico/workspace/self_racing_rc_platform_ws/src/mapviz/mapvis_helpers/src'" C-m
+tmux send-keys "cd '/home/nico/workspace/self_racing_rc_platform_ws/src/mapvis_helpers/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun mapviz_helpers transformbroad.py" C-m
 
