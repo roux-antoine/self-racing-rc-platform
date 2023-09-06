@@ -9,7 +9,7 @@ tmux new-session -d -s $session
 # splitting the pane 0 vertically
 tmux split-window -t 0 -v
 # splitting the pane 0 vertically
-tmux split-window -t 0 -v
+
 tmux select-layout even-vertical
 
 
@@ -18,7 +18,6 @@ tmux split-window -t 0 -h
 # splitting the pane 2 horizontally
 tmux split-window -t 2 -h
 # splitting the pane 4 horizontally
-tmux split-window -t 4 -h
 
 
 # roscore
@@ -30,14 +29,14 @@ echo "Waiting 5 seconds for roscore to start..."
 sleep 5
 
 tmux select-pane -t 1
-tmux send-keys "cd '/home/nico/workspace/self_racing_rc_platform_ws/src/autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '/home/nico/workspace/self_racing_rc_platform_ws/src/mapviz/mapvis_helpers/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun autonomous_software_pkg bag_listener.py" C-m
+tmux send-keys "rosrun mapviz_helpers bag_listener.py" C-m
 
 tmux select-pane -t 3
-tmux send-keys "cd '/home/nico/workspace/self_racing_rc_platform_ws/src/autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '/home/nico/workspace/self_racing_rc_platform_ws/src/mapviz/mapvis_helpers/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun autonomous_software_pkg transformbroad.py" C-m
+tmux send-keys "rosrun mapviz_helpers transformbroad.py" C-m
 
 tmux select-pane -t 2
 tmux send-keys "cd '/home/nico/workspace/self_racing_rc_platform_ws/src/bags'" C-m
