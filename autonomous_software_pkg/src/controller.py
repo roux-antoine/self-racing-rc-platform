@@ -154,7 +154,11 @@ class Controller:
             msg.pose.orientation.w,
         ]
         (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(orientation_list)
-        self.current_state.angle = yaw
+
+        if yaw <= 0 and yaw >= - math.pi: # yaw in [-pi, 0]
+            self.current_state.angle = yaw
+        elif yaw > 0 and yaw <= math.pi:  # yaw in ]0, pi]
+            self.current_state.angle =  yaw - 2 * math.pi
 
         self.past_n_states.append(self.current_state)
         if len(self.past_n_states) > self.PAST_STATES_WINDOW_SIZE:
