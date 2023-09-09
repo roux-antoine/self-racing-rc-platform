@@ -5,24 +5,10 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import rospy
-import tf
 from matplotlib.animation import FuncAnimation
 
-from self_racing_car_msgs.msg import ControllerDebugInfo, VehicleCommand
-from geometry_msgs.msg import PoseStamped
-
-
-class State:
-    def __init__(self, x=0, y=0, z=0, vx=0, vy=0, vz=0, angle=0):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.vx = vx
-        self.vy = vy
-        self.vz = vz
-        self.angle = angle
+from self_racing_car_msgs.msg import ControllerDebugInfo, VehicleCommand, VehicleState
 
 
 class Waypoint:
@@ -44,7 +30,9 @@ class Waypoint:
 class Controller:
     def __init__(self, gui_flag):
         # Parameters
-        topic_current_state = rospy.get_param("~topic_current_state", "gps_pose")
+        topic_current_state = rospy.get_param(
+            "~topic_current_state", "vehicle_state_legacy"
+        )
         self.lookahead_distance = rospy.get_param(
             "~lookahead_distance", 5
         )  # max = 40m, min = half width of the track
@@ -54,14 +42,9 @@ class Controller:
         # self.frequency          = rospy.get_param('~frequency', 2.0)
         # self.rate               = rospy.Rate(self.frequency)
         # self.rate_init          = rospy.Rate(1.0)   # Rate while we wait for topic
-        x_y_folder_path = os.path.join(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ),
-            "utils/utm_map_generation/x_y_files",
-        )
-        wp_file = os.path.join(x_y_folder_path, "rex_manor_parking_lot_waypoints.txt")
-        edges_file = os.path.join(x_y_folder_path, "rex_manor_parking_lot_edges.txt")
+        # TODO fix these two paths
+        wp_file = "/home/antoine/workspace/self_racing_rc_platform_ws/src/utils/utm_map_generation/x_y_files/rex_manor_parking_lot_waypoints.txt"
+        # edges_file = "/home/antoine/workspace/self_racing_rc_platform_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_inner_edge.txt"
 
         self.PAST_STATES_WINDOW_SIZE = 10
         self.X_AXIS_LIM = 30
@@ -73,7 +56,7 @@ class Controller:
         self.START_LINE_WP_THRESHOLD = 5  # TODO improve
 
         # Initial values
-        self.current_state = State()
+        self.current_state = VehicleState(0, 0, 0, 0, 0, 0, 0)
         self.past_n_states = []
         self.target_point = Waypoint(-1, -1, -1, -1)
 
@@ -96,7 +79,7 @@ class Controller:
                 Waypoint(5, 0, 5, 0),
                 Waypoint(6, 0, 6, 0),
             ]
-            self.current_state = State()
+            self.current_state = VehicleState()
             self.current_state.x = 1
             self.current_state.y = 0
             self.current_state.z = 0.0
@@ -116,19 +99,19 @@ class Controller:
             # for id, x, y in zip(range(len(waypoints_xs)), waypoints_xs, waypoints_ys):
             #     plt.annotate(id, (x, y))
 
-            self.edges_xs_list, self.edges_ys_list = self.load_edges(edges_file)
+            # self.edges_xs_list, self.edges_ys_list = self.load_edges(edges_file)
             self.edges_xs_list, self.edges_ys_list = [], []
 
             # Subscribers
             rospy.Subscriber(
                 topic_current_state,
-                PoseStamped,
+                VehicleState,
                 self.callback_current_state,
             )
 
             # Publishers
             self.vehicle_cmd_pub = rospy.Publisher(
-                "vehicle_command",
+                "vehicle_command_legacy",
                 VehicleCommand,
                 queue_size=10,
             )
@@ -143,23 +126,7 @@ class Controller:
     def callback_current_state(self, msg):
         function_start_time = time.time()
 
-        self.current_state.x = msg.pose.position.x
-        self.current_state.y = msg.pose.position.y
-        self.current_state.z = msg.pose.position.z
-
-        orientation_list = [
-            msg.pose.orientation.x,
-            msg.pose.orientation.y,
-            msg.pose.orientation.z,
-            msg.pose.orientation.w,
-        ]
-        (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(orientation_list)
-
-        if yaw <= 0 and yaw >= -math.pi:  # yaw in [-pi, 0]
-            self.current_state.angle = yaw
-        elif yaw > 0 and yaw <= math.pi:  # yaw in ]0, pi]
-            self.current_state.angle = yaw - 2 * math.pi
-
+        self.current_state = msg
         self.past_n_states.append(self.current_state)
         if len(self.past_n_states) > self.PAST_STATES_WINDOW_SIZE:
             self.state_to_unscatter = self.past_n_states.pop(0)
@@ -446,7 +413,7 @@ class Controller:
 
     def publish_vehicle_cmd(self):
         cmd_msg = VehicleCommand()
-        cmd_msg.steering_value_rad = self.steering_angle + 1
+        cmd_msg.steering_value_rad = self.steering_angle
         cmd_msg.throttle_value = self.throttle
 
         self.vehicle_cmd_pub.publish(cmd_msg)
@@ -651,7 +618,7 @@ class Controller:
 
 if __name__ == "__main__":
     try:
-        rospy.init_node("controller_legacy")
+        rospy.init_node("controller")
         ENABLE_GUI = False
         controller = Controller(ENABLE_GUI)
 
