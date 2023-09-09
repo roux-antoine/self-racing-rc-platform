@@ -2,7 +2,7 @@
 #include <Servo.h>
 #include <ros.h>
 #include <self_racing_car_msgs/ArduinoLogging.h>
-#include <self_racing_car_msgs/VehicleCommand.h>
+#include <std_msgs/Float32.h>
 
 // ------ CONSTANTS ------
 
@@ -14,10 +14,6 @@ const int STEERING_OUTPUT_PIN = 7;
 const int THROTTLE_OUTPUT_PIN = 8;
 
 const int LED_PIN = 13;
-
-const float PHYSICAL_MAX_ANGLE_STEERING = 0.4;  // rad (measuring the max wheel angle)
-const float EFFECTIVE_MAX_ANGLE_STEERING = 0.3; // rad (assuming 2.5m turning circle and 40.6cm wheelbase)
-const float MAX_THROTTLE_UNIT = 100;            // arbitrary unit of throttle cmd sent by the Pi
 
 const float STEERING_IDLE = 98;
 const float STEERING_MAX = 123;
@@ -54,12 +50,12 @@ const bool ROS_MODE = true;
 // ------ VARIABLES ------
 
 // commands that will be sent by PWM
-float steering_angle_rx = STEERING_IDLE;
-float throttle_angle_rx = THROTTLE_IDLE;
-volatile float steering_angle_pi = STEERING_IDLE;
-volatile float throttle_angle_pi = THROTTLE_IDLE;
-float steering_angle_final = STEERING_IDLE;
-float throttle_angle_final = THROTTLE_IDLE;
+float steering_cmd_rx = STEERING_IDLE;
+float throttle_cmd_rx = THROTTLE_IDLE;
+volatile float steering_cmd_autonomous = STEERING_IDLE;
+volatile float throttle_cmd_autonomous = THROTTLE_IDLE;
+float steering_cmd_final = STEERING_IDLE;
+float throttle_cmd_final = THROTTLE_IDLE;
 
 // temporary storage values
 volatile float flipped_steering_value_rad = 0;
@@ -91,35 +87,28 @@ Servo steering_servo;
 // ROS stuff
 ros::NodeHandle nh;
 
-void vehicle_command_callback(const self_racing_car_msgs::VehicleCommand &msg) {
-  digitalWrite(LED_PIN, HIGH - digitalRead(LED_PIN)); // blink the led
+void steering_pwm_cmd_callback(const std_msgs::Float32 &msg) {
 
-  // flipping the sign because a positive servo value turns towards the negative direction
-  flipped_steering_value_rad = -msg.steering_value_rad;
-
-  // Convert the steering angle value
-  if (flipped_steering_value_rad >= EFFECTIVE_MAX_ANGLE_STEERING) {
-    steering_angle_pi = STEERING_MAX;
-  } else if (flipped_steering_value_rad <= -EFFECTIVE_MAX_ANGLE_STEERING) {
-    steering_angle_pi = STEERING_MIN;
-  } else if (flipped_steering_value_rad >= 0) {
-    steering_angle_pi = STEERING_IDLE + flipped_steering_value_rad * ((STEERING_MAX - STEERING_IDLE) / EFFECTIVE_MAX_ANGLE_STEERING);
+  if (msg.data > STEERING_MAX) {
+    steering_cmd_autonomous = STEERING_MAX;
+  } else if (msg.data < STEERING_MIN) {
+    steering_cmd_autonomous = STEERING_MIN;
   } else {
-    steering_angle_pi = STEERING_IDLE + flipped_steering_value_rad * ((STEERING_IDLE - STEERING_MIN) / EFFECTIVE_MAX_ANGLE_STEERING);
-  }
-
-  // Converting the throttle value
-  if (msg.throttle_value >= MAX_THROTTLE_UNIT) {
-    throttle_angle_pi = THROTTLE_MAX_AUTONOMOUS;
-  } else if (msg.throttle_value <= -MAX_THROTTLE_UNIT) {
-    throttle_angle_pi = THROTTLE_MIN_AUTONOMOUS;
-  } else if (msg.throttle_value >= 0) {
-    throttle_angle_pi = THROTTLE_IDLE + msg.throttle_value * ((THROTTLE_MAX_AUTONOMOUS - THROTTLE_IDLE) / MAX_THROTTLE_UNIT);
-  } else {
-    throttle_angle_pi = THROTTLE_IDLE + msg.throttle_value * ((THROTTLE_IDLE - THROTTLE_MIN_AUTONOMOUS) / MAX_THROTTLE_UNIT);
+    steering_cmd_autonomous = msg.data;
   }
 }
-ros::Subscriber<self_racing_car_msgs::VehicleCommand> vehicle_command_sub("vehicle_command", &vehicle_command_callback);
+void throttle_pwm_cmd_callback(const std_msgs::Float32 &msg) {
+
+  if (msg.data > THROTTLE_MAX_AUTONOMOUS) {
+    throttle_cmd_autonomous = THROTTLE_MAX_AUTONOMOUS;
+  } else if (msg.data < THROTTLE_MIN_AUTONOMOUS) {
+    throttle_cmd_autonomous = THROTTLE_MIN_AUTONOMOUS;
+  } else {
+    throttle_cmd_autonomous = msg.data;
+  }
+}
+ros::Subscriber<std_msgs::Float32> steering_pwm_cmd_sub("steering_pwm_cmd", steering_pwm_cmd_callback);
+ros::Subscriber<std_msgs::Float32> throttle_pwm_cmd_sub("throttle_pwm_cmd", throttle_pwm_cmd_callback);
 self_racing_car_msgs::ArduinoLogging arduino_logging_msg;
 ros::Publisher arduino_logging_pub("arduino_logging", &arduino_logging_msg);
 
@@ -197,7 +186,8 @@ void setup() {
   if (ROS_MODE) {
     nh.initNode();
     nh.getHardware()->setBaud(57600);
-    nh.subscribe(vehicle_command_sub);
+    nh.subscribe(steering_pwm_cmd_sub);
+    nh.subscribe(throttle_pwm_cmd_sub);
     nh.advertise(arduino_logging_pub);
     nh.loginfo("In the setup");
   } else {
@@ -239,21 +229,21 @@ void loop() {
 
   // Compute steering from the Rx
   if (pulse_width_steering < CHANNEL_2_IDLE_MAX && pulse_width_steering > CHANNEL_2_IDLE_MIN) {
-    steering_angle_rx = STEERING_IDLE;
+    steering_cmd_rx = STEERING_IDLE;
   } else if (pulse_width_steering >= CHANNEL_2_IDLE_MAX) {
-    steering_angle_rx = int(STEERING_IDLE + (pulse_width_steering - CHANNEL_2_IDLE_MAX) * ((STEERING_MAX - STEERING_IDLE) / (CHANNEL_2_MAX - CHANNEL_2_IDLE_MAX)));
+    steering_cmd_rx = int(STEERING_IDLE + (pulse_width_steering - CHANNEL_2_IDLE_MAX) * ((STEERING_MAX - STEERING_IDLE) / (CHANNEL_2_MAX - CHANNEL_2_IDLE_MAX)));
   } else if (pulse_width_steering <= CHANNEL_2_IDLE_MIN) {
-    steering_angle_rx = int(STEERING_IDLE - (CHANNEL_2_IDLE_MIN - pulse_width_steering) * ((STEERING_IDLE - STEERING_MIN) / (CHANNEL_2_IDLE_MIN - CHANNEL_2_MIN)));
+    steering_cmd_rx = int(STEERING_IDLE - (CHANNEL_2_IDLE_MIN - pulse_width_steering) * ((STEERING_IDLE - STEERING_MIN) / (CHANNEL_2_IDLE_MIN - CHANNEL_2_MIN)));
   } else {
   }
 
   // Compute throttle from the Rx
   if (pulse_width_throttle < CHANNEL_3_IDLE_MAX && pulse_width_throttle > CHANNEL_3_IDLE_MIN) {
-    throttle_angle_rx = THROTTLE_IDLE;
+    throttle_cmd_rx = THROTTLE_IDLE;
   } else if (pulse_width_throttle >= CHANNEL_3_IDLE_MAX) {
-    throttle_angle_rx = int(THROTTLE_IDLE + (pulse_width_throttle - CHANNEL_3_IDLE_MAX) * ((THROTTLE_MAX_MANUAL - THROTTLE_IDLE) / (CHANNEL_3_MAX - CHANNEL_3_IDLE_MAX)));
+    throttle_cmd_rx = int(THROTTLE_IDLE + (pulse_width_throttle - CHANNEL_3_IDLE_MAX) * ((THROTTLE_MAX_MANUAL - THROTTLE_IDLE) / (CHANNEL_3_MAX - CHANNEL_3_IDLE_MAX)));
   } else if (pulse_width_throttle <= CHANNEL_3_IDLE_MIN) {
-    throttle_angle_rx = int(THROTTLE_IDLE - (CHANNEL_3_IDLE_MIN - pulse_width_throttle) * ((THROTTLE_IDLE - THROTTLE_MIN_MANUAL) / (CHANNEL_3_IDLE_MIN - CHANNEL_3_MIN)));
+    throttle_cmd_rx = int(THROTTLE_IDLE - (CHANNEL_3_IDLE_MIN - pulse_width_throttle) * ((THROTTLE_IDLE - THROTTLE_MIN_MANUAL) / (CHANNEL_3_IDLE_MIN - CHANNEL_3_MIN)));
   } else {
   }
 
@@ -271,45 +261,45 @@ void loop() {
 
   // Deciding which command to send // TODO: it'd be nice to have some smoothing when switching between the 2 modes
   if (!engaged_mode) {
-    steering_angle_final = steering_angle_rx;
-    throttle_angle_final = throttle_angle_rx;
+    steering_cmd_final = steering_cmd_rx;
+    throttle_cmd_final = throttle_cmd_rx;
   } else if (override_steering) {
-    steering_angle_final = steering_angle_rx;
-    throttle_angle_final = throttle_angle_pi;
+    steering_cmd_final = steering_cmd_rx;
+    throttle_cmd_final = throttle_cmd_autonomous;
   } else if (override_throttle) {
-    steering_angle_final = steering_angle_pi;
-    throttle_angle_final = throttle_angle_rx;
+    steering_cmd_final = steering_cmd_autonomous;
+    throttle_cmd_final = throttle_cmd_rx;
   } else {
-    steering_angle_final = steering_angle_pi;
-    throttle_angle_final = throttle_angle_pi;
+    steering_cmd_final = steering_cmd_autonomous;
+    throttle_cmd_final = throttle_cmd_autonomous;
   }
 
   // Making sure the commands are in bounds
-  if (steering_angle_final > STEERING_MAX) {
-    steering_angle_final = STEERING_MAX;
-  } else if (steering_angle_final < STEERING_MIN) {
-    steering_angle_final = STEERING_MIN;
+  if (steering_cmd_final > STEERING_MAX) {
+    steering_cmd_final = STEERING_MAX;
+  } else if (steering_cmd_final < STEERING_MIN) {
+    steering_cmd_final = STEERING_MIN;
   }
 
   // Making sure the commands are in bounds
-  if (steering_angle_final > STEERING_MAX) {
-    steering_angle_final = STEERING_MAX;
-  } else if (steering_angle_final < STEERING_MIN) {
-    steering_angle_final = STEERING_MIN;
+  if (steering_cmd_final > STEERING_MAX) {
+    steering_cmd_final = STEERING_MAX;
+  } else if (steering_cmd_final < STEERING_MIN) {
+    steering_cmd_final = STEERING_MIN;
   }
 
   // Sending the commands
-  steering_servo.write(steering_angle_final);
-  throttle_servo.write(throttle_angle_final);
+  steering_servo.write(steering_cmd_final);
+  throttle_servo.write(throttle_cmd_final);
 
   // Publishing the logging info
   if (ROS_MODE) {
-    arduino_logging_msg.steering_angle_rx = steering_angle_rx;
-    arduino_logging_msg.throttle_angle_rx = throttle_angle_rx;
-    arduino_logging_msg.steering_angle_pi = steering_angle_pi;
-    arduino_logging_msg.throttle_angle_pi = throttle_angle_pi;
-    arduino_logging_msg.steering_angle_final = steering_angle_final;
-    arduino_logging_msg.throttle_angle_final = throttle_angle_final;
+    arduino_logging_msg.steering_cmd_rx = steering_cmd_rx;
+    arduino_logging_msg.throttle_cmd_rx = throttle_cmd_rx;
+    arduino_logging_msg.steering_cmd_autonomous = steering_cmd_autonomous;
+    arduino_logging_msg.throttle_cmd_autonomous = throttle_cmd_autonomous;
+    arduino_logging_msg.steering_cmd_final = steering_cmd_final;
+    arduino_logging_msg.throttle_cmd_final = throttle_cmd_final;
     arduino_logging_msg.tmp_pulse_width_1 = tmp_pulse_width_steering;
     arduino_logging_msg.tmp_pulse_width_2 = tmp_pulse_width_throttle;
     arduino_logging_msg.tmp_pulse_width_3 = tmp_pulse_width_engaged;
@@ -324,8 +314,8 @@ void loop() {
     nh.spinOnce();
   }
 
-  // display_value("steering_angle_final ", steering_angle_final);
-  // display_value("throttle_angle_final ", throttle_angle_final);
+  // display_value("steering_cmd_final ", steering_cmd_final);
+  // display_value("throttle_cmd_final ", throttle_cmd_final);
   // display_value("engaged_mode", engaged_mode);
   // display_value("override throttle ", override_throttle);
   // display_value("override steering ", override_steering);

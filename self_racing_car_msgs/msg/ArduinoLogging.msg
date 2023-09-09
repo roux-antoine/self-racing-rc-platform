@@ -1,9 +1,9 @@
-float64 steering_angle_rx
-float64 throttle_angle_rx
-float64 steering_angle_pi
-float64 throttle_angle_pi
-float64 steering_angle_final
-float64 throttle_angle_final
+float64 steering_cmd_rx
+float64 throttle_cmd_rx
+float64 steering_cmd_autonomous
+float64 throttle_cmd_autonomous
+float64 steering_cmd_final
+float64 throttle_cmd_final
 int64 tmp_pulse_width_1
 int64 tmp_pulse_width_2
 int64 tmp_pulse_width_3

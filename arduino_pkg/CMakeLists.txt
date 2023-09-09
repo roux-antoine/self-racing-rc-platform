@@ -132,8 +132,8 @@ rosserial_configure_client(
   TOOLCHAIN_FILE ${ROSSERIAL_ARDUINO_TOOLCHAIN}
 )
 
-rosserial_add_client_target(firmware aim ALL)
-rosserial_add_client_target(firmware aim-upload)
+rosserial_add_client_target(firmware arduino_node ALL)
+rosserial_add_client_target(firmware arduino_node-upload)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

@@ -53,7 +53,6 @@ add_message_files(
   ArduinoLogging.msg
   ControllerDebugInfo.msg
   RmcNmea.msg
-  VehicleCommand.msg
   VehicleState.msg
 )
 
