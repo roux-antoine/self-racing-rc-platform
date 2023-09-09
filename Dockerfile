@@ -1,6 +1,6 @@
 FROM ros:noetic-ros-base-focal
 
-RUN apt update && apt install --yes \
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install --yes \
     python3-catkin-tools \
     vim \
     tmux \
@@ -10,6 +10,8 @@ RUN apt update && apt install --yes \
     ros-noetic-rosserial \
     ros-noetic-rosserial-arduino \
     ros-noetic-nmea-msgs \
+    ros-noetic-rqt \
+    ros-noetic-rqt-common-plugins \
     rtklib \
     python3-tk
 
