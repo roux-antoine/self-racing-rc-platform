@@ -22,11 +22,14 @@ class LateralController:
         self.EFFECTIVE_MAX_STEERING_ANGLE = 0.3  # rad
         self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE = 27  # unitless
         self.CAR_MIN_TURN_RADIUS = 1.25  # m
-        self.WHEEL_BASE = 0.46  # m
+        self.WHEEL_BASE = 0.406  # m
 
         # Variables
         target_point_topic_name = rospy.get_param(
             "~target_point_topic_name", "target_point"
+        )
+        current_pose_topic_name = rospy.get_param(
+            "~current_pose_topic_name", "current_pose"
         )
         steering_pwm_cmd_topic_name = rospy.get_param(
             "~steering_pwm_cmd_topic_name", "steering_pwm_cmd"
@@ -40,6 +43,11 @@ class LateralController:
             PoseStamped,
             self.callback_target_point,
         )
+        rospy.Subscriber(
+            current_pose_topic_name,
+            PoseStamped,
+            self.callback_current_pose,
+        )
 
         # Publishers
         self.vehicle_cmd_pub = rospy.Publisher(
@@ -48,7 +56,7 @@ class LateralController:
             queue_size=10,
         )
 
-    def callback_current_state(self, msg):
+    def callback_current_pose(self, msg):
 
         self.current_state.x = msg.pose.position.x
         self.current_state.y = msg.pose.position.y
@@ -67,12 +75,6 @@ class LateralController:
         elif yaw > 0 and yaw <= np.pi:  # yaw in ]0, pi]
             self.current_state.angle = yaw - 2 * np.pi
 
-    def callback_target_state(self, msg):
-
-        self.target_state.x = msg.pose.position.x
-        self.target_state.y = msg.pose.position.y
-        self.target_state.z = msg.pose.position.z
-
     def callback_target_point(self, msg):
         """
         Computes the steering_pwm_cmd based and publishes it to the topic
@@ -80,6 +82,11 @@ class LateralController:
         Using a very simple model, where the car (wheelbase=40.6cm) turns on a circle of diameter 2.5m when at 27 PWM units away from neutral,
         hence has a 'effective' angle of 0.3 rad at 27 PWM units away from neutral
         """
+
+        # Extracting info from the topic
+        self.target_state.x = msg.pose.position.x
+        self.target_state.y = msg.pose.position.y
+        self.target_state.z = msg.pose.position.z
 
         # Compute the radius of the turn from the current position to the target_point, using a bicycle mode
         curvature = compute_curvature(
