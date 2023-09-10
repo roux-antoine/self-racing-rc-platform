@@ -9,12 +9,16 @@ print()
 
 filename_base = input("Enter filename base: ")
 
+first_time = True
 coordinates_line = None
 with open(f"kml_files/{filename_base}.kml") as kml_file:
     for line in kml_file:
-        if "-121" in line:
+        if "-122" in line and first_time == False:
             coordinates_line = line.strip()
             break
+        if "-122" in line:
+            first_time = False
+        
 
 
 with open(f"lat_lon_files/{filename_base}.txt", "w") as out_file:
