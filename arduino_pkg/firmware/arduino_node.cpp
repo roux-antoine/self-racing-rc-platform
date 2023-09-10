@@ -15,15 +15,15 @@ const int THROTTLE_OUTPUT_PIN = 8;
 
 const int LED_PIN = 13;
 
-const float STEERING_IDLE = 98;
-const float STEERING_MAX = 123;
-const float STEERING_MIN = 68;
+const float STEERING_IDLE_PWM = 98;
+const float STEERING_MAX_PWM = 123;
+const float STEERING_MIN_PWM = 68;
 
-const float THROTTLE_IDLE = 90;
-const float THROTTLE_MAX_MANUAL = 102; // without load, the wheels start turning around 96
-const float THROTTLE_MIN_MANUAL = 70;
-const float THROTTLE_MAX_AUTONOMOUS = 102;
-const float THROTTLE_MIN_AUTONOMOUS = 70;
+const float THROTTLE_IDLE_PWM = 90;
+const float THROTTLE_MAX_MANUAL_PWM = 102; // without load, the wheels start turning around 96
+const float THROTTLE_MIN_MANUAL_PWM = 70;
+const float THROTTLE_MAX_AUTONOMOUS_PWM = 102;
+const float THROTTLE_MIN_AUTONOMOUS_PWM = 70;
 
 const unsigned long PULSE_WIDTH_THRESHOLD = 2000;
 
@@ -50,12 +50,12 @@ const bool ROS_MODE = true;
 // ------ VARIABLES ------
 
 // commands that will be sent by PWM
-float steering_cmd_rx = STEERING_IDLE;
-float throttle_cmd_rx = THROTTLE_IDLE;
-volatile float steering_cmd_autonomous = STEERING_IDLE;
-volatile float throttle_cmd_autonomous = THROTTLE_IDLE;
-float steering_cmd_final = STEERING_IDLE;
-float throttle_cmd_final = THROTTLE_IDLE;
+float steering_cmd_rx = STEERING_IDLE_PWM;
+float throttle_cmd_rx = THROTTLE_IDLE_PWM;
+volatile float steering_cmd_autonomous = STEERING_IDLE_PWM;
+volatile float throttle_cmd_autonomous = THROTTLE_IDLE_PWM;
+float steering_cmd_final = STEERING_IDLE_PWM;
+float throttle_cmd_final = THROTTLE_IDLE_PWM;
 
 // temporary storage values
 volatile float flipped_steering_value_rad = 0;
@@ -89,20 +89,20 @@ ros::NodeHandle nh;
 
 void steering_pwm_cmd_callback(const std_msgs::Float32 &msg) {
 
-  if (msg.data > STEERING_MAX) {
-    steering_cmd_autonomous = STEERING_MAX;
-  } else if (msg.data < STEERING_MIN) {
-    steering_cmd_autonomous = STEERING_MIN;
+  if (msg.data > STEERING_MAX_PWM) {
+    steering_cmd_autonomous = STEERING_MAX_PWM;
+  } else if (msg.data < STEERING_MIN_PWM) {
+    steering_cmd_autonomous = STEERING_MIN_PWM;
   } else {
     steering_cmd_autonomous = msg.data;
   }
 }
 void throttle_pwm_cmd_callback(const std_msgs::Float32 &msg) {
 
-  if (msg.data > THROTTLE_MAX_AUTONOMOUS) {
-    throttle_cmd_autonomous = THROTTLE_MAX_AUTONOMOUS;
-  } else if (msg.data < THROTTLE_MIN_AUTONOMOUS) {
-    throttle_cmd_autonomous = THROTTLE_MIN_AUTONOMOUS;
+  if (msg.data > THROTTLE_MAX_AUTONOMOUS_PWM) {
+    throttle_cmd_autonomous = THROTTLE_MAX_AUTONOMOUS_PWM;
+  } else if (msg.data < THROTTLE_MIN_AUTONOMOUS_PWM) {
+    throttle_cmd_autonomous = THROTTLE_MIN_AUTONOMOUS_PWM;
   } else {
     throttle_cmd_autonomous = msg.data;
   }
@@ -212,8 +212,8 @@ void setup() {
   throttle_servo.attach(THROTTLE_OUTPUT_PIN);
 
   // Doing the ESC calibration (unnecessary with Infraction)
-  steering_servo.write(STEERING_IDLE);
-  throttle_servo.write(THROTTLE_IDLE);
+  steering_servo.write(STEERING_IDLE_PWM);
+  throttle_servo.write(THROTTLE_IDLE_PWM);
   delay(5000);
 
   if (ROS_MODE) {
@@ -229,21 +229,21 @@ void loop() {
 
   // Compute steering from the Rx
   if (pulse_width_steering < CHANNEL_2_IDLE_MAX && pulse_width_steering > CHANNEL_2_IDLE_MIN) {
-    steering_cmd_rx = STEERING_IDLE;
+    steering_cmd_rx = STEERING_IDLE_PWM;
   } else if (pulse_width_steering >= CHANNEL_2_IDLE_MAX) {
-    steering_cmd_rx = int(STEERING_IDLE + (pulse_width_steering - CHANNEL_2_IDLE_MAX) * ((STEERING_MAX - STEERING_IDLE) / (CHANNEL_2_MAX - CHANNEL_2_IDLE_MAX)));
+    steering_cmd_rx = int(STEERING_IDLE_PWM + (pulse_width_steering - CHANNEL_2_IDLE_MAX) * ((STEERING_MAX_PWM - STEERING_IDLE_PWM) / (CHANNEL_2_MAX - CHANNEL_2_IDLE_MAX)));
   } else if (pulse_width_steering <= CHANNEL_2_IDLE_MIN) {
-    steering_cmd_rx = int(STEERING_IDLE - (CHANNEL_2_IDLE_MIN - pulse_width_steering) * ((STEERING_IDLE - STEERING_MIN) / (CHANNEL_2_IDLE_MIN - CHANNEL_2_MIN)));
+    steering_cmd_rx = int(STEERING_IDLE_PWM - (CHANNEL_2_IDLE_MIN - pulse_width_steering) * ((STEERING_IDLE_PWM - STEERING_MIN_PWM) / (CHANNEL_2_IDLE_MIN - CHANNEL_2_MIN)));
   } else {
   }
 
   // Compute throttle from the Rx
   if (pulse_width_throttle < CHANNEL_3_IDLE_MAX && pulse_width_throttle > CHANNEL_3_IDLE_MIN) {
-    throttle_cmd_rx = THROTTLE_IDLE;
+    throttle_cmd_rx = THROTTLE_IDLE_PWM;
   } else if (pulse_width_throttle >= CHANNEL_3_IDLE_MAX) {
-    throttle_cmd_rx = int(THROTTLE_IDLE + (pulse_width_throttle - CHANNEL_3_IDLE_MAX) * ((THROTTLE_MAX_MANUAL - THROTTLE_IDLE) / (CHANNEL_3_MAX - CHANNEL_3_IDLE_MAX)));
+    throttle_cmd_rx = int(THROTTLE_IDLE_PWM + (pulse_width_throttle - CHANNEL_3_IDLE_MAX) * ((THROTTLE_MAX_MANUAL_PWM - THROTTLE_IDLE_PWM) / (CHANNEL_3_MAX - CHANNEL_3_IDLE_MAX)));
   } else if (pulse_width_throttle <= CHANNEL_3_IDLE_MIN) {
-    throttle_cmd_rx = int(THROTTLE_IDLE - (CHANNEL_3_IDLE_MIN - pulse_width_throttle) * ((THROTTLE_IDLE - THROTTLE_MIN_MANUAL) / (CHANNEL_3_IDLE_MIN - CHANNEL_3_MIN)));
+    throttle_cmd_rx = int(THROTTLE_IDLE_PWM - (CHANNEL_3_IDLE_MIN - pulse_width_throttle) * ((THROTTLE_IDLE_PWM - THROTTLE_MIN_MANUAL_PWM) / (CHANNEL_3_IDLE_MIN - CHANNEL_3_MIN)));
   } else {
   }
 
@@ -275,17 +275,17 @@ void loop() {
   }
 
   // Making sure the commands are in bounds
-  if (steering_cmd_final > STEERING_MAX) {
-    steering_cmd_final = STEERING_MAX;
-  } else if (steering_cmd_final < STEERING_MIN) {
-    steering_cmd_final = STEERING_MIN;
+  if (steering_cmd_final > STEERING_MAX_PWM) {
+    steering_cmd_final = STEERING_MAX_PWM;
+  } else if (steering_cmd_final < STEERING_MIN_PWM) {
+    steering_cmd_final = STEERING_MIN_PWM;
   }
 
   // Making sure the commands are in bounds
-  if (steering_cmd_final > STEERING_MAX) {
-    steering_cmd_final = STEERING_MAX;
-  } else if (steering_cmd_final < STEERING_MIN) {
-    steering_cmd_final = STEERING_MIN;
+  if (steering_cmd_final > STEERING_MAX_PWM) {
+    steering_cmd_final = STEERING_MAX_PWM;
+  } else if (steering_cmd_final < STEERING_MIN_PWM) {
+    steering_cmd_final = STEERING_MIN_PWM;
   }
 
   // Sending the commands
