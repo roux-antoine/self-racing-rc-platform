@@ -41,23 +41,25 @@ class LateralController:
         rospy.Subscriber(
             target_point_topic_name,
             PoseStamped,
-            self.callback_target_point,
+            self.target_point_callback,
         )
         rospy.Subscriber(
             current_pose_topic_name,
             PoseStamped,
-            self.callback_current_pose,
+            self.current_pose_callback,
         )
 
         # Publishers
-        self.vehicle_cmd_pub = rospy.Publisher(
+        self.steering_cmd_pub = rospy.Publisher(
             steering_pwm_cmd_topic_name,
             Float32,
             queue_size=10,
         )
 
-    def callback_current_pose(self, msg):
-
+    def current_pose_callback(self, msg: PoseStamped):
+        """
+        TODO
+        """
         self.current_state.x = msg.pose.position.x
         self.current_state.y = msg.pose.position.y
         self.current_state.z = msg.pose.position.z
@@ -75,7 +77,7 @@ class LateralController:
         elif yaw > 0 and yaw <= np.pi:  # yaw in ]0, pi]
             self.current_state.angle = yaw - 2 * np.pi
 
-    def callback_target_point(self, msg):
+    def target_point_callback(self, msg: PoseStamped):
         """
         Computes the steering_pwm_cmd based and publishes it to the topic
 
@@ -115,4 +117,13 @@ class LateralController:
                 / self.EFFECTIVE_MAX_STEERING_ANGLE
             )
 
-        self.vehicle_cmd_pub.publish(steering_pwn_cmd)
+        self.steering_cmd_pub.publish(steering_pwn_cmd)
+
+
+if __name__ == "__main__":
+    try:
+        rospy.init_node("lateral_controller")
+        lateral_controller = LateralController()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass
