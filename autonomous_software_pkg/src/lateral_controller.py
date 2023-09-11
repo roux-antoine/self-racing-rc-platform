@@ -5,7 +5,7 @@ from std_msgs.msg import Float32
 import tf
 
 
-from geometry_utils import (
+from geometry_utils.geometry_utils import (
     State,
     compute_curvature,
     compute_steering_angle_from_curvature,
