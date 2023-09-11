@@ -38,7 +38,7 @@ class LongitudinalController:
         """
         The most basic controller for now: send a constant value
         """
-        constant_throttle_pwm_cmd = self.THROTTLE_MAX_AUTONOMOUS
+        constant_throttle_pwm_cmd = self.THROTTLE_MAX_AUTONOMOUS_PWM
         self.throttle_cmd_pub.publish(constant_throttle_pwm_cmd)
 
 

@@ -1,8 +1,9 @@
 from geometry_msgs.msg import PoseStamped
-import numy as np
+import numpy as np
 import rospy
 from std_msgs.msg import Float32
 import tf
+
 
 from geometry_utils import (
     State,
@@ -23,6 +24,9 @@ class LateralController:
         self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE = 27  # unitless
         self.CAR_MIN_TURN_RADIUS = 1.25  # m
         self.WHEEL_BASE = 0.406  # m
+        self.STEERING_REVERSE = (
+            -1
+        )  # unitless, here because the car turns left for a steering angle smaller than the IDLE
 
         # Variables
         target_point_topic_name = rospy.get_param(
@@ -94,24 +98,21 @@ class LateralController:
         curvature = compute_curvature(
             current_state=self.current_state, target_state=self.target_state
         )
-        # TODO sanity check the value of the curvature
 
         # Compute the corresponding steering angle
         steering_angle = compute_steering_angle_from_curvature(
             curvature=curvature, wheel_base=self.WHEEL_BASE
         )
 
-        # Compute if we need to turn right or left
-        sign = 1  # TODO check if the car turns left or right with a positive steering command
-
+        # Compute the steering_pwn_cmd based on the steering angle and our steering model
         if steering_angle > self.EFFECTIVE_MAX_STEERING_ANGLE:
-            steering_pwn_cmd = self.STEERING_MAX_PWM  # TODO or self.STEERING_MIN_PWM
+            steering_pwn_cmd = self.STEERING_MIN_PWM
         elif steering_angle < -self.EFFECTIVE_MAX_STEERING_ANGLE:
-            steering_pwn_cmd = self.STEERING_MIN_PWM  # TODO or self.STEERING_MAX_PWM
+            steering_pwn_cmd = self.STEERING_MAX_PWM
         else:
             steering_pwn_cmd = (
                 self.STEERING_IDLE_PWM
-                + sign
+                + self.STEERING_REVERSE
                 * steering_angle
                 * self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE
                 / self.EFFECTIVE_MAX_STEERING_ANGLE
