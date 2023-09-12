@@ -42,6 +42,8 @@ class bag_listener:
         #MUST POPULATE THESE WITH KNOWN STARTING COORDINATES
         LAT_START = 36.585825
         LON_START = -121.757031
+        Z_START = -0.958819734868193
+        w_START = -0.28401534470392265
 
         #Convert from latitude/longitude to UTM
         utm_values = utm.from_latlon(latitude, longitude)
@@ -62,7 +64,7 @@ class bag_listener:
         pose_msg.pose.position.z = 0
 
         yaw_rad = -track_angle_deg * math.pi / 180
-
+        print("yaw_rad: " + str(yaw_rad))
         utmx_fin = x_utm - x_orig_utm
         utmy_fin = y_utm - y_orig_utm
         print("finx: " + str(utmx_fin))
@@ -72,11 +74,13 @@ class bag_listener:
         quaternion = tf.transformations.quaternion_from_euler(0, 0, yaw_rad)
         pose_msg.pose.orientation.x = quaternion[0]
         pose_msg.pose.orientation.y = quaternion[1]
-        pose_msg.pose.orientation.z = quaternion[2]
-        pose_msg.pose.orientation.w = quaternion[3]
-
+        pose_msg.pose.orientation.z = quaternion[2] #- Z_START
+        pose_msg.pose.orientation.w = quaternion[3] #- w_START
+        quaternion[2] = quaternion[2] #- -0.95881973
+        quaternion[3] = quaternion[3] #- -0.28401534
+        print("Quaternion: " + str(quaternion))
         #Broadcast transform as "car" frame
-        self.br.sendTransform((utmx_fin, utmy_fin, 0), quaternion, rospy.Time.now(), "car", "origin")
+        self.br.sendTransform((utmx_fin, utmy_fin, 0), quaternion, rospy.Time.now(), "car", "/map")
 
 
 
