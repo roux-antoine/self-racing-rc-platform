@@ -28,10 +28,16 @@ class TargetGenerator:
 
         """ Subscribers """
         rospy.Subscriber(
-            "waypoints", WaypointArray, self.callback_waypoints, queue_size=10
+            "waypoints",
+            WaypointArray,
+            self.callback_waypoints,
+            queue_size=10,
         )
         rospy.Subscriber(
-            "current_pose", PoseStamped, self.callback_current_pose, queue_size=10
+            "current_pose",
+            PoseStamped,
+            self.callback_current_pose,
+            queue_size=10,
         )
         rospy.Subscriber(
             "current_velocity",
@@ -48,14 +54,20 @@ class TargetGenerator:
 
         """ Publishers """
         self.target_point_pub = rospy.Publisher(
-            "target_point", PoseStamped, queue_size=10
+            "target_point",
+            PoseStamped,
+            queue_size=10,
         )
         self.target_velocity_pub = rospy.Publisher(
-            "target_velocity", TwistStamped, queue_size=10
+            "target_velocity",
+            TwistStamped,
+            queue_size=10,
         )
         # self.target_gen_debug_pub = rospy.Publisher("target_generator_debug", TBD, queue_size=10)
         self.target_point_marker_pub = rospy.Publisher(
-            "target_point_marker", Marker, queue_size=10
+            "target_point_marker",
+            Marker,
+            queue_size=10,
         )
 
         """ Parameters """
