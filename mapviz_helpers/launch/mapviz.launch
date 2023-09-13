@@ -1,0 +1,22 @@
+<launch>
+
+  <node pkg="mapviz" type="mapviz" name="mapviz"></node>
+
+  <node pkg="swri_transform_util" type="initialize_origin.py" name="initialize_origin" >
+    <param name="local_xy_frame" value="/map"/>
+    <param name="local_xy_origin" value="auto"/>
+    <rosparam param="local_xy_origins">
+      [{ name: swri,
+         latitude: 36.585825,
+         longitude: -121.757031,
+         altitude: 233.719,
+         heading: 0.0}]
+    </rosparam>
+    <remap from="fix" to="/gps_fix"/>
+  </node>
+
+  <node pkg="tf" type="static_transform_publisher" name="swri_transform" args="0 0 0 0 0 0 /map /origin 100"  />
+
+
+
+</launch>
