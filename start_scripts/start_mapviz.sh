@@ -41,7 +41,7 @@ tmux send-keys "rosrun mapviz_helpers bag_listener.py" C-m
 tmux select-pane -t 2
 tmux send-keys "cd '/home/nico/workspace/self_racing_rc_platform_ws/src/bags'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosbag play trackrun.bag" C-m
+tmux send-keys "rosbag play mview1.bag" C-m
 
 
 

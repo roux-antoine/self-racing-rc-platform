@@ -7,7 +7,7 @@ import adafruit_gps
 import rospy
 import serial
 
-from self_racing_car_msgs.msg import RmcNmea
+from nmea_msgs.msg import Gprmc
 
 PI_PORT = "/dev/ttyUSB0"
 
@@ -27,7 +27,7 @@ class GpsPublisher:
     def __init__(self):
         uart = serial.Serial(PI_PORT, baudrate=9600, timeout=10)
         self.gps = adafruit_gps.GPS(uart, debug=False)
-        self.pub = rospy.Publisher("gps_info", RmcNmea, queue_size=10)
+        self.pub = rospy.Publisher("gps_info", Gprmc, queue_size=10)
         rospy.init_node("gps_publisher", anonymous=True)
         self.rate = rospy.Rate(1000)  # 1kHz
 
@@ -68,13 +68,13 @@ class GpsPublisher:
                 # TODO maybe we can use this to trigger a fallback behavior later on
                 continue
             else:
-                msg = RmcNmea()
+                msg = Gprmc()
                 msg.header.stamp = rospy.Time.now()
-                msg.timestamp_utc = 0  # TODO replace with self.gps.timestamp_utc but needs to be converted from time.struct_time
-                msg.latitude = self.gps.latitude
-                msg.longitude = self.gps.longitude
-                msg.speed_knots = self.gps.speed_knots
-                msg.track_angle_deg = self.gps.track_angle_deg
+                msg.utc_seconds = 0  # TODO replace with self.gps.timestamp_utc but needs to be converted from time.struct_time
+                msg.lat = self.gps.latitude
+                msg.lon = self.gps.longitude
+                msg.speed = self.gps.speed_knots
+                msg.track = self.gps.track_angle_deg
 
                 self.pub.publish(msg)
             self.rate.sleep()
