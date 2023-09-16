@@ -4,10 +4,10 @@ import os
 import rospy
 import tf
 import tf2_ros
-import numpy as np
+from typing import List
 
 from geometry_msgs.msg import Point, TransformStamped
-from visualization_msgs.msg import Marker, MarkerArray
+from visualization_msgs.msg import Marker
 
 
 class MapPublisher:
@@ -16,7 +16,9 @@ class MapPublisher:
         rospy.init_node("map_publisher", anonymous=True)
 
         """ Publishers """
-        self.map_marker_pub = rospy.Publisher("map_viz", Marker, queue_size=10, latch=True)
+        self.map_marker_pub = rospy.Publisher(
+            "map_viz", Marker, queue_size=10, latch=True
+        )
 
         """ Parameters """
         map_file_name = rospy.get_param("~map_file_name", "rex_manor_map.txt")
@@ -28,7 +30,7 @@ class MapPublisher:
         self.publish_map(list_map_x, list_map_y)
         self.publish_tf_world_map(list_map_x[0], list_map_y[0])
 
-    def load_map(self, file_name):
+    def load_map(self, file_name: str):
         """
         Function to load the waypoints from a text file into two lists (x, y)
         """
@@ -49,14 +51,13 @@ class MapPublisher:
         with open(wp_file) as waypoints_file:
 
             for line in waypoints_file.readlines():
-                 
+
                 list_wp_x.append(float(line.split()[0]))
                 list_wp_y.append(float(line.split()[1]))
-    
+
         return list_wp_x, list_wp_y
 
-
-    def publish_map(self, list_wp_x, list_wp_y):
+    def publish_map(self, list_wp_x: List[float], list_wp_y: List[float]):
         """
         Function to publish the waypoints Markers
         """
@@ -65,7 +66,6 @@ class MapPublisher:
         marker_msg = Marker()
 
         marker_msg.header.frame_id = "world"
-        # marker.header.stamp = rospy.Time.now()
         marker_msg.ns = "map"
         marker_msg.type = 4
         marker_msg.action = 0
@@ -86,17 +86,17 @@ class MapPublisher:
         marker_msg.points = []
 
         for x, y in zip(list_wp_x, list_wp_y):
-           
+
             marker_msg.points.append(Point(x, y, 0))
 
         """ Publish """
         self.map_marker_pub.publish(marker_msg)
 
-    def publish_tf_world_map(self, x_origin, y_origin):
+    def publish_tf_world_map(self, x_origin: float, y_origin: float):
         """
         Function to publish the tf between world and map on the topic /tf_static
         """
-    
+
         broadcaster = tf2_ros.StaticTransformBroadcaster()
         static_transform = TransformStamped()
 
@@ -116,7 +116,8 @@ class MapPublisher:
         static_transform.transform.rotation.w = quaternion[3]
 
         broadcaster.sendTransform(static_transform)
-        
+
+
 if __name__ == "__main__":
     map_pub = MapPublisher()
     rospy.spin()

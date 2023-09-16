@@ -2,12 +2,21 @@ import math
 import numpy as np
 from typing import List
 
-MIN_CURVATURE = 0.3
-MAX_CURVATURE = 100000
+MIN_CURVATURE = 0.3  # m
+MAX_CURVATURE = 100000  # m
 
 
 class State:
-    def __init__(self, x=0, y=0, z=0, vx=0, vy=0, vz=0, angle=0):
+    def __init__(
+        self,
+        x: float = 0,
+        y: float = 0,
+        z: float = 0,
+        vx: float = 0,
+        vy: float = 0,
+        vz: float = 0,
+        angle: float = 0,
+    ):
         self.x = x
         self.y = y
         self.z = z
@@ -25,7 +34,6 @@ def compute_curvature(current_state: State, target_state: State):
     Args:
         current_state: State representing the current state of the vehicle, with at least x, y and angle
         line_vector: List of the components of the vector defining the line direction
-
 
     Returns:
         float: the curvature
@@ -114,7 +122,12 @@ def compute_steering_angle_from_curvature(curvature: float, wheel_base: float):
 
 
 def circle_line_segment_intersection(
-    circle_center, circle_radius, pt1, pt2, full_line=True, tangent_tol=1e-9
+    circle_center: List[float],
+    circle_radius: float,
+    pt1: List[float],
+    pt2: List[float],
+    full_line: bool = True,
+    tangent_tol: float = 1e-9,
 ):
     """Find the points at which a circle intersects a line-segment.  This can happen at 0, 1, or 2 points.
 

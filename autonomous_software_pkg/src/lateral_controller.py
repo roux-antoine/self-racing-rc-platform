@@ -22,6 +22,9 @@ class LateralController:
         self.STEERING_MIN_PWM = 68  # unitless
         self.EFFECTIVE_MAX_STEERING_ANGLE = 0.3  # rad
         self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE = 27  # unitless
+        # NOTE because the diff between IDLE and MAX (25) is not the same as IDLE and MIN (30),
+        # we pick this 'average' value of 27. It would be smarter to have 2 values of the width
+        # to the MAX and MIN.
         self.CAR_MIN_TURN_RADIUS = 1.25  # m
         self.WHEEL_BASE = 0.406  # m
         self.STEERING_REVERSE = (
@@ -62,7 +65,7 @@ class LateralController:
 
     def current_pose_callback(self, msg: PoseStamped):
         """
-        TODO
+        Retrieve the data from the /current_pose topic and stores it in the class variable
         """
         self.current_state.x = msg.pose.position.x
         self.current_state.y = msg.pose.position.y

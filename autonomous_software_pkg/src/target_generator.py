@@ -249,7 +249,6 @@ class TargetGenerator:
         marker_msg = Marker()
 
         marker_msg.header.frame_id = "world"
-        # marker.header.stamp = rospy.Time.now()
         marker_msg.ns = "map"
         marker_msg.type = 2
         marker_msg.action = 0

@@ -21,7 +21,9 @@ class VehicleStatePublisher:
         rospy.init_node("vehicle_state_publisher", anonymous=True)
 
         # Subscribers
-        self.sub = rospy.Subscriber("gps_info", Gprmc, self.callback, queue_size=10)
+        self.sub = rospy.Subscriber(
+            "gps_info", Gprmc, self.callback_rmc_msg, queue_size=10
+        )
 
         # Publishers
         self.pub_pose = rospy.Publisher("current_pose", PoseStamped, queue_size=10)
@@ -36,7 +38,7 @@ class VehicleStatePublisher:
 
         rospy.logwarn("Finished init")
 
-    def callback(self, rmc_msg):
+    def callback_rmc_msg(self, rmc_msg: Gprmc):
 
         # small logic to skip messages if we want
         if self.last_msg_seq:
@@ -46,6 +48,8 @@ class VehicleStatePublisher:
                     "Either you restarted the gps_publisher (or a rosbag play) or there is a problem"
                 )
             elif rmc_msg.header.seq - self.last_msg_seq < self.JUMPING_MESSAGE_FACTOR:
+                # This condition can be used to skip every N message if we ever want.
+                # To do so, increase self.JUMPING_MESSAGE_FACTOR to more than 1
                 return
 
         self.last_msg_seq = rmc_msg.header.seq

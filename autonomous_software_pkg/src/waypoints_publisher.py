@@ -7,6 +7,7 @@ Notes:
 
 import os
 import rospy
+from typing import List
 
 from geometry_msgs.msg import Point
 from self_racing_car_msgs.msg import Waypoint, WaypointArray
@@ -37,7 +38,7 @@ class WaypointsPublisher:
         """ Publish """
         self.publish_waypoints(list_wp_x, list_wp_y, list_wp_speed)
 
-    def load_waypoints(self, file_name):
+    def load_waypoints(self, file_name: str):
         """
         Function to load the waypoints from a text file into three lists (x, y, speed)
         """
@@ -74,7 +75,9 @@ class WaypointsPublisher:
 
         return list_wp_x, list_wp_y, list_wp_speed
 
-    def publish_waypoints(self, list_wp_x, list_wp_y, list_wp_speed):
+    def publish_waypoints(
+        self, list_wp_x: List[float], list_wp_y: List[float], list_wp_speed: List[float]
+    ):
         """
         Function to publish the waypoints as WaypointArray and Markers (for visualization)
         """
