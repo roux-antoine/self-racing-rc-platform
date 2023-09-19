@@ -14,6 +14,9 @@ def publish_slider_value(event=None):
     slider_value = slider.get()
     rospy.loginfo(f"Publishing Slider Value: {slider_value}")
     pub.publish(slider_value)
+    update_slider_label(slider_value)
+def update_slider_label(value):
+    slider_label.config(text=f"Speed: {int(value)}")
 
 def timer_callback(event):
     publish_slider_value()
