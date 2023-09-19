@@ -38,7 +38,7 @@ style.set_theme("adapta")
 slider_label = ttk.Label(window, text="Throttle Value: ")
 slider_label.pack()
 
-slider = ttk.Scale(window, from_=0, to=100, orient="horizontal", length = 400)
+slider = ttk.Scale(window, from_=100, to=0, orient="vertical", length = 400)
 slider.pack()
 
 # Change slider color
