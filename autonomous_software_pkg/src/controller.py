@@ -125,7 +125,7 @@ class Controller:
                 PoseStamped,
                 self.callback_current_state,
             )
-
+        
             # Publishers
             self.vehicle_cmd_pub = rospy.Publisher(
                 "vehicle_command",
