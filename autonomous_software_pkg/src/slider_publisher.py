@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 
 import rospy
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Int32
 
 import tkinter as tk
 
 from tkinter import ttk
 from ttkthemes import ThemedStyle
-
 import signal
 
 def publish_slider_value(event=None):
     slider_value = slider.get()
-    rospy.loginfo(f"Publishing Slider Value: {slider_value}")
-    pub.publish(slider_value)
+    rospy.loginfo(f"Publishing Slider Value: {int(slider_value)}")
+    pub.publish(int(slider_value))
     update_slider_label(slider_value)
 def update_slider_label(value):
     slider_label.config(text=f"Speed: {int(value)}")
@@ -53,7 +52,7 @@ publish_button.pack()
 
 timer = rospy.Timer(rospy.Duration(0.1), timer_callback)
 
-pub = rospy.Publisher('/teleop_speed', Float64, queue_size=10)
+pub = rospy.Publisher('/teleop_speed', Int32, queue_size=10)
 
 signal.signal(signal.SIGINT, shutdown_handler)
 if __name__ == "__main__":
