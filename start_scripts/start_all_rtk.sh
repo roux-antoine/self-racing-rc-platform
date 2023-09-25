@@ -2,6 +2,7 @@
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 ABS_SCRIPT_DIR=$(readlink -f "$SCRIPT_DIR")
+NAME_WINDOW_1=""
 
 setup_bash_path="$ABS_SCRIPT_DIR/../../devel/setup.bash"
 
@@ -9,11 +10,9 @@ session="self_racing_rc_platform-all"
 
 tmux new-session -d -s $session
 
+window=0
+tmux rename-window -t $session:$window 'Window1'
 
-# splitting the pane 0 vertically
-tmux split-window -t 0 -v
-# splitting the pane 0 vertically
-tmux split-window -t 0 -v
 # splitting the pane 0 vertically
 tmux split-window -t 0 -v
 # splitting the pane 0 vertically
@@ -25,11 +24,6 @@ tmux split-window -t 0 -h
 tmux split-window -t 2 -h
 # splitting the pane 4 horizontally
 tmux split-window -t 4 -h
-# splitting the pane 6 horizontally
-tmux split-window -t 6 -h
-# splitting the pane 6 horizontally
-tmux split-window -t 8 -h
-
 
 # roscore
 tmux select-pane -t 0
@@ -49,26 +43,65 @@ tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun autonomous_software_pkg rtk_gps_serial_reader.py" C-m
 
-# vehicle state publisher
+# map publisher
 tmux select-pane -t 3
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "source $setup_bash_path" C-m
+tmux send-keys "rosrun autonomous_software_pkg map_publisher.py" C-m
+
+# waypoint publisher
+tmux select-pane -t 4
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "source $setup_bash_path" C-m
+tmux send-keys "rosrun autonomous_software_pkg waypoints_publisher.py" C-m
+
+# foxglove bridge
+tmux select-pane -t 5
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "source $setup_bash_path" C-m
+tmux send-keys "roslaunch foxglove_bridge foxglove_bridge.launch" C-m
+
+window=1
+tmux new-window -t $session:$window -n 'Window2'
+
+# splitting the pane 0 vertically
+tmux split-window -t 0 -v
+# splitting the pane 0 vertically
+tmux split-window -t 0 -v
+tmux select-layout even-vertical
+# splitting the pane 0 horizontally
+tmux split-window -t 0 -h
+# splitting the pane 2 horizontally
+tmux split-window -t 2 -h
+# splitting the pane 4 horizontally
+tmux split-window -t 4 -h
+
+# vehicle state publisher
+tmux select-pane -t 0
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun autonomous_software_pkg vehicle_state_publisher.py" C-m
 
-# controller
-tmux select-pane -t 4
+# target generator
+tmux select-pane -t 1
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun autonomous_software_pkg controller.py" C-m
+tmux send-keys "rosrun autonomous_software_pkg target_generator.py" C-m
+
+# lateral controller
+tmux select-pane -t 2
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "source $setup_bash_path" C-m
+tmux send-keys "rosrun autonomous_software_pkg lateral_controller.py" C-m
 
 # rosserial arduino
-tmux select-pane -t 5
+tmux select-pane -t 3
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun rosserial_python serial_node.py _port:=/dev/ttyACM1 _baud:=57600" C-m
 
 # rostopic echo /arduino_logging
-tmux select-pane -t 6
+tmux select-pane -t 4
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rostopic echo /arduino_logging" C-m

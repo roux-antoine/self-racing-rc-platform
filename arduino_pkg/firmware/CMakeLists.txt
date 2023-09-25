@@ -10,9 +10,9 @@ include_directories(${ROS_LIB_DIR})
 add_definitions(-DUSB_CON)
 
 # some doc on that: https://github.com/queezythegreat/arduino-cmake/blob/master/cmake/Platform/Arduino.cmake
-generate_arduino_firmware(aim
-  SRCS aim.cpp ${ROS_LIB_DIR}/time.cpp
+generate_arduino_firmware(arduino_node
+  SRCS arduino_node.cpp ${ROS_LIB_DIR}/time.cpp
   BOARD mega2560
-  PORT /dev/ttyACM1
+  PORT /dev/ttyACM0
   # SERIAL picocom /dev/ttyACM0  # found in https://github.com/ros-drivers/rosserial/issues/459, seems to work without
 )

@@ -13,7 +13,8 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive apt install --yes \
     ros-noetic-rqt \
     ros-noetic-rqt-common-plugins \
     rtklib \
-    python3-tk
+    python3-tk \
+    ros-noetic-foxglove-bridge
 
 RUN python3 -m pip install \
     pre-commit \

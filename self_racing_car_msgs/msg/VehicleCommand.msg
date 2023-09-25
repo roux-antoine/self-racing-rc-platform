@@ -1,2 +1,0 @@
-float64 steering_value_rad
-float64 throttle_value
