@@ -40,18 +40,21 @@ def compute_curvature(current_state: State, target_state: State):
     """
     # Computing the norm of the curvature
     orthogonal_vector = [
-        -np.sin(current_state.angle + np.pi / 2),
-        np.cos(current_state.angle + np.pi / 2),
+        -np.sin(current_state.angle),
+        np.cos(current_state.angle),
     ]
     d = distance_point_to_line(current_state, orthogonal_vector, target_state)
     D = plane_distance(current_state, target_state)
+    print("-------")
+    print("d: ", d)
+    print("D: ", D)
     curvature_norm = 2 * np.sqrt(D**2 - d**2) / D**2
 
     # Computing the sign of the curvature
     car_direction_vector = np.array(
         [
-            np.cos(current_state.angle + np.pi / 2),
-            np.sin(current_state.angle + np.pi / 2),
+            np.cos(current_state.angle),
+            np.sin(current_state.angle),
         ]
     )
     target_direction_vector = np.array(
