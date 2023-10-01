@@ -1,13 +1,12 @@
 from geometry_msgs.msg import PoseStamped
 import numpy as np
 import rospy
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Float64
 import tf
 
 
 from geometry_utils.geometry_utils import (
     State,
-    compute_curvature,
     compute_steering_angle_from_curvature,
 )
 
@@ -32,8 +31,8 @@ class LateralController:
         )  # unitless, here because the car turns left for a steering angle smaller than the IDLE
 
         # Variables
-        target_point_topic_name = rospy.get_param(
-            "~target_point_topic_name", "target_point"
+        target_curvature_topic_name = rospy.get_param(
+            "~target_curvature_topic_name", "target_curvature"
         )
         current_pose_topic_name = rospy.get_param(
             "~current_pose_topic_name", "current_pose"
@@ -42,13 +41,12 @@ class LateralController:
             "~steering_pwm_cmd_topic_name", "steering_pwm_cmd"
         )
         self.current_state = State()
-        self.target_state = State()
 
         # Subscribers
         rospy.Subscriber(
-            target_point_topic_name,
-            PoseStamped,
-            self.target_point_callback,
+            target_curvature_topic_name,
+            Float64,
+            self.target_curvature_callback,
         )
         rospy.Subscriber(
             current_pose_topic_name,
@@ -84,27 +82,17 @@ class LateralController:
         elif yaw > 0 and yaw <= np.pi:  # yaw in ]0, pi]
             self.current_state.angle = yaw - 2 * np.pi
 
-    def target_point_callback(self, msg: PoseStamped):
+    def target_curvature_callback(self, msg: Float64):
         """
-        Computes the steering_pwm_cmd based and publishes it to the topic
+        Computes the steering_pwm_cmd based on the target curvature and publishes it to the topic
 
         Using a very simple model, where the car (wheelbase=40.6cm) turns on a circle of diameter 2.5m when at 27 PWM units away from neutral,
         hence has a 'effective' angle of 0.3 rad at 27 PWM units away from neutral
         """
 
-        # Extracting info from the topic
-        self.target_state.x = msg.pose.position.x
-        self.target_state.y = msg.pose.position.y
-        self.target_state.z = msg.pose.position.z
-
-        # Compute the radius of the turn from the current position to the target_point, using a bicycle mode
-        curvature = compute_curvature(
-            current_state=self.current_state, target_state=self.target_state
-        )
-
         # Compute the corresponding steering angle
         steering_angle = compute_steering_angle_from_curvature(
-            curvature=curvature, wheel_base=self.WHEEL_BASE
+            curvature=msg.data, wheel_base=self.WHEEL_BASE
         )
 
         # Compute the steering_pwn_cmd based on the steering angle and our steering model
