@@ -292,7 +292,7 @@ class TargetGenerator:
         curvature_msg = Float64()
         curvature_msg.data = curvature
 
-        self.target_curvature_pub(curvature_msg)
+        self.target_curvature_pub.publish(curvature_msg)
 
 
 if __name__ == "__main__":
