@@ -12,6 +12,7 @@ from geometry_utils.geometry_utils import (
     compute_curvature,
 )
 from std_msgs.msg import Float64
+import tf
 
 
 """
@@ -104,6 +105,18 @@ class TargetGenerator:
             """Read subscribed message"""
             self.current_state.x = pose_msg.pose.position.x
             self.current_state.y = pose_msg.pose.position.y
+
+            orientation_list = [
+                pose_msg.pose.orientation.x,
+                pose_msg.pose.orientation.y,
+                pose_msg.pose.orientation.z,
+                pose_msg.pose.orientation.w,
+            ]
+            (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
+                orientation_list
+            )
+
+            self.current_state.angle = yaw
 
             """ Get Next waypoint - First waypoint further than the lookahead distance """
             nextWaypointId = self.getNextWaypoint()
