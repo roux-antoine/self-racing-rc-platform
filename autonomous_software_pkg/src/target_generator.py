@@ -185,7 +185,7 @@ class TargetGenerator:
         # in this case, we return the last waypoint
         rospy.logwarn("All waypoints considered are within the lookahead distance")
         # TODO change: implement slowdown
-        return self.waypoints[-1].id
+        return self.waypoints.waypoints[-1].id
 
     def getTargetPoint(self, nextWaypointId: int):
         """
