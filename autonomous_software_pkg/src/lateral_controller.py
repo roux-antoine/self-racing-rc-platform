@@ -1,5 +1,4 @@
 from geometry_msgs.msg import PoseStamped
-import numpy as np
 import rospy
 from std_msgs.msg import Float32, Float64
 import tf
@@ -77,10 +76,7 @@ class LateralController:
         ]
         (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(orientation_list)
 
-        if yaw <= 0 and yaw >= -np.pi:  # yaw in [-pi, 0]
-            self.current_state.angle = yaw
-        elif yaw > 0 and yaw <= np.pi:  # yaw in ]0, pi]
-            self.current_state.angle = yaw - 2 * np.pi
+        self.current_state.angle = yaw
 
     def target_curvature_callback(self, msg: Float64):
         """

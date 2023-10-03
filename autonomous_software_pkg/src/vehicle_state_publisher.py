@@ -72,12 +72,9 @@ class VehicleStatePublisher:
         pose_msg.pose.position.y = y_utm
         pose_msg.pose.position.z = 0
 
-        # yaw_rad = (math.pi / 2) - track_angle_deg * math.pi / 180 # Radians. Origin is horizontal axis
-
-        # This is the angle we are using for now and for which the controller works fine. Not updating it
-        # right now, but later we might switch it to the version above, which has its origin on the horizontal axis,
-        # which should be a little more standard. The speed projection might not he good at the moment.
-        yaw_rad = -track_angle_deg * math.pi / 180
+        # Yaw angle [radians]. Origin is horizontal axis. Counter clockwise
+        # Offsetting by pi/2 compared to what is provided by the GPS, because the GPS track angle origin is the vertical axis
+        yaw_rad = (math.pi / 2) - track_angle_deg * math.pi / 180
 
         # Convert to quaternions
         quaternion = tf.transformations.quaternion_from_euler(0, 0, yaw_rad)
