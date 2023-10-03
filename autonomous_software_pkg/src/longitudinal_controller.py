@@ -34,7 +34,7 @@ class LongitudinalController:
             queue_size=10,
         )
 
-    def target_velocity_callback(self, msg: Float32):
+    def target_velocity_callback(self, msg: TwistStamped):
         """
         The most basic controller for now: send a constant value
         """
