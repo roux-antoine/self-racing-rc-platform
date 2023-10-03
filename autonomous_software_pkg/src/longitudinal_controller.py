@@ -24,7 +24,7 @@ class LongitudinalController:
         rospy.Subscriber(
             target_velocity_topic_name,
             TwistStamped,
-            self.target_point_callback,
+            self.target_velocity_callback,
         )
 
         # Publishers
@@ -34,7 +34,7 @@ class LongitudinalController:
             queue_size=10,
         )
 
-    def target_point_callback(self, msg: Float32):
+    def target_velocity_callback(self, msg: Float32):
         """
         The most basic controller for now: send a constant value
         """

@@ -88,9 +88,8 @@ class VehicleStatePublisher:
 
         vel_msg = TwistStamped()
         vel_msg.header.stamp = rospy.Time.now()
-        vel_msg.header.frame_id = "world"
-        vel_msg.twist.linear.x = speed_mps * math.cos(yaw_rad)
-        vel_msg.twist.linear.y = speed_mps * math.sin(yaw_rad)
+        vel_msg.header.frame_id = "car"
+        vel_msg.twist.linear.x = speed_mps
 
         """ Publish /tf """
         # Publish the tf between 'world' and 'car' for visualization purposes.
