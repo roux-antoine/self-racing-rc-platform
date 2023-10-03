@@ -73,6 +73,7 @@ class VehicleStatePublisher:
         pose_msg.pose.position.z = 0
 
         # Yaw angle [radians]. Origin is horizontal axis. Counter clockwise
+        # Offsetting by pi/2 compared to what is provided by the GPS, because the GPS track angle origin is the vertical axis
         yaw_rad = (math.pi / 2) - track_angle_deg * math.pi / 180
 
         # Convert to quaternions
