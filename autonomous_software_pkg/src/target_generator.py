@@ -9,7 +9,10 @@ from geometry_utils.geometry_utils import (
     State,
     plane_distance,
     circle_line_segment_intersection,
+    compute_curvature,
 )
+from std_msgs.msg import Float64
+import tf
 
 
 """
@@ -53,9 +56,9 @@ class TargetGenerator:
         )
 
         """ Publishers """
-        self.target_point_pub = rospy.Publisher(
-            "target_point",
-            PoseStamped,
+        self.target_curvature_pub = rospy.Publisher(
+            "target_curvature",
+            Float64,
             queue_size=10,
         )
         self.target_velocity_pub = rospy.Publisher(
@@ -103,14 +106,34 @@ class TargetGenerator:
             self.current_state.x = pose_msg.pose.position.x
             self.current_state.y = pose_msg.pose.position.y
 
+            orientation_list = [
+                pose_msg.pose.orientation.x,
+                pose_msg.pose.orientation.y,
+                pose_msg.pose.orientation.z,
+                pose_msg.pose.orientation.w,
+            ]
+            (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
+                orientation_list
+            )
+
+            self.current_state.angle = yaw
+
             """ Get Next waypoint - First waypoint further than the lookahead distance """
             nextWaypointId = self.getNextWaypoint()
 
             """ Get target point """
             targetPoint = self.getTargetPoint(nextWaypointId)
 
-            """ Publish target point """
-            self.publish_target_point(targetPoint)
+            """ Publish target point marker """
+            self.publish_target_point_marker(targetPoint)
+
+            """ Compute target curvature """
+            curvature = compute_curvature(
+                current_state=self.current_state, target_state=targetPoint
+            )
+
+            """ Publish target curvature """
+            self.publish_target_curvature(curvature)
 
             """ Publish target speed """
             # Note: Strategy to change. Will likely not use the targetPoint
@@ -230,22 +253,11 @@ class TargetGenerator:
 
         return target_point
 
-    def publish_target_point(self, targetPoint: State):
+    def publish_target_point_marker(self, targetPoint: State):
         """
-        Publishes the PoseStamped targetPoint
+        Publishes the targetPoint marker for visualization
         """
 
-        pose_msg = PoseStamped()
-
-        pose_msg.header.stamp = rospy.Time.now()
-        pose_msg.header.frame_id = "world"
-
-        pose_msg.pose.position.x = targetPoint.x
-        pose_msg.pose.position.y = targetPoint.y
-
-        self.target_point_pub.publish(pose_msg)
-
-        """ Publish marker """
         marker_msg = Marker()
 
         marker_msg.header.frame_id = "world"
@@ -284,6 +296,16 @@ class TargetGenerator:
         twist_msg.twist.linear.x = targetPoint.vx
 
         self.target_velocity_pub.publish(twist_msg)
+
+    def publish_target_curvature(self, curvature: float):
+        """
+        Publishes the Float64 target curvature
+        """
+
+        curvature_msg = Float64()
+        curvature_msg.data = curvature
+
+        self.target_curvature_pub.publish(curvature_msg)
 
 
 if __name__ == "__main__":
