@@ -78,8 +78,8 @@ class TargetGenerator:
         """ Parameters """
         self.lookahead_distance = rospy.get_param("~lookahead_distance", 5)
         self.velocity_mode = rospy.get_param(
-            "~velocity_mode", "MANUAL_INPUT_SPEED"
-        )  # "WAYPOINT_FOLLOWING"
+            "~velocity_mode", "WAYPOINT_FOLLOWING"
+        )  # "MANUAL_INPUT_SPEED" / "WAYPOINT_FOLLOWING"
 
     def callback_waypoints(self, wp_msg: WaypointArray):
         """
@@ -145,9 +145,12 @@ class TargetGenerator:
                 target_speed = self.user_input_speed_mps
             elif self.velocity_mode == "WAYPOINT_FOLLOWING":
                 try:
-                    target_speed = self.waypoints.waypoints[
-                        self.id_closest_wp
-                    ].speed_mps
+                    if self.id_closest_wp == self.waypoints.waypoints[-1].id:
+                        target_speed = 0
+                    else:
+                        target_speed = self.waypoints.waypoints[
+                            self.id_closest_wp
+                        ].speed_mps
                 except IndexError:
                     rospy.logwarn(
                         "An error occured while retrieving speed from waypoint"
