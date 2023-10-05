@@ -168,7 +168,7 @@ class TargetGenerator:
         if id_closest_wp is None:
             rospy.logfatal("No closest waypoint found")
             # TODO: Improve the logic
-            return self.waypoints[-1].id
+            return self.waypoints.waypoints[-1].id
 
         """ Iterate through all the waypoints starting from the closest + 1. Return the first further than lookahead """
         for wp in self.waypoints.waypoints[id_closest_wp + 1 :]:
