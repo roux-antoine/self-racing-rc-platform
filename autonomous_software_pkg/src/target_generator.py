@@ -150,12 +150,11 @@ class TargetGenerator:
                     ].speed_mps
                 except IndexError:
                     rospy.logwarn(
-                        "An error occured while retreiving speed from waypoint"
+                        "An error occured while retrieving speed from waypoint"
                     )
                     target_speed = 0
 
             """ Publish target speed """
-            # Note: Strategy to change. Will likely not use the targetPoint
             self.publish_target_speed(target_speed)
 
     def callback_current_velocity(self, twist_msg: TwistStamped):
@@ -186,7 +185,11 @@ class TargetGenerator:
             if distance < d_min:
                 d_min = distance
                 id_closest_wp = wp.id
-                self.id_closest_wp = id_closest_wp  # NOTE: Not ideal
+
+        # Set attribute to use it for retrieving the speed of the closest waypoint
+        # NOTE: Is this ideal?
+        if id_closest_wp is not None:
+            self.id_closest_wp = id_closest_wp
 
         if id_closest_wp is None:
             rospy.logfatal("No closest waypoint found")
