@@ -80,7 +80,7 @@ class TargetGenerator:
         self.velocity_mode = rospy.get_param(
             "~velocity_mode", "WAYPOINT_FOLLOWING"
         )  # "MANUAL_INPUT_SPEED" / "WAYPOINT_FOLLOWING"
-        self.speed_gain = rospy.get_param("~speed_gain", 1)
+        self.speed_scale_factor = rospy.get_param("~speed_scale_factor", 1)
 
     def callback_waypoints(self, wp_msg: WaypointArray):
         """
@@ -150,7 +150,7 @@ class TargetGenerator:
                         target_speed = 0
                     else:
                         target_speed = (
-                            self.speed_gain
+                            self.speed_scale_factor
                             * self.waypoints.waypoints[self.id_closest_wp].speed_mps
                         )
                 except IndexError:
