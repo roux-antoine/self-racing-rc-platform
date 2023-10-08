@@ -53,7 +53,7 @@ tmux send-keys "rosrun autonomous_software_pkg map_publisher.py" C-m
 tmux select-pane -t 4
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun autonomous_software_pkg waypoints_publisher.py" C-m
+tmux send-keys "rosrun autonomous_software_pkg waypoints_publisher.py _waypoints_file:=rex_manor_parking_lot_waypoints_speed.txt" C-m
 
 # foxglove bridge
 tmux select-pane -t 5

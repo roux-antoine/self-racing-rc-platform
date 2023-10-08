@@ -28,6 +28,8 @@ class TargetGenerator:
         """Initialization"""
         self.current_state = State()
         self.waypoints = None
+        self.user_input_speed_mps = 0
+        self.id_closest_wp = 0
 
         """ Subscribers """
         rospy.Subscriber(
@@ -75,6 +77,10 @@ class TargetGenerator:
 
         """ Parameters """
         self.lookahead_distance = rospy.get_param("~lookahead_distance", 5)
+        self.velocity_mode = rospy.get_param(
+            "~velocity_mode", "WAYPOINT_FOLLOWING"
+        )  # "MANUAL_INPUT_SPEED" / "WAYPOINT_FOLLOWING"
+        self.speed_scale_factor = rospy.get_param("~speed_scale_factor", 1)
 
     def callback_waypoints(self, wp_msg: WaypointArray):
         """
@@ -135,17 +141,37 @@ class TargetGenerator:
             """ Publish target curvature """
             self.publish_target_curvature(curvature)
 
+            """ Compute target speed """
+            if self.velocity_mode == "MANUAL_INPUT_SPEED":
+                target_speed = self.user_input_speed_mps
+            elif self.velocity_mode == "WAYPOINT_FOLLOWING":
+                try:
+                    if self.id_closest_wp == self.waypoints.waypoints[-1].id:
+                        target_speed = 0
+                    else:
+                        target_speed = (
+                            self.speed_scale_factor
+                            * self.waypoints.waypoints[self.id_closest_wp].speed_mps
+                        )
+                except IndexError:
+                    rospy.logwarn(
+                        "An error occured while retrieving speed from waypoint"
+                    )
+                    target_speed = 0
+
             """ Publish target speed """
-            # Note: Strategy to change. Will likely not use the targetPoint
-            self.publish_target_speed(targetPoint)
+            self.publish_target_speed(target_speed)
 
     def callback_current_velocity(self, twist_msg: TwistStamped):
         """ """
         pass
 
     def callback_manual_input_speed(self, twist_msg: TwistStamped):
-        """ """
-        pass
+        """
+        Callback for manually generated input speed
+        NOTE: Use a timer that we reset to make sure we receive it regularly?
+        """
+        self.user_input_speed_mps = twist_msg.twist.linear.x
 
     def getNextWaypoint(self):
         """
@@ -164,6 +190,11 @@ class TargetGenerator:
             if distance < d_min:
                 d_min = distance
                 id_closest_wp = wp.id
+
+        # Set attribute to use it for retrieving the speed of the closest waypoint
+        # NOTE: Is this ideal?
+        if id_closest_wp is not None:
+            self.id_closest_wp = id_closest_wp
 
         if id_closest_wp is None:
             rospy.logfatal("No closest waypoint found")
@@ -283,7 +314,7 @@ class TargetGenerator:
 
         self.target_point_marker_pub.publish(marker_msg)
 
-    def publish_target_speed(self, targetPoint: State):
+    def publish_target_speed(self, target_speed: float):
         """
         Publishes the TwistStamped target speed
         """
@@ -293,7 +324,7 @@ class TargetGenerator:
         twist_msg.header.stamp = rospy.Time.now()
         twist_msg.header.frame_id = "world"
 
-        twist_msg.twist.linear.x = targetPoint.vx
+        twist_msg.twist.linear.x = target_speed
 
         self.target_velocity_pub.publish(twist_msg)
 
