@@ -168,7 +168,7 @@ class TargetGenerator:
         if id_closest_wp is None:
             rospy.logfatal("No closest waypoint found")
             # TODO: Improve the logic
-            return self.waypoints[-1].id
+            return self.waypoints.waypoints[-1].id
 
         """ Iterate through all the waypoints starting from the closest + 1. Return the first further than lookahead """
         for wp in self.waypoints.waypoints[id_closest_wp + 1 :]:
@@ -185,7 +185,7 @@ class TargetGenerator:
         # in this case, we return the last waypoint
         rospy.logwarn("All waypoints considered are within the lookahead distance")
         # TODO change: implement slowdown
-        return self.waypoints[-1].id
+        return self.waypoints.waypoints[-1].id
 
     def getTargetPoint(self, nextWaypointId: int):
         """
