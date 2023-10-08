@@ -76,3 +76,6 @@ class VehicleSim:
             )
 
             self.current_state.vx = self.current_state.vx + desired_acc * dt
+
+        elif self.longitudinal_model == LongitudinalModel.PERFECT:
+            self.current_state.vx = target_velocity
