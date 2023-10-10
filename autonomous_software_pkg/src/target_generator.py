@@ -12,6 +12,11 @@ from geometry_utils.geometry_utils import (
 )
 
 
+from dynamic_reconfigure.server import Server
+from autonomous_software_pkg.cfg import (
+    autonomous_software_pkg_dynamic_reconfigureConfig,
+)
+
 """
 NOTE:
 - Publish some additional things? Lookahead circle?
@@ -70,8 +75,16 @@ class TargetGenerator:
             queue_size=10,
         )
 
-        """ Parameters """
-        self.lookahead_distance = rospy.get_param("~lookahead_distance", 5)
+        """ Dynamic reconfigure setup """
+
+        def dynamic_reconfigure_callback(config, level):
+            self.lookahead_distance = config["lookahead_distance"]
+            return config
+
+        self.dynamic_reconfigure_server = Server(
+            autonomous_software_pkg_dynamic_reconfigureConfig,
+            dynamic_reconfigure_callback,
+        )
 
     def callback_waypoints(self, wp_msg: WaypointArray):
         """
