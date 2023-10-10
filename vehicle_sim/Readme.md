@@ -16,7 +16,7 @@ $ source devel/setup.bash
 $ rosrun vehicle_sim sim.py
 ```
 
-To initialize the position of the vehicle, open the map view and on the right hand side slick on ```Click to publish``` then click somewhere on the map start the simulation.
+To initialize the position of the vehicle, open the map view in Foxglove and on the right hand side slick on ```Click to publish``` then click somewhere on the map start the simulation.
 
 ## Diagram
 ![](images/sim_diagram.png)
@@ -26,3 +26,9 @@ To initialize the position of the vehicle, open the map view and on the right ha
 - Create other modes for longitudinal and lateral controller (perfect, delay, with noise ...)
 - Add print function to State class
 - Add more parameters to vehicle model (max radius, ...)
+
+## Appendix: Vehicle bicycle model
+
+The vehicle model used in the simulator is derived in ```P. I. Corke, "Robotics, Vision & Control"```.
+![](images/bicycle_model.png)
+![](images/equations.png)

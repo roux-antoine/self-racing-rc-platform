@@ -68,7 +68,7 @@ class Sim:
         self.state_initialized = False
         self.target_curvature = float(1 / max_radius)
         self.target_velocity = 0
-        self.listener = tf.TransformListener()
+        self.tf_listener = tf.TransformListener()
         self.rate = rospy.Rate(rate)
 
     def clicked_point_callback(self, msg: PoseStamped):
@@ -80,7 +80,9 @@ class Sim:
 
         # Convert the coordinates from the map to the world frame.
         try:
-            (trans, rot) = self.listener.lookupTransform("world", "map", rospy.Time(0))
+            (trans, rot) = self.tf_listener.lookupTransform(
+                "world", "map", rospy.Time(0)
+            )
 
             orientation_list = [
                 msg.pose.orientation.x,
@@ -149,7 +151,7 @@ class Sim:
                     self.target_velocity, self.time_step_secs
                 )
 
-                # Publish current simluated state for debugging
+                # Publish current simulated state for debugging
                 self.publish_sim_state(self.simulated_vehicle.current_state)
 
                 # Publish Gprmc topic

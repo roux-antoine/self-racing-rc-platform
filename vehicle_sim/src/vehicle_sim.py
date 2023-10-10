@@ -38,7 +38,7 @@ class VehicleSim:
 
         Arguments:
             - steering_input [rad]: Steering input to apply to simulated lateral control model
-            - dt [s]: Timestamp between two simulated positions
+            - dt [s]: Timestamp difference between two simulated positions
         """
 
         if self.lateral_model == LateralModel.PERFECT:
@@ -59,6 +59,10 @@ class VehicleSim:
                 * dt
             )
 
+        else:
+            # TODO
+            pass
+
     def predict_next_velocity(self, target_velocity: float, dt: float):
         """
         Function that updates the simulated vehicle's velocity, based on a simulated upper-level proportional controller
@@ -66,7 +70,7 @@ class VehicleSim:
 
         Arguments:
             - target_velocity [m/s]: Velocity the vehicle needs to follow
-            - dt [s]: Timestamp between two simulated positions
+            - dt [s]: Timestamp difference between two simulated positions
         """
 
         if self.longitudinal_model == LongitudinalModel.ACC_P_CONTROl:
@@ -79,3 +83,7 @@ class VehicleSim:
 
         elif self.longitudinal_model == LongitudinalModel.PERFECT:
             self.current_state.vx = target_velocity
+
+        else:
+            # TODO
+            pass
