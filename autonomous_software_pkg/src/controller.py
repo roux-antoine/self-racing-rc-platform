@@ -9,7 +9,7 @@ import os
 import rospy
 import tf
 from matplotlib.animation import FuncAnimation
-
+from std_msgs.msg import Float64, Int32
 from self_racing_car_msgs.msg import ControllerDebugInfo, VehicleCommand
 from geometry_msgs.msg import PoseStamped
 
@@ -125,6 +125,12 @@ class Controller:
                 PoseStamped,
                 self.callback_current_state,
             )
+
+            rospy.Subscriber(
+                '/teleop_speed',
+                Int32,
+                self.callback_speed_control,
+            )
         
             # Publishers
             self.vehicle_cmd_pub = rospy.Publisher(
@@ -137,8 +143,12 @@ class Controller:
                 ControllerDebugInfo,
                 queue_size=10,
             )
+           
 
     # ##################### PURE PURSUIT FUNCTIONS #####################
+
+    def callback_speed_control(self, msg):
+        self.THROTTLE_BASELINE = int(msg.data)
 
     def callback_current_state(self, msg):
         function_start_time = time.time()
