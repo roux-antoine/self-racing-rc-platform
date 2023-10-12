@@ -69,8 +69,10 @@ class Controller:
         self.WAYPOINTS_BEHIND_NBR = 6
         self.WAYPOINTS_AFTER_NBR = 12
         self.THROTTLE_START_LINE = 40  # TODO improve
-        self.THROTTLE_BASELINE = 100  # TODO improve
         self.START_LINE_WP_THRESHOLD = 5  # TODO improve
+
+        # Throttle control
+        self.throttle_value = 100
 
         # Initial values
         self.current_state = State()
@@ -129,7 +131,7 @@ class Controller:
             rospy.Subscriber(
                 '/teleop_speed',
                 Int32,
-                self.callback_speed_control,
+                self.callback_gui_control_throttle,
             )
         
             # Publishers
@@ -147,8 +149,8 @@ class Controller:
 
     # ##################### PURE PURSUIT FUNCTIONS #####################
 
-    def callback_speed_control(self, msg):
-        self.THROTTLE_BASELINE = int(msg.data)
+    def callback_gui_control_throttle(self, msg):
+        self.throttle_value = msg.data
 
     def callback_current_state(self, msg):
         function_start_time = time.time()
@@ -250,7 +252,7 @@ class Controller:
                 self.steering_angle = self.ConvertCurvatureToSteeringAngle(
                     self.curvature
                 )
-                self.throttle = self.THROTTLE_BASELINE
+                self.throttle = self.throttle_value
 
             else:
                 self.steering_angle = 0

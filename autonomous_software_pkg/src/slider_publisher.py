@@ -56,7 +56,6 @@ pub = rospy.Publisher('/teleop_speed', Int32, queue_size=10)
 
 signal.signal(signal.SIGINT, shutdown_handler)
 if __name__ == "__main__":
-    print("hello")
     try:
         window.mainloop()
     except rospy.ROSInterruptException:

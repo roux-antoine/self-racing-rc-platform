@@ -2,7 +2,7 @@
 
 
 import rospy
-from std_msgs.msg import String
+from std_msgs.msg import String, Int32
 from pynput.keyboard import Key, Listener
 
 
@@ -10,7 +10,7 @@ class TeleopPublisher:
     def __init__(self):
         rospy.init_node('keyboard_teleop_controller')
         self.speed = 100.0
-        self.pub = rospy.Publisher('teleop_speed', String, queue_size=10)
+        self.pub = rospy.Publisher('teleop_speed', int32, queue_size=10)
 
         with Listener(on_press=self.key_callback) as listener:
             rospy.spin()
@@ -24,7 +24,6 @@ class TeleopPublisher:
         
 
         if key_str == 'Key.up':
-            #print("PARIBA")
             if(self.speed < 100):
                 self.speed += 1
             else:
