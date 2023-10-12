@@ -7,7 +7,7 @@ import time
 from pid import PID
 from geometry_msgs.msg import TwistStamped
 from self_racing_car_msgs.msg import ArduinoLogging
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Float64MultiArray
 
 
 class LongitudinalController:
@@ -24,8 +24,8 @@ class LongitudinalController:
         self.throttle_min_autonomous_pwm = rospy.get_param(
             "~throttle_min_autonomous_pwm", 70
         )
-        gain_p = rospy.get_param("~speed_control_gain_p", 0.5)
-        gain_i = rospy.get_param("~speed_control_gain_i", 0)
+        gain_p = rospy.get_param("~speed_control_gain_p", 0.75)
+        gain_i = rospy.get_param("~speed_control_gain_i", 0.03)
         gain_d = rospy.get_param("~speed_control_gain_d", 0)
 
         # Subscribers
@@ -52,10 +52,12 @@ class LongitudinalController:
             queue_size=10,
         )
 
+        self.pub = rospy.Publisher("pid_debug", Float64MultiArray, queue_size=10)
+
         # Variables
         self.desired_velocity = 0
         self.current_velocity = 0
-        self.anti_windup_enabled = True
+        self.anti_windup_enabled = False
         self.pid_controller = PID(gain_p, gain_i, gain_d)
         self.speed_controller_enabled = False
         self.previous_t = time.time()
@@ -88,17 +90,21 @@ class LongitudinalController:
         while not rospy.is_shutdown():
 
             if self.speed_controller_enabled:
+                rospy.logwarn("-------------")
+                rospy.logwarn("Controller ON")
 
                 # Compute sample time
                 dt = time.time() - self.previous_t
 
                 # Compute velocity error
                 error = self.desired_velocity - self.current_velocity
+                rospy.logwarn("Error: " + str(error))
 
                 # Call the PID controller
-                throttle_diff = self.pid_controller.update(
+                throttle_diff, p, i, d = self.pid_controller.update(
                     error, self.anti_windup_enabled, dt
                 )
+                rospy.logwarn("Throttle diff: " + str(throttle_diff))
 
                 # Add the controller's output value to the idle position
                 throttle_value = self.throttle_idle_autonomous_pwm + throttle_diff
@@ -111,6 +117,13 @@ class LongitudinalController:
                     or throttle_value > self.throttle_max_autonomous_pwm
                 ):
                     throttle_saturating = True
+
+                    if throttle_value < self.throttle_min_autonomous_pwm:
+                        throttle_value = self.throttle_min_autonomous_pwm
+
+                    elif throttle_value > self.throttle_max_autonomous_pwm:
+                        throttle_value = self.throttle_max_autonomous_pwm
+
                 else:
                     throttle_saturating = False
 
@@ -126,10 +139,16 @@ class LongitudinalController:
                 else:
                     self.anti_windup_enabled = False
 
+                rospy.logwarn("Anti windup: " + str(self.anti_windup_enabled))
+
                 #  Publish result
                 self.publish_throttle_cmd(throttle_value)
+                self.publish_debug(p, i, d)
+                self.previous_t = time.time()
 
             else:
+                rospy.logwarn("Controller OFF")
+
                 # If the controller is not enabled,
                 self.pid_controller.reset()
                 self.previous_t = time.time()
@@ -145,6 +164,19 @@ class LongitudinalController:
         throttle_msg.data = throttle_value
 
         self.throttle_cmd_pub.publish(throttle_msg)
+
+    def publish_debug(self, p, i, d):
+        """
+        Function to publish on throttle topic
+        """
+
+        data_to_send = Float64MultiArray()  # the data to be sent, initialise the array
+        data_to_send.data = [
+            p,
+            i,
+            d,
+        ]  # assign the array with the value you want to send
+        self.pub.publish(data_to_send)
 
 
 if __name__ == "__main__":

@@ -46,7 +46,7 @@ class PID:
         self.i_value = output_i
         self.previous_error = error
 
-        return output
+        return output, self.kp * output_p, self.ki * output_i, self.kd * output_d
 
     def reset(self):
         """
