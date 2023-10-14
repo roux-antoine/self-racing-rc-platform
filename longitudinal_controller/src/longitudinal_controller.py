@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from enum import Enum
 import numpy as np
 import rospy
 import time
@@ -8,6 +9,11 @@ from pid import PID
 from geometry_msgs.msg import TwistStamped
 from self_racing_car_msgs.msg import ArduinoLogging
 from std_msgs.msg import Float32, Float64MultiArray
+
+
+class LongitudinalControlMode(Enum):
+    ConstantPwmOutput = 1
+    PID = 2
 
 
 class LongitudinalController:
@@ -24,9 +30,15 @@ class LongitudinalController:
         self.throttle_min_autonomous_pwm = rospy.get_param(
             "~throttle_min_autonomous_pwm", 70
         )
+        self.longitudinal_control_mode = rospy.get_param(
+            "~longitudinal_control_mode", 2
+        )
         gain_p = rospy.get_param("~speed_control_gain_p", 0.5)
         gain_i = rospy.get_param("~speed_control_gain_i", 0.1)
         gain_d = rospy.get_param("~speed_control_gain_d", 0)
+        self.constant_pwm_output = rospy.get_param(
+            "~constant_pwm_output", 90
+        )  # If ConstantPwmOutput mode
 
         # Subscribers
         rospy.Subscriber(
@@ -91,69 +103,78 @@ class LongitudinalController:
 
         while not rospy.is_shutdown():
 
-            if self.speed_controller_enabled:
-                rospy.logwarn("-------------")
-                rospy.logwarn("Controller ON")
+            if self.longitudinal_control_mode == LongitudinalControlMode.PID.value:
 
-                # Compute sample time
-                dt = time.time() - self.previous_t
+                if self.speed_controller_enabled:
+                    rospy.logwarn("-------------")
+                    rospy.logwarn("Controller ON")
 
-                # Compute velocity error
-                error = self.desired_velocity - self.current_velocity
-                rospy.logwarn("Error: " + str(error))
+                    # Compute sample time
+                    dt = time.time() - self.previous_t
 
-                # Call the PID controller
-                throttle_diff, p, i, d = self.pid_controller.update(
-                    error, self.anti_windup_enabled, dt
-                )
-                rospy.logwarn("Throttle diff: " + str(throttle_diff))
+                    # Compute velocity error
+                    error = self.desired_velocity - self.current_velocity
+                    rospy.logwarn("Error: " + str(error))
 
-                # Add the controller's output value to the idle position
-                throttle_value = self.throttle_idle_autonomous_pwm + throttle_diff
+                    # Call the PID controller
+                    throttle_diff, p, i, d = self.pid_controller.update(
+                        error, self.anti_windup_enabled, dt
+                    )
+                    rospy.logwarn("Throttle diff: " + str(throttle_diff))
 
-                #  --- Anti windup strategy ---
+                    # Add the controller's output value to the idle position
+                    throttle_value = self.throttle_idle_autonomous_pwm + throttle_diff
 
-                # Check if throttle output is already saturating the actuator
-                if (
-                    throttle_value < self.throttle_min_autonomous_pwm
-                    or throttle_value > self.throttle_max_autonomous_pwm
-                ):
-                    throttle_saturating = True
+                    #  --- Anti windup strategy ---
 
-                    if throttle_value < self.throttle_min_autonomous_pwm:
-                        throttle_value = self.throttle_min_autonomous_pwm
+                    # Check if throttle output is already saturating the actuator
+                    if (
+                        throttle_value < self.throttle_min_autonomous_pwm
+                        or throttle_value > self.throttle_max_autonomous_pwm
+                    ):
+                        throttle_saturating = True
 
-                    elif throttle_value > self.throttle_max_autonomous_pwm:
-                        throttle_value = self.throttle_max_autonomous_pwm
+                        if throttle_value < self.throttle_min_autonomous_pwm:
+                            throttle_value = self.throttle_min_autonomous_pwm
+
+                        elif throttle_value > self.throttle_max_autonomous_pwm:
+                            throttle_value = self.throttle_max_autonomous_pwm
+
+                    else:
+                        throttle_saturating = False
+
+                    # Check if controller is trying to saturate the actuator even more
+                    if np.sign(error) == np.sign(throttle_value):
+                        controller_saturating = True
+                    else:
+                        controller_saturating = False
+
+                    # If both above are true, then stop integrating.
+                    if throttle_saturating and controller_saturating:
+                        self.anti_windup_enabled = True
+                    else:
+                        self.anti_windup_enabled = False
+
+                    rospy.logwarn("Anti windup: " + str(self.anti_windup_enabled))
+
+                    #  Publish result
+                    self.publish_throttle_cmd(throttle_value)
+                    self.publish_debug_pid(p, i, d)
+                    self.previous_t = time.time()
 
                 else:
-                    throttle_saturating = False
+                    rospy.logwarn("Controller OFF")
 
-                # Check if controller is trying to saturate the actuator even more
-                if np.sign(error) == np.sign(throttle_value):
-                    controller_saturating = True
-                else:
-                    controller_saturating = False
+                    # If the controller is not enabled,
+                    self.pid_controller.reset()
+                    self.previous_t = time.time()
 
-                # If both above are true, then stop integrating.
-                if throttle_saturating and controller_saturating:
-                    self.anti_windup_enabled = True
-                else:
-                    self.anti_windup_enabled = False
+            elif (
+                self.longitudinal_control_mode
+                == LongitudinalControlMode.ConstantPwmOutput.value
+            ):
 
-                rospy.logwarn("Anti windup: " + str(self.anti_windup_enabled))
-
-                #  Publish result
-                self.publish_throttle_cmd(throttle_value)
-                self.publish_debug_pid(p, i, d)
-                self.previous_t = time.time()
-
-            else:
-                rospy.logwarn("Controller OFF")
-
-                # If the controller is not enabled,
-                self.pid_controller.reset()
-                self.previous_t = time.time()
+                self.publish_throttle_cmd(self.constant_pwm_output)
 
             self.rate.sleep()
 
