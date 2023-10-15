@@ -39,6 +39,9 @@ class LongitudinalController:
         self.constant_pwm_output = rospy.get_param(
             "~constant_pwm_output", 90
         )  # If ConstantPwmOutput mode
+        self.timeout_engage_msg_before_stop_secs = rospy.get_param(
+            "~timeout_engage_msg_before_stop_secs", 1
+        )
 
         # Subscribers
         rospy.Subscriber(
@@ -88,6 +91,7 @@ class LongitudinalController:
         Callback of log message from low level controller.
         """
         self.speed_controller_enabled = msg.engaged_mode
+        self.time_last_enable_msg = time.time()
         # TODO: Add timer for safety?
 
     def target_velocity_callback(self, msg: TwistStamped):
@@ -103,9 +107,15 @@ class LongitudinalController:
 
         while not rospy.is_shutdown():
 
+            time_since_last_message = time.time() - self.time_last_enable_msg
+
             if self.longitudinal_control_mode == LongitudinalControlMode.PID.value:
 
-                if self.speed_controller_enabled:
+                if (
+                    self.speed_controller_enabled
+                    and time_since_last_message
+                    < self.timeout_engage_msg_before_stop_secs
+                ):
                     rospy.logwarn("-------------")
                     rospy.logwarn("Controller ON")
 

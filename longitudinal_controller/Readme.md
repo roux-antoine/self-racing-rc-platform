@@ -19,7 +19,7 @@ $ rosrun longitudinal_controller longitudinal_controller.py
 |`speed_control_gain_i`|*0.1* |PID integral gain|
 |`speed_control_gain_d`|*0* |PID derivative gain|
 |`constant_pwm_output`|*90* |Throttle pwm output is mode is Constant PWM output|
-
+|`timeout_engage_msg_before_stop_secs`|*1* |Time in seconds after which an engage message is no longer valid and the controller is stopped|
 
 ## How it works
 
