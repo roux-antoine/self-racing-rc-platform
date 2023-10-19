@@ -5,7 +5,7 @@ from geometry_msgs.msg import PoseStamped, TwistStamped
 from self_racing_car_msgs.msg import WaypointArray
 from visualization_msgs.msg import Marker
 
-from geometry_utils.geometry_utils import (
+from geometry_utils_pkg.geometry_utils import (
     State,
     plane_distance,
     circle_line_segment_intersection,

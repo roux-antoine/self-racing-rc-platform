@@ -34,30 +34,30 @@ sleep 10
 
 # rtcm correction data
 tmux select-pane -t 1
-tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pkg/src'" C-m
 tmux send-keys "bash rtcm_corr_serial_pub.sh" C-m
 
 # gps listener
 tmux select-pane -t 2
-tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun autonomous_software_pkg rtk_gps_serial_reader.py" C-m
+tmux send-keys "rosrun localization_pkg rtk_gps_serial_reader.py" C-m
 
 # map publisher
 tmux select-pane -t 3
-tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun autonomous_software_pkg map_publisher.py" C-m
+tmux send-keys "rosrun localization_pkg map_publisher.py" C-m
 
 # waypoint publisher
 tmux select-pane -t 4
-tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun autonomous_software_pkg waypoints_publisher.py _waypoints_file:=rex_manor_parking_lot_waypoints_speed.txt" C-m
+tmux send-keys "rosrun localization_pkg waypoints_publisher.py _waypoints_file:=rex_manor_parking_lot_waypoints_speed.txt" C-m
 
 # foxglove bridge
 tmux select-pane -t 5
-tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "roslaunch foxglove_bridge foxglove_bridge.launch" C-m
 
@@ -78,31 +78,31 @@ tmux split-window -t 4 -h
 
 # vehicle state publisher
 tmux select-pane -t 0
-tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun autonomous_software_pkg vehicle_state_publisher.py" C-m
+tmux send-keys "rosrun localization_pkg vehicle_state_publisher.py" C-m
 
 # target generator
 tmux select-pane -t 1
-tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun autonomous_software_pkg target_generator.py" C-m
+tmux send-keys "rosrun planning_pkg target_generator.py" C-m
 
 # lateral controller
 tmux select-pane -t 2
-tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun autonomous_software_pkg lateral_controller.py" C-m
+tmux send-keys "rosrun controllers_pkg lateral_controller.py" C-m
 
 # rosserial arduino
 tmux select-pane -t 3
-tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun rosserial_python serial_node.py _port:=/dev/ttyACM1 _baud:=57600" C-m
 
 # rostopic echo /arduino_logging
 tmux select-pane -t 4
-tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rostopic echo /arduino_logging" C-m
 
