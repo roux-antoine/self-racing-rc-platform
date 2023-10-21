@@ -79,6 +79,7 @@ class LongitudinalController:
         self.speed_controller_enabled = False
         self.previous_t = time.time()
         self.rate = rospy.Rate(rate)
+        self.time_last_enable_msg = time.time()
 
     def current_velocity_callback(self, msg: TwistStamped):
         """
