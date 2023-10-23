@@ -174,10 +174,15 @@ class LongitudinalController:
                     self.previous_t = time.time()
 
                 else:
+                    # We are in PID mode but the controller is disabled because the engage button
+                    # is not pressed (or value not received since for too long)
                     rospy.logwarn("Controller OFF")
 
-                    # If the controller is not enabled,
+                    # Publish the throttle IDLE value
+                    self.publish_throttle_cmd(self.throttle_idle_autonomous_pwm)
+                    # Reset the integral component
                     self.pid_controller.reset()
+                    # Reset the previous time to avoid having a large integral value when we engage again
                     self.previous_t = time.time()
 
             elif (
