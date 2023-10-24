@@ -8,6 +8,7 @@ import utm
 
 from enum import Enum
 from pykml import parser
+from typing import List, Tuple
 
 from geometry_msgs.msg import Point, TransformStamped
 from visualization_msgs.msg import Marker, MarkerArray
@@ -25,12 +26,13 @@ class MapComponent:
     def __init__(
         self,
         type: PlacemarkType = PlacemarkType.Contour,
-        list_coordinates: list = [],
+        list_coordinates: List[Tuple[float, float]] = [],
     ):
-        self.id = MapComponent.numInstances
+        self.id: int = MapComponent.numInstances
+        self.type: PlacemarkType = type
+        self.list_coordinates: List[Tuple[float, float]] = list_coordinates
+
         MapComponent.numInstances += 1
-        self.type = type
-        self.list_coordinates = list_coordinates
 
 
 class MapPublisher:
