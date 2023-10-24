@@ -47,8 +47,7 @@ tmux send-keys "rosrun autonomous_software_pkg rtk_gps_serial_reader.py" C-m
 tmux select-pane -t 3
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-# tmux send-keys "rosrun autonomous_software_pkg map_publisher.py" C-m
-tmux send-keys "rosrun autonomous_software_pkg map_2.py _map_file_name:=MapSanMateoP1.kml" C-m
+tmux send-keys "rosrun autonomous_software_pkg map_publisher.py _map_file_name:=MapSanMateoP1.kml" C-m
 
 # waypoint publisher
 tmux select-pane -t 4
