@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>Project_SanMateo</name>
+	<gx:CascadingStyle kml:id="__managed_style_2EE42C59582C764733A2">
+		<Style>
+			<IconStyle>
+				<scale>1.2</scale>
+				<Icon>
+					<href>https://earth.google.com/earth/rpc/cc/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>6</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+				<displayMode>hide</displayMode>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<gx:CascadingStyle kml:id="__managed_style_1379B64E372C764733A2">
+		<Style>
+			<IconStyle>
+				<Icon>
+					<href>https://earth.google.com/earth/rpc/cc/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>4</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+				<displayMode>hide</displayMode>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<StyleMap id="__managed_style_0CE9BC75A32C764733A2">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#__managed_style_1379B64E372C764733A2</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#__managed_style_2EE42C59582C764733A2</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Placemark id="0B6A964F7E2C764859D3">
+		<name>line</name>
+		<LookAt>
+			<longitude>-122.339513283693</longitude>
+			<latitude>37.53278133971875</latitude>
+			<altitude>175.5912332364099</altitude>
+			<heading>163.7806181916209</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>25.49469004256481</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_0CE9BC75A32C764733A2</styleUrl>
+		<LineString>
+			<coordinates>
+				-122.3390379626013,37.53240804274052,0 -122.3395806962967,37.532817734029,0
+			</coordinates>
+		</LineString>
+	</Placemark>
+	<Placemark id="069C699EC42C76490A22">
+		<name>obstacle</name>
+		<LookAt>
+			<longitude>-122.3398198242599</longitude>
+			<latitude>37.53270559856331</latitude>
+			<altitude>174.2984922655754</altitude>
+			<heading>163.780130454141</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>56.68930223568168</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_0CE9BC75A32C764733A2</styleUrl>
+		<LineString>
+			<coordinates>
+				-122.3391794206746,37.53228808814109,0 -122.3397797242289,37.53274068661788,0
+			</coordinates>
+		</LineString>
+	</Placemark>
+
+</Document>
+</kml>
