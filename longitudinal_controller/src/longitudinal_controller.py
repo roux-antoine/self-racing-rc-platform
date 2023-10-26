@@ -108,30 +108,30 @@ class LongitudinalController:
 
         while not rospy.is_shutdown():
 
-            time_since_last_message = time.time() - self.time_last_enable_msg
+            duration_since_last_message = time.time() - self.time_last_enable_msg
 
             if self.longitudinal_control_mode == LongitudinalControlMode.PID.value:
 
                 if (
                     self.speed_controller_enabled
-                    and time_since_last_message
+                    and duration_since_last_message
                     < self.timeout_engage_msg_before_stop_secs
                 ):
-                    rospy.logwarn("-------------")
-                    rospy.logwarn("Controller ON")
+                    rospy.loginfo("-------------")
+                    rospy.loginfo("Controller ON")
 
                     # Compute sample time
                     dt = time.time() - self.previous_t
 
                     # Compute velocity error
                     error = self.desired_velocity - self.current_velocity
-                    rospy.logwarn("Error: " + str(error))
+                    rospy.loginfo(f"Error: {error}")
 
                     # Call the PID controller
                     throttle_diff, p, i, d = self.pid_controller.update(
                         error, self.anti_windup_enabled, dt
                     )
-                    rospy.logwarn("Throttle diff: " + str(throttle_diff))
+                    rospy.loginfo(f"Throttle diff: {throttle_diff}")
 
                     # Add the controller's output value to the idle position
                     throttle_value = self.throttle_idle_autonomous_pwm + throttle_diff
@@ -166,24 +166,21 @@ class LongitudinalController:
                     else:
                         self.anti_windup_enabled = False
 
-                    rospy.logwarn("Anti windup: " + str(self.anti_windup_enabled))
+                    rospy.loginfo("Anti windup: {self.anti_windup_enabled}")
 
                     #  Publish result
                     self.publish_throttle_cmd(throttle_value)
                     self.publish_debug_pid(p, i, d)
-                    self.previous_t = time.time()
 
                 else:
                     # We are in PID mode but the controller is disabled because the engage button
                     # is not pressed (or value not received since for too long)
-                    rospy.logwarn("Controller OFF")
+                    rospy.loginfo("Controller OFF")
 
                     # Publish the throttle IDLE value
                     self.publish_throttle_cmd(self.throttle_idle_autonomous_pwm)
                     # Reset the integral component
                     self.pid_controller.reset()
-                    # Reset the previous time to avoid having a large integral value when we engage again
-                    self.previous_t = time.time()
 
             elif (
                 self.longitudinal_control_mode
@@ -191,6 +188,9 @@ class LongitudinalController:
             ):
 
                 self.publish_throttle_cmd(self.constant_pwm_output)
+
+            # Reset the previous time to avoid having a large integral value when we engage again
+            self.previous_t = time.time()
 
             self.rate.sleep()
 
