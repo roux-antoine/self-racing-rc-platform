@@ -57,6 +57,7 @@ add_message_files(
   VehicleState.msg
   Waypoint.msg
   WaypointArray.msg
+  LongitudinalControllerDebugInfo.msg
 )
 
 ## Generate services in the 'srv' folder

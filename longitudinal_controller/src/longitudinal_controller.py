@@ -7,8 +7,8 @@ import time
 
 from pid import PID
 from geometry_msgs.msg import TwistStamped
-from self_racing_car_msgs.msg import ArduinoLogging
-from std_msgs.msg import Float32, Float64MultiArray
+from self_racing_car_msgs.msg import ArduinoLogging, LongitudinalControllerDebugInfo
+from std_msgs.msg import Float32
 
 
 class LongitudinalControlMode(Enum):
@@ -68,7 +68,7 @@ class LongitudinalController:
         )
 
         self.pub_debug_pid = rospy.Publisher(
-            "pid_debug", Float64MultiArray, queue_size=10
+            "pid_debug", LongitudinalControllerDebugInfo, queue_size=10
         )
 
         # Variables
@@ -79,7 +79,7 @@ class LongitudinalController:
         self.speed_controller_enabled = False
         self.previous_t = time.time()
         self.rate = rospy.Rate(rate)
-        self.time_last_enable_msg = time.time()
+        self.time_last_arduino_msg = time.time()
 
     def current_velocity_callback(self, msg: TwistStamped):
         """
@@ -92,8 +92,7 @@ class LongitudinalController:
         Callback of log message from low level controller.
         """
         self.speed_controller_enabled = msg.engaged_mode
-        self.time_last_enable_msg = time.time()
-        # TODO: Add timer for safety?
+        self.time_last_arduino_msg = time.time()
 
     def target_velocity_callback(self, msg: TwistStamped):
         """
@@ -108,7 +107,7 @@ class LongitudinalController:
 
         while not rospy.is_shutdown():
 
-            duration_since_last_message = time.time() - self.time_last_enable_msg
+            duration_since_last_message = time.time() - self.time_last_arduino_msg
 
             if self.longitudinal_control_mode == LongitudinalControlMode.PID.value:
 
@@ -155,7 +154,7 @@ class LongitudinalController:
                         throttle_saturating = False
 
                     # Check if controller is trying to saturate the actuator even more
-                    if np.sign(error) == np.sign(throttle_value):
+                    if np.sign(error) == np.sign(throttle_diff):
                         controller_saturating = True
                     else:
                         controller_saturating = False
@@ -166,11 +165,13 @@ class LongitudinalController:
                     else:
                         self.anti_windup_enabled = False
 
-                    rospy.loginfo("Anti windup: {self.anti_windup_enabled}")
+                    rospy.loginfo(f"Anti windup: {self.anti_windup_enabled}")
 
                     #  Publish result
                     self.publish_throttle_cmd(throttle_value)
-                    self.publish_debug_pid(p, i, d)
+                    self.publish_debug_pid(
+                        throttle_saturating, controller_saturating, p, i, d
+                    )
 
                 else:
                     # We are in PID mode but the controller is disabled because the engage button
@@ -204,18 +205,19 @@ class LongitudinalController:
 
         self.throttle_cmd_pub.publish(throttle_msg)
 
-    def publish_debug_pid(self, p, i, d):
+    def publish_debug_pid(self, throttle_saturating, controller_saturating, p, i, d):
         """
-        Function to publish on throttle topic
+        Function to publish debug info regarding speed controller
         """
 
-        data_to_send = Float64MultiArray()
-        data_to_send.data = [
-            p,
-            i,
-            d,
-        ]
-        self.pub_debug_pid.publish(data_to_send)
+        debug_msg = LongitudinalControllerDebugInfo()
+        debug_msg.throttle_saturating = throttle_saturating
+        debug_msg.controller_saturating = controller_saturating
+        debug_msg.p = p
+        debug_msg.i = i
+        debug_msg.d = d
+
+        self.pub_debug_pid.publish(debug_msg)
 
 
 if __name__ == "__main__":

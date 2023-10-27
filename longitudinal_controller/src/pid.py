@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import rospy
 
 
 class PID:
@@ -13,6 +14,8 @@ class PID:
         self.ki = gain_i
         self.kd = gain_d
 
+        self.min_sampling_time_sec = 0.01  # 10 ms
+
         self.output = 0
         self.i_value = 0
         self.previous_error = 0
@@ -26,6 +29,13 @@ class PID:
         - anti_windup: Boolean to enable the anti-windup strategy
         - dt [s]: Time since last call
         """
+
+        if dt <= self.min_sampling_time_sec:
+            rospy.logwarn(
+                "Input sampling time is {}, which is smaller than min of {}.".format(
+                    dt, self.min_sampling_time_sec
+                )
+            )
 
         # Proportional component
         output_p = error
