@@ -93,7 +93,7 @@ tmux send-keys "rosrun autonomous_software_pkg lateral_controller.py" C-m
 tmux select-pane -t 3
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomous_software_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun autonomous_software_pkg longitudinal_controller.py" C-m
+tmux send-keys "rosrun longitudinal_controller longitudinal_controller.py _longitudinal_control_mode:=1 _constant_pwm_output:=90 _speed_control_gain_p:=0.5 _speed_control_gain_i:=0.0" C-m
 
 # attaching the session
 tmux attach-session -t $session
