@@ -1,13 +1,19 @@
-# Longitudinal controller
+# Controllers
 
-## Usage
+## Lateral controller
+
+TODO
+
+## Longitudinal controller
+
+### Usage
 
 ```console
 $ source devel/setup.bash
-$ rosrun longitudinal_controller longitudinal_controller.py
+$ rosrun controllers_pkg longitudinal_controller.py
 ```
 
-## Parameters
+### Parameters
 | Parameter | Default | Description |
 ----------|-----|--------
 |`rate`|*10* |Frequency (Hz) of controller's main loop|
@@ -21,7 +27,7 @@ $ rosrun longitudinal_controller longitudinal_controller.py
 |`constant_pwm_output`|*90* |Throttle pwm output is mode is Constant PWM output|
 |`timeout_engage_msg_before_stop_secs`|*1* |Time in seconds after which an engage message is no longer valid and the controller is stopped|
 
-## How it works
+### How it works
 
 The longitudinal control has two modes:
 - ConstantPwmOutput: The controller's output is constant and set as a parameter
@@ -29,6 +35,6 @@ The longitudinal control has two modes:
 
 ![](images/controller.png)
 
-## Future improvements
+### Future improvements
 
 - Feedforward term

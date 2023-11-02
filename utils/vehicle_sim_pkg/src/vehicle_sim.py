@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import numpy as np
 from enum import Enum
-from geometry_utils.geometry_utils import State
+from geometry_utils_pkg.geometry_utils import State
 
 
 class LateralModel(Enum):
