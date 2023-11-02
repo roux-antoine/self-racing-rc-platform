@@ -10,7 +10,7 @@ services:
       - DISPLAY=${DISPLAY}
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix # for GUI purposes
-      - /Users/antoineroux/Downloads:/home/antoine
+      - /home/${USER}:/home/${USER}
       - /etc/passwd:/etc/passwd # so that the user is found inside the docker
       - /etc/group:/etc/group # so that the group of the user is found inside the docker
       - /dev:/dev # mounting all devices, a bit hacky but works

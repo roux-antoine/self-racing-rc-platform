@@ -4,7 +4,7 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 ABS_SCRIPT_DIR=$(readlink -f "$SCRIPT_DIR")
 NAME_WINDOW_1=""
 
-setup_bash_path="$ABS_SCRIPT_DIR/../devel/setup.bash"
+setup_bash_path="$ABS_SCRIPT_DIR/../../devel/setup.bash"
 
 session="self_racing_rc_platform-all"
 
