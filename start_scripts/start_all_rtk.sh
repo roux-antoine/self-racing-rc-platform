@@ -42,13 +42,13 @@ tmux send-keys "roslaunch foxglove_bridge foxglove_bridge.launch" C-m
 tmux select-pane -t 2
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun localization_pkg map_publisher.py" C-m
+tmux send-keys "rosrun localization_pkg map_publisher.py _map_file_name:=MapSanMateoP1.kml" C-m
 
 # waypoint publisher
 tmux select-pane -t 3
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun localization_pkg waypoints_publisher.py _waypoints_file:=rex_manor_parking_lot_waypoints_speed.txt" C-m
+tmux send-keys "rosrun localization_pkg waypoints_publisher.py _waypoints_file:=waypoints_P1_straight_1_detail_3m.txt" C-m
 
 # rtcm correction data
 tmux select-pane -t 4

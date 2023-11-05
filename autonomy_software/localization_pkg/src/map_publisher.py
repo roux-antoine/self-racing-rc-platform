@@ -4,10 +4,35 @@ import os
 import rospy
 import tf
 import tf2_ros
-from typing import List
+import utm
+
+from enum import Enum
+from pykml import parser
+from typing import List, Tuple
 
 from geometry_msgs.msg import Point, TransformStamped
-from visualization_msgs.msg import Marker
+from visualization_msgs.msg import Marker, MarkerArray
+
+
+class PlacemarkType(Enum):
+    Contour = 1
+    Lane = 2
+    Obstacle = 3
+
+
+class MapComponent:
+    numInstances = 0
+
+    def __init__(
+        self,
+        type: PlacemarkType = PlacemarkType.Contour,
+        list_coordinates: List[Tuple[float, float]] = [],
+    ):
+        self.id: int = MapComponent.numInstances
+        self.type: PlacemarkType = type
+        self.list_coordinates: List[Tuple[float, float]] = list_coordinates
+
+        MapComponent.numInstances += 1
 
 
 class MapPublisher:
@@ -15,86 +40,132 @@ class MapPublisher:
 
         rospy.init_node("map_publisher", anonymous=True)
 
-        """ Publishers """
+        # Publisher
         self.map_marker_pub = rospy.Publisher(
-            "map_viz", Marker, queue_size=10, latch=True
+            "map_viz", MarkerArray, queue_size=10, latch=True
         )
 
-        """ Parameters """
-        map_file_name = rospy.get_param("~map_file_name", "rex_manor_map.txt")
+        # Parameters
+        self.map_file_name = rospy.get_param("~map_file_name", "MapSanMateoP1.kml")
 
-        """ Load waypoints fields into three lists """
-        list_map_x, list_map_y = self.load_map(map_file_name)
-
-        """ Publish """
-        self.publish_map(list_map_x, list_map_y)
-        self.publish_tf_world_map(list_map_x[0], list_map_y[0])
-
-    def load_map(self, file_name: str):
+    def load_map(self):
         """
-        Function to load the waypoints from a text file into two lists (x, y)
+        Function to parse a kml file into a list of MapComponent, each defining a portion of the map
+        Returns:
+            - list_components: List of MapComponent objects
         """
 
-        list_wp_x, list_wp_y = [], []
-
-        """ Find file path """
         waypoint_file_folder_path = os.path.join(
             os.path.dirname(
                 os.path.dirname(
                     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 )
             ),
-            "utils/utm_map_generation/x_y_files",
+            "utils/utm_map_generation/kml_files",
         )
 
-        wp_file = os.path.join(waypoint_file_folder_path, file_name)
+        wp_file = os.path.join(waypoint_file_folder_path, self.map_file_name)
 
-        """ Open and read file """
-        with open(wp_file) as waypoints_file:
+        list_components = []
 
-            for line in waypoints_file.readlines():
+        with open(wp_file) as f:
 
-                list_wp_x.append(float(line.split()[0]))
-                list_wp_y.append(float(line.split()[1]))
+            root = parser.parse(f).getroot()
 
-        return list_wp_x, list_wp_y
+            for p in root.Document.Placemark:
 
-    def publish_map(self, list_wp_x: List[float], list_wp_y: List[float]):
+                component = MapComponent()
+                component.list_coordinates = []
+
+                # Classify type of component using its name
+                name = p.name.text
+
+                if "obstacle" in name:
+                    component.type = PlacemarkType.Obstacle
+
+                elif "contour" in name:
+                    component.type = PlacemarkType.Contour
+
+                elif "line" in name:
+                    component.type = PlacemarkType.Lane
+
+                # Extract coordinates from component (is different depending on geometry of component)
+                if hasattr(p, "Polygon"):
+                    coordinates = p.Polygon.outerBoundaryIs.LinearRing.coordinates
+
+                if hasattr(p, "LineString"):
+                    coordinates = p.LineString.coordinates
+
+                # Convert to string
+                coordinates_string = str(coordinates)
+
+                # Go through coordinates, convert them to utm and add them to component object
+                for x_y in coordinates_string.split():
+
+                    lon = float((x_y.split(","))[0])
+                    lat = float((x_y.split(","))[1])
+
+                    utm_values = utm.from_latlon(lat, lon)
+                    x_utm, y_utm = utm_values[0], utm_values[1]
+
+                    component.list_coordinates.append((x_utm, y_utm))
+
+                # Add map component to list of map components
+                list_components.append(component)
+
+        return list_components
+
+    def publish_map(self, map):
         """
-        Function to publish the waypoints Markers
+        Function to publish a MarkerArray topic, containing Markers each representing a portion of the map
         """
 
-        """ Marker message """
-        marker_msg = Marker()
+        markerArray = MarkerArray()
 
-        marker_msg.header.frame_id = "world"
-        marker_msg.ns = "map"
-        marker_msg.type = 4
-        marker_msg.action = 0
-        marker_msg.id = 0
+        for count, component in enumerate(map):
 
-        # marker scale
-        marker_msg.scale.x = 0.2
-        marker_msg.scale.y = 0.2
+            marker = Marker()
+            marker.header.frame_id = "world"
+            marker.type = marker.LINE_STRIP
+            marker.action = marker.ADD
+            marker.scale.x = 0.2
+            marker.scale.y = 0.2
+            marker.scale.z = 0.2
+            marker.color.a = 1.0
 
-        # marker color
-        marker_msg.color.r = 0.5
-        marker_msg.color.g = 0.5
-        marker_msg.color.b = 0.5
-        marker_msg.color.a = 1
+            marker.pose.orientation.w = 1.0
+            marker.pose.position.x = 0
+            marker.pose.position.y = 0
+            marker.pose.position.z = 0
 
-        marker_msg.pose.orientation.w = 1.0
+            if component.type == PlacemarkType.Obstacle:
+                marker.color.r = 0.89
+                marker.color.g = 0.05
+                marker.color.b = 0.19
 
-        marker_msg.points = []
+            elif component.type == PlacemarkType.Lane:
+                marker.color.r = 0.08
+                marker.color.g = 0.63
+                marker.color.b = 0.09
 
-        for x, y in zip(list_wp_x, list_wp_y):
+            elif component.type == PlacemarkType.Contour:
+                marker.color.r = 0.3
+                marker.color.g = 0.3
+                marker.color.b = 0.3
 
-            marker_msg.points.append(Point(x, y, 0))
+            marker.id = count
 
-        """ Publish """
-        self.map_marker_pub.publish(marker_msg)
+            for x_y in component.list_coordinates:
+                p = Point()
+                p.x = x_y[0]
+                p.y = x_y[1]
+                marker.points.append(p)
 
-    def publish_tf_world_map(self, x_origin: float, y_origin: float):
+            markerArray.markers.append(marker)
+
+        self.map_marker_pub.publish(markerArray)
+
+    def publish_tf_world_map(self, map):
         """
         Function to publish the tf between world and map on the topic /tf_static
         """
@@ -106,8 +177,8 @@ class MapPublisher:
         static_transform.header.frame_id = "world"
         static_transform.child_frame_id = "map"
 
-        static_transform.transform.translation.x = x_origin
-        static_transform.transform.translation.y = y_origin
+        static_transform.transform.translation.x = (map[0].list_coordinates)[0][0]
+        static_transform.transform.translation.y = (map[0].list_coordinates)[0][1]
         static_transform.transform.translation.z = 0
 
         quaternion = tf.transformations.quaternion_from_euler(0, 0, 0)
@@ -121,5 +192,17 @@ class MapPublisher:
 
 
 if __name__ == "__main__":
-    map_pub = MapPublisher()
-    rospy.spin()
+    try:
+        map_pub = MapPublisher()
+
+        # Load waypoints
+        map = map_pub.load_map()
+
+        # Publish map markers and tf
+        map_pub.publish_map(map)
+        map_pub.publish_tf_world_map(map)
+
+        rospy.spin()
+
+    except rospy.ROSInterruptException:
+        pass
