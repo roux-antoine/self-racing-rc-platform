@@ -8,7 +8,7 @@ import tf
 import utm
 
 from geometry_msgs.msg import PoseStamped, TwistStamped
-from geometry_utils.geometry_utils import compute_steering_angle_from_curvature, State
+from geometry_utils_pkg.geometry_utils import compute_steering_angle_from_curvature, State
 from nmea_msgs.msg import Gprmc
 from std_msgs.msg import Float64
 from vehicle_sim import LateralModel, LongitudinalModel, VehicleSim

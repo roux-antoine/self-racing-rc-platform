@@ -48,7 +48,9 @@ class WaypointsPublisher:
         """ Find file path """
         waypoint_file_folder_path = os.path.join(
             os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                )
             ),
             "utils/utm_map_generation/x_y_files",
         )

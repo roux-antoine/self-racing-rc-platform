@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(vehicle_sim)
+project(vehicle_sim_pkg)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -22,7 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES vehicle_sim
+#  LIBRARIES vehicle_sim_pkg
 #  CATKIN_DEPENDS geometry_msgs roscpp rospy std_msgs
 #  DEPENDS system_lib
 )

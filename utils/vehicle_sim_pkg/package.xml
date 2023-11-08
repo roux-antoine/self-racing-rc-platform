@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>vehicle_sim</name>
+  <name>vehicle_sim_pkg</name>
   <version>0.0.0</version>
-  <description>The vehicle_sim package</description>
+  <description>The vehicle_sim_pkg package</description>
 
   <maintainer email="mattia@todo.todo">mattia</maintainer>
 

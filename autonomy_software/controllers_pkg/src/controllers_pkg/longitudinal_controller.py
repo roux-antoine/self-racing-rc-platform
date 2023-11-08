@@ -5,7 +5,7 @@ import numpy as np
 import rospy
 import time
 
-from pid import PID
+from controllers_pkg.pid import PID
 from geometry_msgs.msg import TwistStamped
 from self_racing_car_msgs.msg import ArduinoLogging, LongitudinalControllerDebugInfo
 from std_msgs.msg import Float32

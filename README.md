@@ -29,4 +29,4 @@ Run `catkin build` from the top of the repo
 
 ## Building the `arduino_pkg` package
 
-Follow the instruction in `arduino_pkg/README.md`
+Follow the instruction in `firmware/arduino_pkg/README.md`
