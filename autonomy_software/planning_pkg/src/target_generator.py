@@ -212,8 +212,20 @@ class TargetGenerator:
             ):
                 return wp.id
 
-        # If we are here, it means that all the waypoints behind the closest one are inside the lookahead distance
-        # in this case, we return the last waypoint
+        # If we are here, it means that all the waypoints behind the closest one are within the lookahead distance
+        # We have to loop over the waypoints starting from the beginning
+        for wp in self.waypoints.waypoints[:id_closest_wp]:
+            if (
+                plane_distance(
+                    State(x=wp.pose.position.x, y=wp.pose.position.y),
+                    self.current_state,
+                )
+                > self.lookahead_distance
+            ):
+                return wp.id
+
+        # If we are here, that seems very unlikely, but all the waypoints are within the lookahead distance
+        # In this case, we return the last waypoint
         rospy.logwarn("All waypoints considered are within the lookahead distance")
         # TODO change: implement slowdown
         return self.waypoints.waypoints[-1].id
