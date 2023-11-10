@@ -54,7 +54,7 @@ tmux send-keys "rosrun localization_pkg map_publisher.py _map_file_name:=MapSanM
 tmux select-pane -t 4
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pk/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun localization_pkg waypoints_publisher.py _waypoints_file:=waypoints_P1_straight_1_detail_3m.txt" C-m
+tmux send-keys "rosrun localization_pkg waypoints_publisher.py _waypoints_file:=waypoints_P1_straight_1_detail_3m_speed.txt" C-m
 
 
 window=1
@@ -82,7 +82,7 @@ tmux send-keys "rosrun localization_pkg vehicle_state_publisher.py" C-m
 tmux select-pane -t 1
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/planning_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun planning_pkg target_generator.py C-m _velocity_mode:=MANUAL_INPUT_SPEED _speed_scale_factor:=1 _lookahead_distance:=5" C-m
+tmux send-keys "rosrun planning_pkg target_generator.py C-m _velocity_mode:=WAYPOINT_FOLLOWING _speed_scale_factor:=1 _lookahead_distance:=5 _loop_over_waypoints:=False" C-m
 
 # lateral controller
 tmux select-pane -t 2
