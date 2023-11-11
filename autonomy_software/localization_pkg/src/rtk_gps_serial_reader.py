@@ -45,10 +45,8 @@ class RtkGpsSerialReader:
                         print(parsed_msg)
                         self.publish_nmea_sentence_rmc(parsed_msg)
                     except Exception:
-                        rospy.logwarn(
-                            "Failed to parse NMEA sentence. Input serial data: {}. Not publishing /gps_info.".format(
-                                serial_data
-                            )
+                        rospy.logerror(
+                            f"Failed to parse NMEA sentence. Input serial data: {serial_data}. Not publishing /gps_info."
                         )
 
             self.rate.sleep()

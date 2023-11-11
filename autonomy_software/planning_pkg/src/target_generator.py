@@ -252,8 +252,6 @@ class TargetGenerator:
                 ):
                     return wp.id
 
-        # If we are here, all the waypoints are within the lookahead distance
-        # In this case, we return the last waypoint
         rospy.logwarn("All waypoints considered are within the lookahead distance")
         return None
 
