@@ -1,4 +1,4 @@
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TwistStamped
 import rospy
 from std_msgs.msg import Float32, Float64
 import tf
@@ -6,7 +6,6 @@ import tf
 
 from geometry_utils_pkg.geometry_utils import (
     State,
-    compute_steering_angle_from_curvature,
 )
 
 
@@ -43,6 +42,7 @@ class LateralController:
         self.current_state = State()
         self.target_curvature = 0
         self.rate = rospy.Rate(rate)
+        self.current_velocity = 0
 
         # Subscribers
         rospy.Subscriber(
@@ -54,6 +54,12 @@ class LateralController:
             current_pose_topic_name,
             PoseStamped,
             self.current_pose_callback,
+        )
+        rospy.Subscriber(
+            "current_velocity",
+            TwistStamped,
+            self.callback_current_velocity,
+            queue_size=10,
         )
 
         # Publishers
@@ -88,6 +94,10 @@ class LateralController:
 
         self.target_curvature = msg.data
 
+    def callback_current_velocity(self, twist_msg: TwistStamped):
+        """ """
+        self.current_velocity = twist_msg.twist.linear.x
+
     def loop(self):
         """
         Main loop of the lateral controller
@@ -99,24 +109,46 @@ class LateralController:
 
         while not rospy.is_shutdown():
 
-            # Compute the corresponding steering angle
-            steering_angle = compute_steering_angle_from_curvature(
-                curvature=self.target_curvature, wheel_base=self.WHEEL_BASE
-            )
+            # Compute the steering pwm command using a data-derived model of the steering
+            # our model: steering_diff = curvature / coeff
+            # coeff = 1 / (max steering_diff * radius of circle at max lateral acceleration)
+            # coeff at 1.5 m/s = 27 * 1.25
+            # coeff at 4.5 m/s = 24 * 2.3
+            # coeff at 8 ms = 26 * 6
+            # we linearly interpolate in between
 
-            # Compute the steering_pwn_cmd based on the steering angle and our steering model
-            if steering_angle > self.EFFECTIVE_MAX_STEERING_ANGLE:
-                steering_pwn_cmd = self.STEERING_MIN_PWM
-            elif steering_angle < -self.EFFECTIVE_MAX_STEERING_ANGLE:
-                steering_pwn_cmd = self.STEERING_MAX_PWM
-            else:
-                steering_pwn_cmd = (
-                    self.STEERING_IDLE_PWM
-                    + self.STEERING_REVERSE
-                    * steering_angle
-                    * self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE
-                    / self.EFFECTIVE_MAX_STEERING_ANGLE
+            if self.current_velocity == 0:
+                # not too sure what to do here, figure out
+                coeff = 1000
+            elif self.current_velocity > 0 and self.current_velocity <= 1.5:
+                coeff = 1 / (
+                    27 * 1.25
+                )  # max steering_diff * radius of circle at max lateral acceleration
+            elif self.current_velocity > 1.5 and self.current_velocity <= 4.5:
+                coeff = 1 / (
+                    27 * 1.25
+                    + (self.current_velocity - 1.5)
+                    * (24 * 2.3 - 27 * 1.25)
+                    / (4.5 - 1.5)
                 )
+            elif self.current_velocity > 4.5 and self.current_velocity <= 8:
+                coeff = 1 / (
+                    24 * 2.3
+                    + (self.current_velocity - 4.5) * (26 * 6 - 24 * 2.3) / (8 - 4.5)
+                )
+            elif self.current_velocity > 8:
+                coeff = 1 / (26 * 6)
+
+            steering_pwn_cmd = (
+                self.STEERING_IDLE_PWM + self.target_curvature / coeff
+            )  # TODO maybe we need a minus here
+
+            if steering_pwn_cmd > self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE:
+                steering_pwn_cmd = self.STEERING_MIN_PWM
+            elif (
+                steering_pwn_cmd < -self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE
+            ):
+                steering_pwn_cmd = self.STEERING_MAX_PWM
 
             self.steering_cmd_pub.publish(steering_pwn_cmd)
 
