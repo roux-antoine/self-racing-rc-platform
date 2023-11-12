@@ -120,6 +120,7 @@ class LateralController:
             if self.current_velocity == 0:
                 # not too sure what to do here, figure out
                 coeff = 1000
+
             elif self.current_velocity > 0 and self.current_velocity <= 1.5:
                 coeff = 1 / (
                     27 * 1.25
@@ -134,21 +135,19 @@ class LateralController:
             elif self.current_velocity > 4.5 and self.current_velocity <= 8:
                 coeff = 1 / (
                     24 * 2.3
-                    + (self.current_velocity - 4.5) * (26 * 6 - 24 * 2.3) / (8 - 4.5)
+                    + (self.current_velocity - 4.5) * (26 * 4 - 24 * 2.3) / (8 - 4.5)
                 )
             elif self.current_velocity > 8:
-                coeff = 1 / (26 * 6)
+                coeff = 1 / (26 * 4)
 
             steering_pwn_cmd = (
-                self.STEERING_IDLE_PWM + self.target_curvature / coeff
+                self.STEERING_IDLE_PWM - self.target_curvature / coeff
             )  # TODO maybe we need a minus here
 
-            if steering_pwn_cmd > self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE:
-                steering_pwn_cmd = self.STEERING_MIN_PWM
-            elif (
-                steering_pwn_cmd < -self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE
-            ):
+            if steering_pwn_cmd > self.STEERING_MAX_PWM:
                 steering_pwn_cmd = self.STEERING_MAX_PWM
+            elif steering_pwn_cmd < self.STEERING_MIN_PWM:
+                steering_pwn_cmd = self.STEERING_MIN_PWM
 
             self.steering_cmd_pub.publish(steering_pwn_cmd)
 
