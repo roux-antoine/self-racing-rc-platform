@@ -18,16 +18,12 @@ class LateralController:
         self.STEERING_IDLE_PWM = 98  # unitless
         self.STEERING_MAX_PWM = 123  # unitless
         self.STEERING_MIN_PWM = 68  # unitless
-        self.EFFECTIVE_MAX_STEERING_ANGLE = 0.3  # rad
-        self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE = 27  # unitless
-        # NOTE because the diff between IDLE and MAX (25) is not the same as IDLE and MIN (30),
-        # we pick this 'average' value of 27. It would be smarter to have 2 values of the width
-        # to the MAX and MIN.
-        self.CAR_MIN_TURN_RADIUS = 1.25  # m
-        self.WHEEL_BASE = 0.406  # m
-        self.STEERING_REVERSE = (
-            -1
-        )  # unitless, here because the car turns left for a steering angle smaller than the IDLE
+        self.UPPER_BOUND_REGION_1 = 1.5  # m/s
+        self.UPPER_BOUND_REGION_2 = 5  # m/s
+        self.UPPER_BOUND_REGION_3 = 8  # m/s
+        self.COEFF_REGION_1 = 27 * 1.25  # max steering_diff * radius of circle at max lateral acceleration
+        self.COEFF_REGION_2 = 24 * 2.3
+        self.COEFF_REGION_3 = 26 * 4
 
         # Variables
         target_curvature_topic_name = rospy.get_param(
@@ -112,37 +108,30 @@ class LateralController:
             # Compute the steering pwm command using a data-derived model of the steering
             # our model: steering_diff = curvature / coeff
             # coeff = 1 / (max steering_diff * radius of circle at max lateral acceleration)
-            # coeff at 1.5 m/s = 27 * 1.25
-            # coeff at 4.5 m/s = 24 * 2.3
-            # coeff at 8 ms = 26 * 6
-            # we linearly interpolate in between
-
             if self.current_velocity == 0:
-                # not too sure what to do here, figure out
-                coeff = 1000
-
-            elif self.current_velocity > 0 and self.current_velocity <= 1.5:
+                coeff = 1000  # just so that we get a small number later on
+            elif self.current_velocity > 0 and self.current_velocity <= self.UPPER_BOUND_REGION_1:
                 coeff = 1 / (
-                    27 * 1.25
-                )  # max steering_diff * radius of circle at max lateral acceleration
-            elif self.current_velocity > 1.5 and self.current_velocity <= 4.5:
-                coeff = 1 / (
-                    27 * 1.25
-                    + (self.current_velocity - 1.5)
-                    * (24 * 2.3 - 27 * 1.25)
-                    / (4.5 - 1.5)
+                    self.COEFF_REGION_1
                 )
-            elif self.current_velocity > 4.5 and self.current_velocity <= 8:
+            elif self.current_velocity > self.UPPER_BOUND_REGION_1 and self.current_velocity <= self.UPPER_BOUND_REGION_2:
                 coeff = 1 / (
-                    24 * 2.3
-                    + (self.current_velocity - 4.5) * (26 * 4 - 24 * 2.3) / (8 - 4.5)
+                    self.COEFF_REGION_1
+                    + (self.current_velocity - self.UPPER_BOUND_REGION_1)
+                    * (self.COEFF_REGION_2 - self.COEFF_REGION_1)
+                    / (self.UPPER_BOUND_REGION_2 - self.UPPER_BOUND_REGION_1)
                 )
-            elif self.current_velocity > 8:
-                coeff = 1 / (26 * 4)
+            elif self.current_velocity > self.UPPER_BOUND_REGION_2 and self.current_velocity <= self.UPPER_BOUND_REGION_3:
+                coeff = 1 / (
+                    self.COEFF_REGION_2
+                    + (self.current_velocity - self.UPPER_BOUND_REGION_2) * (self.COEFF_REGION_3 - self.COEFF_REGION_2) / (self.UPPER_BOUND_REGION_3 - self.UPPER_BOUND_REGION_2)
+                )
+            elif self.current_velocity > self.UPPER_BOUND_REGION_3:
+                coeff = 1 / self.COEFF_REGION_3
 
             steering_pwn_cmd = (
                 self.STEERING_IDLE_PWM - self.target_curvature / coeff
-            )  # TODO maybe we need a minus here
+            )
 
             if steering_pwn_cmd > self.STEERING_MAX_PWM:
                 steering_pwn_cmd = self.STEERING_MAX_PWM
