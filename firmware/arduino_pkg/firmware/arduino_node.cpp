@@ -320,5 +320,5 @@ void loop() {
   // display_value("override throttle ", override_throttle);
   // display_value("override steering ", override_steering);
 
-  delay(100);
+  delay(5);
 }

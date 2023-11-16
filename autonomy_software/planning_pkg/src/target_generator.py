@@ -76,11 +76,13 @@ class TargetGenerator:
         )
 
         """ Parameters """
+        self.curvature_min = 0.001
         self.lookahead_distance = rospy.get_param("~lookahead_distance", 5)
         self.velocity_mode = rospy.get_param(
             "~velocity_mode", "WAYPOINT_FOLLOWING"
         )  # "MANUAL_INPUT_SPEED" / "WAYPOINT_FOLLOWING"
         self.speed_scale_factor = rospy.get_param("~speed_scale_factor", 1)
+        self.loop_over_waypoints = rospy.get_param("~loop_over_waypoints", False)
 
     def callback_waypoints(self, wp_msg: WaypointArray):
         """
@@ -127,16 +129,37 @@ class TargetGenerator:
             """ Get Next waypoint - First waypoint further than the lookahead distance """
             nextWaypointId = self.getNextWaypoint()
 
-            """ Get target point """
-            targetPoint = self.getTargetPoint(nextWaypointId)
+            # If next waypoint is the last one and we are not looping over, no need to
+            # try and find the target point. If we do, the target point will be behind us
+            # and this is a potential hazard. Instead, set target point to last waypoint.
+            # NOTE: This could theoretically be better if getNextWaypoint would publish something else when
+            # all the waypoints are within the lookahead
+            if nextWaypointId is None and self.loop_over_waypoints is False:
+
+                rospy.logwarn("Next waypoint is the last one of the list. ")
+
+                # Get target point - just for visualization
+                targetPoint = State(
+                    x=self.waypoints.waypoints[-1].pose.position.x,
+                    y=self.waypoints.waypoints[-1].pose.position.y,
+                )
+
+                # Set curvature to minimum, so the steering is frozen to zero
+                curvature = self.curvature_min
+
+            # Nominal situation
+            else:
+
+                """Get target point"""
+                targetPoint = self.getTargetPoint(nextWaypointId)
+
+                """ Compute target curvature """
+                curvature = compute_curvature(
+                    current_state=self.current_state, target_state=targetPoint
+                )
 
             """ Publish target point marker """
             self.publish_target_point_marker(targetPoint)
-
-            """ Compute target curvature """
-            curvature = compute_curvature(
-                current_state=self.current_state, target_state=targetPoint
-            )
 
             """ Publish target curvature """
             self.publish_target_curvature(curvature)
@@ -146,7 +169,10 @@ class TargetGenerator:
                 target_speed = self.user_input_speed_mps
             elif self.velocity_mode == "WAYPOINT_FOLLOWING":
                 try:
-                    if self.id_closest_wp == self.waypoints.waypoints[-1].id:
+                    if (
+                        self.loop_over_waypoints is False
+                        and self.id_closest_wp == self.waypoints.waypoints[-1].id
+                    ):
                         target_speed = 0
                     else:
                         target_speed = (
@@ -212,11 +238,22 @@ class TargetGenerator:
             ):
                 return wp.id
 
-        # If we are here, it means that all the waypoints behind the closest one are inside the lookahead distance
-        # in this case, we return the last waypoint
+        if self.loop_over_waypoints is True:
+            rospy.logwarn("Looping over from beginning.")
+            # If we are here, it means that all the waypoints behind the closest one are within the lookahead distance
+            # We have to loop over the waypoints starting from the beginning
+            for wp in self.waypoints.waypoints[:id_closest_wp]:
+                if (
+                    plane_distance(
+                        State(x=wp.pose.position.x, y=wp.pose.position.y),
+                        self.current_state,
+                    )
+                    > self.lookahead_distance
+                ):
+                    return wp.id
+
         rospy.logwarn("All waypoints considered are within the lookahead distance")
-        # TODO change: implement slowdown
-        return self.waypoints.waypoints[-1].id
+        return None
 
     def getTargetPoint(self, nextWaypointId: int):
         """

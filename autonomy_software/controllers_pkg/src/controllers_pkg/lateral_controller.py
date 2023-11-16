@@ -15,6 +15,7 @@ class LateralController:
 
         # Constants
         # TODO these values will be shared by many nodes -> use a rosparam
+        rate = rospy.get_param("~rate", 10.0)
         self.STEERING_IDLE_PWM = 98  # unitless
         self.STEERING_MAX_PWM = 123  # unitless
         self.STEERING_MIN_PWM = 68  # unitless
@@ -40,6 +41,8 @@ class LateralController:
             "~steering_pwm_cmd_topic_name", "steering_pwm_cmd"
         )
         self.current_state = State()
+        self.target_curvature = 0
+        self.rate = rospy.Rate(rate)
 
         # Subscribers
         rospy.Subscriber(
@@ -80,38 +83,51 @@ class LateralController:
 
     def target_curvature_callback(self, msg: Float64):
         """
+        Callback function to retrieve the target curvature
+        """
+
+        self.target_curvature = msg.data
+
+    def loop(self):
+        """
+        Main loop of the lateral controller
         Computes the steering_pwm_cmd based on the target curvature and publishes it to the topic
 
         Using a very simple model, where the car (wheelbase=40.6cm) turns on a circle of diameter 2.5m when at 27 PWM units away from neutral,
         hence has a 'effective' angle of 0.3 rad at 27 PWM units away from neutral
         """
 
-        # Compute the corresponding steering angle
-        steering_angle = compute_steering_angle_from_curvature(
-            curvature=msg.data, wheel_base=self.WHEEL_BASE
-        )
+        while not rospy.is_shutdown():
 
-        # Compute the steering_pwn_cmd based on the steering angle and our steering model
-        if steering_angle > self.EFFECTIVE_MAX_STEERING_ANGLE:
-            steering_pwn_cmd = self.STEERING_MIN_PWM
-        elif steering_angle < -self.EFFECTIVE_MAX_STEERING_ANGLE:
-            steering_pwn_cmd = self.STEERING_MAX_PWM
-        else:
-            steering_pwn_cmd = (
-                self.STEERING_IDLE_PWM
-                + self.STEERING_REVERSE
-                * steering_angle
-                * self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE
-                / self.EFFECTIVE_MAX_STEERING_ANGLE
+            # Compute the corresponding steering angle
+            steering_angle = compute_steering_angle_from_curvature(
+                curvature=self.target_curvature, wheel_base=self.WHEEL_BASE
             )
 
-        self.steering_cmd_pub.publish(steering_pwn_cmd)
+            # Compute the steering_pwn_cmd based on the steering angle and our steering model
+            if steering_angle > self.EFFECTIVE_MAX_STEERING_ANGLE:
+                steering_pwn_cmd = self.STEERING_MIN_PWM
+            elif steering_angle < -self.EFFECTIVE_MAX_STEERING_ANGLE:
+                steering_pwn_cmd = self.STEERING_MAX_PWM
+            else:
+                steering_pwn_cmd = (
+                    self.STEERING_IDLE_PWM
+                    + self.STEERING_REVERSE
+                    * steering_angle
+                    * self.PWM_DIFFERENCE_AT_EFFECTIVE_MAX_STEERING_ANGLE
+                    / self.EFFECTIVE_MAX_STEERING_ANGLE
+                )
+
+            self.steering_cmd_pub.publish(steering_pwn_cmd)
+
+            self.rate.sleep()
 
 
 if __name__ == "__main__":
     try:
         rospy.init_node("lateral_controller")
         lateral_controller = LateralController()
-        rospy.spin()
+        # rospy.spin()
+        lateral_controller.loop()
     except rospy.ROSInterruptException:
         pass

@@ -39,9 +39,15 @@ class RtkGpsSerialReader:
             if serial_data:
                 # uncomment to handle RMC
                 if "GNRMC" in serial_data:
-                    parsed_msg = NMEAReader.parse(serial_data)
-                    print(parsed_msg)
-                    self.publish_nmea_sentence_rmc(parsed_msg)
+
+                    try:
+                        parsed_msg = NMEAReader.parse(serial_data)
+                        print(parsed_msg)
+                        self.publish_nmea_sentence_rmc(parsed_msg)
+                    except Exception:
+                        rospy.logerror(
+                            f"Failed to parse NMEA sentence. Input serial data: {serial_data}. Not publishing /gps_info."
+                        )
 
             self.rate.sleep()
 
