@@ -28,6 +28,8 @@ const float THROTTLE_MIN_AUTONOMOUS_PWM = 70;
 const unsigned long PULSE_WIDTH_THRESHOLD = 2000;
 
 const unsigned int DISENGAGEMENT_HYSTERESIS_THRESHOLD = 3;
+const unsigned int STEERING_OVERRIDE_HYSTERESIS_THRESHOLD = 3;
+const unsigned int THROTTLE_OVERRIDE_HYSTERESIS_THRESHOLD = 3;
 
 const unsigned long CHANNEL_2_IDLE_MIN = 1470; // = steering
 const unsigned long CHANNEL_2_IDLE_MAX = 1530;
@@ -56,6 +58,8 @@ volatile float steering_cmd_autonomous = STEERING_IDLE_PWM;
 volatile float throttle_cmd_autonomous = THROTTLE_IDLE_PWM;
 float steering_cmd_final = STEERING_IDLE_PWM;
 float throttle_cmd_final = THROTTLE_IDLE_PWM;
+int throttle_max_pwm = THROTTLE_MAX_MANUAL_PWM;
+int throttle_min_pwm = THROTTLE_MIN_MANUAL_PWM;
 
 // temporary storage values
 volatile float flipped_steering_value_rad = 0;
@@ -73,10 +77,11 @@ volatile unsigned long tmp_pulse_width_engaged = 0;
 volatile bool engaged_mode = false;
 volatile unsigned long prev_time_engaged = 0;
 
+// override stuff
 volatile unsigned int engagement_hysteresis_counter = 0;
 volatile unsigned int disengagement_hysteresis_counter = 0;
-
-// override flags
+unsigned int steering_override_hysteresis_counter = 0;
+unsigned int throttle_override_hysteresis_counter = 0;
 bool override_steering = false;
 bool override_throttle = false;
 
@@ -137,17 +142,16 @@ void engaged_mode_callback() {
   prev_time_engaged = micros();
 
   // NOTE: logic without hysteresis
-  if (tmp_pulse_width_engaged < PULSE_WIDTH_THRESHOLD) {
-    if (tmp_pulse_width_engaged > CHANNEL_5_THRESHOLD) {
-      engaged_mode = true;
-    } else {
-      engaged_mode = false;
-    }
-  }
+  // if (tmp_pulse_width_engaged < PULSE_WIDTH_THRESHOLD) {
+  //   if (tmp_pulse_width_engaged > CHANNEL_5_THRESHOLD) {
+  //     engaged_mode = true;
+  //   } else {
+  //     engaged_mode = false;
+  //   }
+  // }
   // end NOTE
 
   // logic with hysteresis
-  /*
   if (tmp_pulse_width_engaged < PULSE_WIDTH_THRESHOLD) {
     if (tmp_pulse_width_engaged > CHANNEL_5_THRESHOLD) {
       engagement_hysteresis_counter += 1;
@@ -163,7 +167,6 @@ void engaged_mode_callback() {
       engaged_mode = true;
     }
   }
-  */
 }
 
 void display_value(const char description[], float value) {
@@ -249,29 +252,46 @@ void loop() {
 
   // checking if we are in override mode
   if (pulse_width_steering < CHANNEL_2_OVERRIDE_MIN || pulse_width_steering > CHANNEL_2_OVERRIDE_MAX) {
-    override_steering = true;
+    steering_override_hysteresis_counter += 1;
+    if (steering_override_hysteresis_counter >= STEERING_OVERRIDE_HYSTERESIS_THRESHOLD) {
+      override_steering = true;
+    }
   } else {
+    steering_override_hysteresis_counter = 0;
     override_steering = false;
   }
   if (pulse_width_throttle < CHANNEL_3_OVERRIDE_MIN || pulse_width_throttle > CHANNEL_3_OVERRIDE_MAX) {
-    override_throttle = true;
+    throttle_override_hysteresis_counter += 1;
+    if (throttle_override_hysteresis_counter >= THROTTLE_OVERRIDE_HYSTERESIS_THRESHOLD) {
+      override_throttle = true;
+    }
   } else {
+    throttle_override_hysteresis_counter = 0;
     override_throttle = false;
   }
 
-  // Deciding which command to send // TODO: it'd be nice to have some smoothing when switching between the 2 modes
+  // Deciding which command to send
+  // IDEA: it'd be nice to have some smoothing when switching between the 2 modes
   if (!engaged_mode) {
     steering_cmd_final = steering_cmd_rx;
     throttle_cmd_final = throttle_cmd_rx;
+    throttle_max_pwm = THROTTLE_MAX_MANUAL_PWM;
+    throttle_min_pwm = THROTTLE_MIN_MANUAL_PWM;
   } else if (override_steering) {
     steering_cmd_final = steering_cmd_rx;
     throttle_cmd_final = throttle_cmd_autonomous;
+    throttle_max_pwm = THROTTLE_MAX_AUTONOMOUS_PWM;
+    throttle_min_pwm = THROTTLE_MIN_AUTONOMOUS_PWM;
   } else if (override_throttle) {
     steering_cmd_final = steering_cmd_autonomous;
     throttle_cmd_final = throttle_cmd_rx;
+    throttle_max_pwm = THROTTLE_MAX_MANUAL_PWM;
+    throttle_min_pwm = THROTTLE_MIN_MANUAL_PWM;
   } else {
     steering_cmd_final = steering_cmd_autonomous;
     throttle_cmd_final = throttle_cmd_autonomous;
+    throttle_max_pwm = THROTTLE_MAX_AUTONOMOUS_PWM;
+    throttle_min_pwm = THROTTLE_MIN_AUTONOMOUS_PWM;
   }
 
   // Making sure the commands are in bounds
@@ -281,12 +301,11 @@ void loop() {
     steering_cmd_final = STEERING_MIN_PWM;
   }
 
-  // TODO: Redundant code. Throttle missing!
   // Making sure the commands are in bounds
-  if (steering_cmd_final > STEERING_MAX_PWM) {
-    steering_cmd_final = STEERING_MAX_PWM;
-  } else if (steering_cmd_final < STEERING_MIN_PWM) {
-    steering_cmd_final = STEERING_MIN_PWM;
+  if (throttle_cmd_final > throttle_max_pwm) {
+    throttle_cmd_final = throttle_max_pwm;
+  } else if (throttle_cmd_final < throttle_min_pwm) {
+    throttle_cmd_final = throttle_min_pwm;
   }
 
   // Sending the commands
