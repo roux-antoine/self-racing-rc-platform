@@ -26,7 +26,7 @@ class TargetGenerator:
     def __init__(self):
 
         """Initialization"""
-        self.current_state = State()
+        self.future_state = State()
         self.waypoints = None
         self.user_input_speed_mps = 0
         self.id_closest_wp = 0
@@ -39,9 +39,9 @@ class TargetGenerator:
             queue_size=10,
         )
         rospy.Subscriber(
-            "current_pose",
+            "future_pose",
             PoseStamped,
-            self.callback_current_pose,
+            self.callback_future_pose,
             queue_size=10,
         )
         rospy.Subscriber(
@@ -94,12 +94,12 @@ class TargetGenerator:
 
         self.waypoints = wp_msg
 
-    def callback_current_pose(self, pose_msg: PoseStamped):
+    def callback_future_pose(self, pose_msg: PoseStamped):
         """
         Most important part of the node. Receives new pose and outputs target point and target velocity.
 
         Args:
-            pose_msg [PoseStamped]: Current position and orientation of vehicle
+            pose_msg [PoseStamped]: Future position and orientation of vehicle
         """
 
         if self.waypoints is None:
@@ -111,8 +111,8 @@ class TargetGenerator:
         else:
 
             """Read subscribed message"""
-            self.current_state.x = pose_msg.pose.position.x
-            self.current_state.y = pose_msg.pose.position.y
+            self.future_state.x = pose_msg.pose.position.x
+            self.future_state.y = pose_msg.pose.position.y
 
             orientation_list = [
                 pose_msg.pose.orientation.x,
@@ -124,7 +124,7 @@ class TargetGenerator:
                 orientation_list
             )
 
-            self.current_state.angle = yaw
+            self.future_state.angle = yaw
 
             """ Get Next waypoint - First waypoint further than the lookahead distance """
             nextWaypointId = self.getNextWaypoint()
@@ -155,7 +155,7 @@ class TargetGenerator:
 
                 """ Compute target curvature """
                 curvature = compute_curvature(
-                    current_state=self.current_state, target_state=targetPoint
+                    current_state=self.future_state, target_state=targetPoint
                 )
 
             """ Publish target point marker """
@@ -211,7 +211,7 @@ class TargetGenerator:
 
         for wp in self.waypoints.waypoints:
             distance = plane_distance(
-                State(x=wp.pose.position.x, y=wp.pose.position.y), self.current_state
+                State(x=wp.pose.position.x, y=wp.pose.position.y), self.future_state
             )
             if distance < d_min:
                 d_min = distance
@@ -232,7 +232,7 @@ class TargetGenerator:
             if (
                 plane_distance(
                     State(x=wp.pose.position.x, y=wp.pose.position.y),
-                    self.current_state,
+                    self.future_state,
                 )
                 > self.lookahead_distance
             ):
@@ -246,7 +246,7 @@ class TargetGenerator:
                 if (
                     plane_distance(
                         State(x=wp.pose.position.x, y=wp.pose.position.y),
-                        self.current_state,
+                        self.future_state,
                     )
                     > self.lookahead_distance
                 ):
@@ -267,7 +267,7 @@ class TargetGenerator:
 
         """ Find intersections between lookahead circle and segment """
         intersections = circle_line_segment_intersection(
-            circle_center=(self.current_state.x, self.current_state.y),
+            circle_center=(self.future_state.x, self.future_state.y),
             circle_radius=self.lookahead_distance,
             pt1=(
                 self.waypoints.waypoints[nextWaypointId].pose.position.x,

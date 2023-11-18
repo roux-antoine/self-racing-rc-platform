@@ -14,6 +14,7 @@ import utm
 
 from geometry_msgs.msg import PoseStamped, TwistStamped
 from nmea_msgs.msg import Gprmc
+from self_racing_car_msgs import ArduinoLogging
 
 
 class VehicleStatePublisher:
@@ -21,14 +22,23 @@ class VehicleStatePublisher:
         rospy.init_node("vehicle_state_publisher", anonymous=True)
 
         # Subscribers
-        self.sub = rospy.Subscriber(
+        self.gps_info_sub = rospy.Subscriber(
             "gps_info", Gprmc, self.callback_rmc_msg, queue_size=10
+        )
+        self.arduino_logging_sub = rospy.Subscriber(
+            "arduino_logging",
+            ArduinoLogging,
+            self.callback_arduino_logging,
+            queue_size=10,
         )
 
         # Publishers
         self.pub_pose = rospy.Publisher("current_pose", PoseStamped, queue_size=10)
         self.pub_velocity = rospy.Publisher(
             "current_velocity", TwistStamped, queue_size=10
+        )
+        self.future_pub_pose = rospy.Publisher(
+            "future_pose", PoseStamped, queue_size=10
         )
 
         self.rate = rospy.Rate(1000)
@@ -37,6 +47,9 @@ class VehicleStatePublisher:
         self.JUMPING_MESSAGE_FACTOR = 1
 
         rospy.logwarn("Finished init")
+
+    def callback_arduino_logging(self, arduino_msg: ArduinoLogging):
+        self._last_arduino_logging_msg = arduino_msg
 
     def callback_rmc_msg(self, rmc_msg: Gprmc):
 
@@ -102,6 +115,17 @@ class VehicleStatePublisher:
         """ Publish topics """
         self.pub_pose.publish(pose_msg)
         self.pub_velocity.publish(vel_msg)
+
+        # computed the predicted pose
+        dt = 0.1  # s
+        future_pose_msg = PoseStamped()
+        future_pose_msg.header.stamp = rospy.Time.now()  # TODO figure out
+        future_pose_msg.header.frame_id = "world"
+        # TODO account for the command
+        future_pose_msg.pose.position.x = x_utm + speed_mps * math.cos(yaw_rad) * dt
+        future_pose_msg.pose.position.y = y_utm + speed_mps * math.sin(yaw_rad) * dt
+        future_pose_msg.pose.position.z = 0
+        self.future_pub_pose.publish(future_pose_msg)
 
 
 if __name__ == "__main__":
