@@ -148,6 +148,7 @@ class VehicleStatePublisher:
             else:
                 R = 10000  # big number
         else:
+            rospy.logwarn("Did not receive an arduino_logging message")
             R = 10000  # big number
 
         future_pose_msg.pose.position.x = (
