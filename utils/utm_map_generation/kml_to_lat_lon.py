@@ -1,5 +1,6 @@
 import glob
 import os
+import sys
 
 flist = glob.glob(os.path.join("kml_files", "*.kml"))
 print("Available kml:")
@@ -13,13 +14,16 @@ first_time = True
 coordinates_line = None
 with open(f"kml_files/{filename_base}.kml") as kml_file:
     for line in kml_file:
-        if "-122" in line and first_time == False:
-            coordinates_line = line.strip()
-            break
-        if "-122" in line:
-            first_time = False
-        
+        if line is not None:
+            if "-122" in line and not first_time:
+                coordinates_line = line.strip()
+                break
+            if "-122" in line:
+                first_time = False
 
+if coordinates_line is None:
+    print("Did not find a coordinates line. Exiting")
+sys.exit()
 
 with open(f"lat_lon_files/{filename_base}.txt", "w") as out_file:
     for point_str in coordinates_line.split():
