@@ -22,7 +22,7 @@ const float STEERING_MIN_PWM = 68;
 const float THROTTLE_IDLE_PWM = 90;
 const float THROTTLE_MAX_MANUAL_PWM = 102; // without load, the wheels start turning around 96
 const float THROTTLE_MIN_MANUAL_PWM = 70;
-const float THROTTLE_MAX_AUTONOMOUS_PWM = 102;
+const float THROTTLE_MAX_AUTONOMOUS_PWM = 115;
 const float THROTTLE_MIN_AUTONOMOUS_PWM = 70;
 
 const unsigned long PULSE_WIDTH_THRESHOLD = 2000;
@@ -281,6 +281,7 @@ void loop() {
     steering_cmd_final = STEERING_MIN_PWM;
   }
 
+  // TODO: Redundant code. Throttle missing!
   // Making sure the commands are in bounds
   if (steering_cmd_final > STEERING_MAX_PWM) {
     steering_cmd_final = STEERING_MAX_PWM;
