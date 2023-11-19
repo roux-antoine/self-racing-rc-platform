@@ -1,0 +1,123 @@
+{
+  "configById": {
+    "3D!35p1xgn": {
+      "cameraState": {
+        "distance": 120.4214384353417,
+        "perspective": true,
+        "phi": 0.0000573237639305409,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          -39.189425599804174,
+          -62.36666769344387,
+          6.104757127048778e-17
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 136.56893898436772,
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {},
+      "topics": {
+        "/current_pose": {
+          "visible": true,
+          "axisScale": 4.418
+        },
+        "/map_viz": {
+          "visible": true
+        },
+        "/target_point_marker": {
+          "visible": true
+        },
+        "/waypoints_viz": {
+          "visible": true
+        }
+      },
+      "layers": {},
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "imageMode": {}
+    },
+    "Plot!tzh2oq": {
+      "paths": [
+        {
+          "value": "/arduino_logging.steering_cmd_rx",
+          "enabled": true,
+          "timestampMethod": "receiveTime"
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/arduino_logging.steering_cmd_final",
+          "enabled": true
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/arduino_logging.steering_cmd_autonomous",
+          "enabled": true
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/steering_pwm_cmd.data",
+          "enabled": true
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": false,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240,
+      "minXValue": 0,
+      "foxglovePanelTitle": "Steering Visualization"
+    },
+    "Indicator!2wmj8vx": {
+      "path": "/arduino_logging.override_steering",
+      "style": "background",
+      "fallbackColor": "#ff0000",
+      "fallbackLabel": "OVERRIDE",
+      "rules": [
+        {
+          "operator": "<",
+          "rawValue": "1",
+          "color": "#68e24a",
+          "label": " AUTONOMOUS"
+        }
+      ],
+      "foxglovePanelTitle": "Override Indicator"
+    }
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "layout": {
+    "first": {
+      "first": "Indicator!2wmj8vx",
+      "second": "3D!35p1xgn",
+      "direction": "row"
+    },
+    "second": "Plot!tzh2oq",
+    "direction": "column"
+  }
+}
