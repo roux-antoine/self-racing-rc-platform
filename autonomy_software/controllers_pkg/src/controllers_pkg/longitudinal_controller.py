@@ -140,14 +140,17 @@ class LongitudinalController:
                     error = self.desired_velocity - self.current_velocity
                     rospy.loginfo(f"Error: {error}")
 
+                    # Feedforward term
+                    ff = self.compute_feedforward_term(self.desired_velocity)
+
                     # Call the PID controller
                     throttle_diff, p, i, d = self.pid_controller.update(
                         error, self.anti_windup_enabled, dt
                     )
                     rospy.loginfo(f"Throttle diff: {throttle_diff}")
 
-                    # Add the controller's output value to the idle position
-                    throttle_value = self.throttle_idle_autonomous_pwm + throttle_diff
+                    # Add the controller's output value to the feedforward term
+                    throttle_value = throttle_diff + ff
 
                     #  --- Anti windup strategy ---
 
@@ -242,6 +245,16 @@ class LongitudinalController:
         debug_msg.d = d
 
         self.pub_debug_pid.publish(debug_msg)
+
+    def compute_feedforward_term(self, desired_velocity):
+        """
+        Function to correlate desired velocity (m/s) to required throttle pwm,
+        given a simple linear approximation
+        """
+
+        ff = 1.92 * desired_velocity + 94.1
+
+        return ff
 
 
 if __name__ == "__main__":
