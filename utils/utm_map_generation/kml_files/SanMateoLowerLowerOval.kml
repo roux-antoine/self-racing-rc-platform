@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>SanMateoLowerLowerOval.kml</name>
+	<StyleMap id="m_ylw-pushpin">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="s_ylw-pushpin">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="s_ylw-pushpin_hl">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Placemark>
+		<name>SanMateoLowerLowerOval</name>
+		<styleUrl>#m_ylw-pushpin</styleUrl>
+		<LineString>
+			<tessellate>1</tessellate>
+			<coordinates>
+				-122.3400155010521,37.53189629441878,0 -122.3399952669628,37.53188225807539,0 -122.3399749332518,37.53186679960931,0 -122.3399555089385,37.53185196214506,0 -122.3399368628979,37.53183634712637,0 -122.3399150686951,37.53182058694787,0 -122.339900566135,37.53181033030356,0 -122.3398882200303,37.53181121902725,0 -122.3398754540923,37.53181962165404,0 -122.3398656368087,37.53183057934564,0 -122.3398655918516,37.53184153164633,0 -122.3398727332653,37.53184948864267,0 -122.3399750437238,37.53192755791981,0 -122.3399968545813,37.53194457565289,0 -122.3400094334016,37.53195033198172,0 -122.3400256878776,37.53194951781495,0 -122.3400384294744,37.53194444132927,0 -122.3400463041063,37.53193482160673,0 -122.3400422906059,37.53192248071954,0 -122.3400359355742,37.53191310287405,0 -122.3400245885464,37.53190232691598,0
+			</coordinates>
+		</LineString>
+	</Placemark>
+</Document>
+</kml>

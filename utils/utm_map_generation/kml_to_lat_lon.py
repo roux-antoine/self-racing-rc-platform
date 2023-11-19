@@ -15,15 +15,15 @@ coordinates_line = None
 with open(f"kml_files/{filename_base}.kml") as kml_file:
     for line in kml_file:
         if line is not None:
-            if "-122" in line and not first_time:
+            if "-122" in line:  # and not first_time:
                 coordinates_line = line.strip()
                 break
-            if "-122" in line:
-                first_time = False
+            # if "-122" in line:
+            #     first_time = False
 
 if coordinates_line is None:
     print("Did not find a coordinates line. Exiting")
-sys.exit()
+    sys.exit()
 
 with open(f"lat_lon_files/{filename_base}.txt", "w") as out_file:
     for point_str in coordinates_line.split():

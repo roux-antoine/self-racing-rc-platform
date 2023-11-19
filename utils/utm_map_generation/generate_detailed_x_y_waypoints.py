@@ -4,7 +4,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
-THRESHOLD = 3  # meters
+THRESHOLD = 0.5  # meters
 
 wp_file = str(sys.argv[1])
 # print( wp_file)
