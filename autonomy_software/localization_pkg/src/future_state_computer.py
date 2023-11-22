@@ -13,10 +13,10 @@ DELTA_TIME = (
     0.1  # don't change it for validation purposes, since we get a position every 100ms
 )
 
-PLOT_DEBUG = False
+PLOT_DEBUG = True
 
 bag = rosbag.Bag(
-    "/Users/antoineroux/Downloads/circuit_5m_104pwm_2023-11-11-23-32-16.bag"
+    "/home/antoine/bags/2023-11-11/circuit_5m_104pwm_2023-11-11-23-32-16.bag"
 )
 
 topics = ["/gps_info", "/arduino_logging"]
@@ -56,7 +56,7 @@ for topic, msg, t in bag.read_messages(topics=topics):
                 # in theory, this shoudl use the same formula as in the lateral controller
                 # but experimental results are better with this value
                 # TODO investigate and adapt if needed
-                R = 15 / steering_diff
+                R = 30 / steering_diff
             else:
                 R = 10000  # big number
 
@@ -85,22 +85,83 @@ for topic, msg, t in bag.read_messages(topics=topics):
             #     normal_vector_to_vec_between_center_and_future_pose = [-vec_between_center_and_future_pose[1], vec_between_center_and_future_pose[0]]
             # else:
             #     normal_vector_to_vec_between_center_and_future_pose = [vec_between_center_and_future_pose[1], -vec_between_center_and_future_pose[0]]
-            # normalized_normal_vector_to_vec_between_center_and_future_pose = np.array(normal_vector_to_vec_between_center_and_future_pose) / np.linalg.norm(normal_vector_to_vec_between_center_and_future_pose)
+            # normalized_normal_vector_to_vec_between_center_and_future_pose =
+            # np.array(normal_vector_to_vec_between_center_and_future_pose) / np.linalg.norm(normal_vector_to_vec_between_center_and_future_pose)
 
             # angle = np.arccos(np.dot(normalized_normal_vector_to_vec_between_center_and_future_pose, [1, 0]))
-            angle = yaw_rad
+
+            vec_between_center_and_future_pose = [
+                future_pose_x - (x_utm - R * np.cos(yaw_rad + np.pi / 2)),
+                future_pose_y - (y_utm - R * np.sin(yaw_rad + np.pi / 2)),
+            ]
+
+            normal_vector_to_vec_between_center_and_future_pose_1 = [
+                -vec_between_center_and_future_pose[1],
+                vec_between_center_and_future_pose[0],
+            ]
+            normal_vector_to_vec_between_center_and_future_pose_2 = [
+                vec_between_center_and_future_pose[1],
+                -vec_between_center_and_future_pose[0],
+            ]
+            normalized_normal_vector_to_vec_between_center_and_future_pose_1 = np.array(
+                normal_vector_to_vec_between_center_and_future_pose_1
+            ) / np.linalg.norm(normal_vector_to_vec_between_center_and_future_pose_1)
+            normalized_normal_vector_to_vec_between_center_and_future_pose_2 = np.array(
+                normal_vector_to_vec_between_center_and_future_pose_2
+            ) / np.linalg.norm(normal_vector_to_vec_between_center_and_future_pose_2)
+
+            # we compute the dot product with the vector between future and current. the correct vector is the one with negative dot product
+
+            future_to_current = [future_pose_x - x_utm, future_pose_y - y_utm]
+            foo = np.dot(
+                normalized_normal_vector_to_vec_between_center_and_future_pose_1,
+                future_to_current,
+            )
+            if foo <= 0:
+                normalized_normal_vector_to_vec_between_center_and_future_pose = (
+                    normalized_normal_vector_to_vec_between_center_and_future_pose_1
+                )
+            else:
+                normalized_normal_vector_to_vec_between_center_and_future_pose = (
+                    normalized_normal_vector_to_vec_between_center_and_future_pose_2
+                )
+
+            # print(np.dot(future_to_current, normalized_normal_vector_to_vec_between_center_and_future_pose_1))
+            # print(np.dot(future_to_current, normalized_normal_vector_to_vec_between_center_and_future_pose_2))
+            # print("-")
+
+            angle_1 = np.arccos(
+                np.dot(
+                    normalized_normal_vector_to_vec_between_center_and_future_pose_1,
+                    [1, 0],
+                )
+            )
+            angle_2 = np.arccos(
+                np.dot(
+                    normalized_normal_vector_to_vec_between_center_and_future_pose_2,
+                    [1, 0],
+                )
+            )
+            angle = np.arccos(
+                np.dot(
+                    [1, 0],
+                    normalized_normal_vector_to_vec_between_center_and_future_pose,
+                )
+            )
+
+            # # angle = yaw_rad
 
             future_pose = [future_pose_x, future_pose_y, angle]
             future_poses_v2.append(future_pose)
             last_steering_cmd = None
             if PLOT_DEBUG:
-                # if np.abs(R) > 5: # uncomment to help debug
-                #     continue
-                # if int(t.to_sec()) != int(1699745545.1612222):
+                if np.abs(R) > 4:  # uncomment to help debug
+                    continue
+                # if t.to_sec() != 1699745545.1612222:
                 #     continue
                 # if t.to_sec() != 1699745546.1593683:
                 #     continue
-                plt.scatter(future_pose_x, future_pose_y)
+                plt.scatter(future_pose_x, future_pose_y, color="orange")
                 plt.scatter(x_utm, y_utm, color="green")
                 plt.scatter(
                     x_utm - R * np.cos(yaw_rad + np.pi / 2),
@@ -119,17 +180,47 @@ for topic, msg, t in bag.read_messages(topics=topics):
                     R,
                     fill=False,
                 )
-                ax.add_patch(circle1)
-                plt.text(x=x_utm + 1, y=y_utm + 1, s=t.to_sec())
-                plt.arrow(
-                    future_pose_x,
-                    future_pose_y,
-                    np.cos(angle),
-                    np.sin(angle),
-                    color="blue",
+                # ax.add_patch(circle1)
+                # plt.text(x=x_utm + 1, y=y_utm + 1, s=t.to_sec())
+                # plt.plot([future_pose_x, future_pose_x - normalized_normal_vector_to_vec_between_center_and_future_pose_1[0]], [future_pose_y, future_pose_y
+                # - normalized_normal_vector_to_vec_between_center_and_future_pose_1[1]])
+                # plt.plot([future_pose_x, future_pose_x - normalized_normal_vector_to_vec_between_center_and_future_pose_2[0]], [future_pose_y, future_pose_y
+                # - normalized_normal_vector_to_vec_between_center_and_future_pose_2[1]])
+                plt.plot(
+                    [
+                        future_pose_x,
+                        future_pose_x
+                        + normalized_normal_vector_to_vec_between_center_and_future_pose[
+                            0
+                        ],
+                    ],
+                    [
+                        future_pose_y,
+                        future_pose_y
+                        + normalized_normal_vector_to_vec_between_center_and_future_pose[
+                            1
+                        ],
+                    ],
+                    color="red",
                 )
-                # plt.plot([future_pose_x, future_pose_x + normalized_normal_vector_to_vec_between_center_and_future_pose[0]], [future_pose_y, future_pose_y + normalized_normal_vector_to_vec_between_center_and_future_pose[1]])
-                # plt.plot([future_pose_x, future_pose_x - vec_between_center_and_future_pose[0]], [future_pose_y, future_pose_y - vec_between_center_and_future_pose[1]])
+                # plt.arrow(
+                #     future_pose_x,
+                #     future_pose_y,
+                #     np.cos(angle_1),
+                #     np.sin(angle_1),
+                #     color="orange",
+                # )
+                # plt.arrow(
+                #     future_pose_x,
+                #     future_pose_y,
+                #     np.cos(angle_2),
+                #     np.sin(angle_2),
+                #     color="red",
+                # )
+                # plt.plot([future_pose_x, future_pose_x + normalized_normal_vector_to_vec_between_center_and_future_pose[0]], [future_pose_y, future_pose_y
+                # + normalized_normal_vector_to_vec_between_center_and_future_pose[1]])
+                # plt.plot([future_pose_x, future_pose_x - vec_between_center_and_future_pose[0]], [future_pose_y, future_pose_y
+                # - vec_between_center_and_future_pose[1]])
 
 if PLOT_DEBUG:
     plt.axis("equal")

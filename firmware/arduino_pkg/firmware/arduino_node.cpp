@@ -270,6 +270,8 @@ void loop() {
     override_throttle = false;
   }
 
+  override_steering = false;
+
   // Deciding which command to send
   // IDEA: it'd be nice to have some smoothing when switching between the 2 modes
   if (!engaged_mode) {

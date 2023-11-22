@@ -149,6 +149,7 @@ class VehicleStatePublisher:
                 R = 10000  # big number
         else:
             rospy.logwarn("Did not receive an arduino_logging message")
+            rospy.logwarn(time.time() - self._last_t_arduino_logging_msg)
             R = 10000  # big number
 
         future_pose_msg.pose.position.x = (
@@ -167,7 +168,8 @@ class VehicleStatePublisher:
         future_pose_msg.pose.orientation.z = quaternion[2]
         future_pose_msg.pose.orientation.w = quaternion[3]
 
-        self.future_pub_pose.publish(future_pose_msg)
+        # self.future_pub_pose.publish(future_pose_msg)
+        self.future_pub_pose.publish(current_pose_msg)
 
 
 if __name__ == "__main__":
