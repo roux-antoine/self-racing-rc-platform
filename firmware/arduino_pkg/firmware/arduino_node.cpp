@@ -4,6 +4,13 @@
 #include <self_racing_car_msgs/ArduinoLogging.h>
 #include <std_msgs/Float32.h>
 
+// Imports for IMU
+#include <Adafruit_BNO055.h>
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
+#include <sensor_msgs/Imu.h>
+#include <utility/imumaths.h>
+
 // ------ CONSTANTS ------
 
 const int CHANNEL_2_PIN = 18; // steering
@@ -48,6 +55,8 @@ const unsigned long CHANNEL_3_OVERRIDE_MAX = 1582;
 const unsigned long CHANNEL_5_THRESHOLD = 1700;
 
 const bool ROS_MODE = true;
+
+Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire);
 
 // ------ VARIABLES ------
 
@@ -116,6 +125,8 @@ ros::Subscriber<std_msgs::Float32> steering_pwm_cmd_sub("steering_pwm_cmd", stee
 ros::Subscriber<std_msgs::Float32> throttle_pwm_cmd_sub("throttle_pwm_cmd", throttle_pwm_cmd_callback);
 self_racing_car_msgs::ArduinoLogging arduino_logging_msg;
 ros::Publisher arduino_logging_pub("arduino_logging", &arduino_logging_msg);
+sensor_msgs::Imu imu_msg;
+ros::Publisher imu_pub("imu", &imu_msg);
 
 // ------ FUNCTIONS ------
 
@@ -192,6 +203,25 @@ void setup() {
     nh.subscribe(steering_pwm_cmd_sub);
     nh.subscribe(throttle_pwm_cmd_sub);
     nh.advertise(arduino_logging_pub);
+    nh.advertise(imu_pub);
+
+    // nh.getHardware()->setBaud(115200);
+
+    // Wait for serial port to open!
+    while (!Serial)
+      delay(10);
+
+    //  Serial.println("Orientation Sensor Raw Data Test"); Serial.println("");
+
+    if (!bno.begin()) {
+      /* There was a problem detecting the BNO055 ... check your connections */
+      Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+      while (1)
+        ;
+    }
+
+    bno.setExtCrystalUse(true);
+
     nh.loginfo("In the setup");
   } else {
     Serial.begin(57600);
@@ -328,6 +358,27 @@ void loop() {
     arduino_logging_msg.override_throttle = override_throttle;
 
     arduino_logging_pub.publish(&arduino_logging_msg);
+
+    // IMU reading and publishing
+    imu::Vector<3> acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+
+    imu_msg.header.stamp = nh.now();
+    imu_msg.header.frame_id = "imu";
+
+    imu_msg.orientation.x = quat.x();
+    imu_msg.orientation.y = quat.y();
+    imu_msg.orientation.z = quat.z();
+    imu_msg.orientation.w = quat.w();
+
+    imu_msg.angular_velocity.x = gyro.x();
+    imu_msg.angular_velocity.y = gyro.y();
+    imu_msg.angular_velocity.z = gyro.z();
+
+    imu_msg.linear_acceleration.x = acc.x();
+    imu_msg.linear_acceleration.y = acc.y();
+    imu_msg.linear_acceleration.z = acc.z();
+
+    imu_pub.publish(&imu_msg);
   }
 
   if (ROS_MODE) {
