@@ -16,7 +16,7 @@ DELTA_TIME = (
 PLOT_DEBUG = True
 
 bag = rosbag.Bag(
-    "/Users/antoineroux/Downloads/circuit_5m_104pwm_2023-11-11-23-32-16.bag"
+    "/home/antoine/bags/2023-11-11/circuit_5m_104pwm_2023-11-11-23-32-16.bag"
 )
 
 topics = ["/gps_info", "/arduino_logging"]
@@ -54,7 +54,7 @@ for topic, msg, t in bag.read_messages(topics=topics):
                 # in theory, this shoudl use the same formula as in the lateral controller
                 # but experimental results are better with this value
                 # TODO investigate and adapt if needed
-                R = 15 / steering_diff
+                R = 30 / steering_diff
             else:
                 R = 10000  # big number
 
@@ -70,6 +70,75 @@ for topic, msg, t in bag.read_messages(topics=topics):
             future_pose_y = y_utm + np.sign(R) * abs(R) * (np.sin(alpha) - np.sin(alpha + theta))
             angle = theta + alpha + np.pi / 2
 
+            # if np.sign(R) == -1: # hack makes it work more but not fully
+            #     normal_vector_to_vec_between_center_and_future_pose = [-vec_between_center_and_future_pose[1], vec_between_center_and_future_pose[0]]
+            # else:
+            #     normal_vector_to_vec_between_center_and_future_pose = [vec_between_center_and_future_pose[1], -vec_between_center_and_future_pose[0]]
+            # normalized_normal_vector_to_vec_between_center_and_future_pose =
+            # np.array(normal_vector_to_vec_between_center_and_future_pose) / np.linalg.norm(normal_vector_to_vec_between_center_and_future_pose)
+
+            # angle = np.arccos(np.dot(normalized_normal_vector_to_vec_between_center_and_future_pose, [1, 0]))
+
+            vec_between_center_and_future_pose = [
+                future_pose_x - (x_utm - R * np.cos(yaw_rad + np.pi / 2)),
+                future_pose_y - (y_utm - R * np.sin(yaw_rad + np.pi / 2)),
+            ]
+
+            normal_vector_to_vec_between_center_and_future_pose_1 = [
+                -vec_between_center_and_future_pose[1],
+                vec_between_center_and_future_pose[0],
+            ]
+            normal_vector_to_vec_between_center_and_future_pose_2 = [
+                vec_between_center_and_future_pose[1],
+                -vec_between_center_and_future_pose[0],
+            ]
+            normalized_normal_vector_to_vec_between_center_and_future_pose_1 = np.array(
+                normal_vector_to_vec_between_center_and_future_pose_1
+            ) / np.linalg.norm(normal_vector_to_vec_between_center_and_future_pose_1)
+            normalized_normal_vector_to_vec_between_center_and_future_pose_2 = np.array(
+                normal_vector_to_vec_between_center_and_future_pose_2
+            ) / np.linalg.norm(normal_vector_to_vec_between_center_and_future_pose_2)
+
+            # we compute the dot product with the vector between future and current. the correct vector is the one with negative dot product
+
+            future_to_current = [future_pose_x - x_utm, future_pose_y - y_utm]
+            foo = np.dot(
+                normalized_normal_vector_to_vec_between_center_and_future_pose_1,
+                future_to_current,
+            )
+            if foo <= 0:
+                normalized_normal_vector_to_vec_between_center_and_future_pose = (
+                    normalized_normal_vector_to_vec_between_center_and_future_pose_1
+                )
+            else:
+                normalized_normal_vector_to_vec_between_center_and_future_pose = (
+                    normalized_normal_vector_to_vec_between_center_and_future_pose_2
+                )
+
+            # print(np.dot(future_to_current, normalized_normal_vector_to_vec_between_center_and_future_pose_1))
+            # print(np.dot(future_to_current, normalized_normal_vector_to_vec_between_center_and_future_pose_2))
+            # print("-")
+
+            angle_1 = np.arccos(
+                np.dot(
+                    normalized_normal_vector_to_vec_between_center_and_future_pose_1,
+                    [1, 0],
+                )
+            )
+            angle_2 = np.arccos(
+                np.dot(
+                    normalized_normal_vector_to_vec_between_center_and_future_pose_2,
+                    [1, 0],
+                )
+            )
+            angle = np.arccos(
+                np.dot(
+                    [1, 0],
+                    normalized_normal_vector_to_vec_between_center_and_future_pose,
+                )
+            )
+
+            # # angle = yaw_rad
 
             future_poses_v2.append([future_pose_x, future_pose_y, angle])
 
