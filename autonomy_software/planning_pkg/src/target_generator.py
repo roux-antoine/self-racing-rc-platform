@@ -15,6 +15,12 @@ from std_msgs.msg import Float64
 import tf
 
 
+from dynamic_reconfigure.server import Server
+from planning_pkg.cfg import (
+    planning_pkg_dynamic_reconfigureConfig,
+)
+
+
 """
 NOTE:
 - Publish some additional things? Lookahead circle?
@@ -77,7 +83,20 @@ class TargetGenerator:
 
         """ Parameters """
         self.curvature_min = 0.001
-        self.lookahead_distance = rospy.get_param("~lookahead_distance", 5)
+
+
+        """ Dynamic reconfigure setup """
+
+        def dynamic_reconfigure_callback(config, level):
+            self.lookahead_distance = config["lookahead_distance"]
+            return config
+
+        self.dynamic_reconfigure_server = Server(
+            planning_pkg_dynamic_reconfigureConfig,
+            dynamic_reconfigure_callback,
+        )
+
+
         self.velocity_mode = rospy.get_param(
             "~velocity_mode", "WAYPOINT_FOLLOWING"
         )  # "MANUAL_INPUT_SPEED" / "WAYPOINT_FOLLOWING"
