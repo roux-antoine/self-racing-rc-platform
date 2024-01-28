@@ -10,10 +10,15 @@ from geometry_msgs.msg import TwistStamped
 from self_racing_car_msgs.msg import ArduinoLogging, LongitudinalControllerDebugInfo
 from std_msgs.msg import Float32
 
+from dynamic_reconfigure.server import Server
+
+from dynamic_reconfigure_pkg.cfg import (
+    dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+)
 
 class LongitudinalControlMode(Enum):
-    ConstantPwmOutput = 1
-    PID = 2
+    ConstantPwmOutput = 0
+    PID = 1
 
 
 class LongitudinalController:
@@ -21,27 +26,11 @@ class LongitudinalController:
 
         # Constants
         rate = rospy.get_param("~rate", 10.0)
-        self.throttle_idle_autonomous_pwm = rospy.get_param(
-            "~throttle_idle_autonomous_pwm", 90
-        )
-        self.throttle_max_autonomous_pwm = rospy.get_param(
-            "~throttle_max_autonomous_pwm", 102
-        )
-        self.throttle_min_autonomous_pwm = rospy.get_param(
-            "~throttle_min_autonomous_pwm", 70
-        )
-        self.longitudinal_control_mode = rospy.get_param(
-            "~longitudinal_control_mode", 2
-        )
+
+        # TODO figure out how we want to handle the PID params, do we want to have dynamic reconfigure in the PID class?
         gain_p = rospy.get_param("~speed_control_gain_p", 0.5)
         gain_i = rospy.get_param("~speed_control_gain_i", 0.1)
         gain_d = rospy.get_param("~speed_control_gain_d", 0)
-        self.constant_pwm_output = rospy.get_param(
-            "~constant_pwm_output", 90
-        )  # If ConstantPwmOutput mode
-        self.timeout_engage_msg_before_stop_secs = rospy.get_param(
-            "~timeout_engage_msg_before_stop_secs", 1
-        )
 
         # Subscribers
         rospy.Subscriber(
@@ -81,6 +70,27 @@ class LongitudinalController:
         self.rate = rospy.Rate(rate)
         self.time_last_arduino_msg = time.time()
 
+        self.dynamic_reconfigure_server = Server(
+            dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+            self.dynamic_reconfigure_callback,
+        )
+
+    def dynamic_reconfigure_callback(self, config, level):
+        self.throttle_idle_autonomous_pwm = config["throttle_idle_autonomous_pwm"]
+        self.throttle_max_autonomous_pwm = config["throttle_max_autonomous_pwm"]
+        self.throttle_min_autonomous_pwm = config["throttle_min_autonomous_pwm"]
+        self.constant_pwm_output = config["constant_pwm_output"]
+        self.timeout_engage_msg_before_stop_secs = config["timeout_engage_msg_before_stop_secs"]
+
+        if config["longitudinal_control_mode"] == LongitudinalControlMode.PID.value:
+            self.longitudinal_control_mode = LongitudinalControlMode.PID
+        elif config["longitudinal_control_mode"] == LongitudinalControlMode.ConstantPwmOutput.value:
+            self.longitudinal_control_mode = LongitudinalControlMode.ConstantPwmOutput
+        else:
+            raise ValueError("Invalid value for longitudinal_control_mode.")
+        
+        return config
+
     def current_velocity_callback(self, msg: TwistStamped):
         """
         Callback function for current velocity message
@@ -109,7 +119,7 @@ class LongitudinalController:
 
             duration_since_last_message = time.time() - self.time_last_arduino_msg
 
-            if self.longitudinal_control_mode == LongitudinalControlMode.PID.value:
+            if self.longitudinal_control_mode == LongitudinalControlMode.PID:
 
                 if (
                     self.speed_controller_enabled
