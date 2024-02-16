@@ -16,6 +16,7 @@ from dynamic_reconfigure_pkg.cfg import (
     dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
 )
 
+
 class LongitudinalControlMode(Enum):
     ConstantPwmOutput = 0
     PID = 1
@@ -80,15 +81,20 @@ class LongitudinalController:
         self.throttle_max_autonomous_pwm = config["throttle_max_autonomous_pwm"]
         self.throttle_min_autonomous_pwm = config["throttle_min_autonomous_pwm"]
         self.constant_pwm_output = config["constant_pwm_output"]
-        self.timeout_engage_msg_before_stop_secs = config["timeout_engage_msg_before_stop_secs"]
+        self.timeout_engage_msg_before_stop_secs = config[
+            "timeout_engage_msg_before_stop_secs"
+        ]
 
         if config["longitudinal_control_mode"] == LongitudinalControlMode.PID.value:
             self.longitudinal_control_mode = LongitudinalControlMode.PID
-        elif config["longitudinal_control_mode"] == LongitudinalControlMode.ConstantPwmOutput.value:
+        elif (
+            config["longitudinal_control_mode"]
+            == LongitudinalControlMode.ConstantPwmOutput.value
+        ):
             self.longitudinal_control_mode = LongitudinalControlMode.ConstantPwmOutput
         else:
             raise ValueError("Invalid value for longitudinal_control_mode.")
-        
+
         return config
 
     def current_velocity_callback(self, msg: TwistStamped):
@@ -195,7 +201,7 @@ class LongitudinalController:
 
             elif (
                 self.longitudinal_control_mode
-                == LongitudinalControlMode.ConstantPwmOutput.value
+                == LongitudinalControlMode.ConstantPwmOutput
             ):
 
                 self.publish_throttle_cmd(self.constant_pwm_output)
