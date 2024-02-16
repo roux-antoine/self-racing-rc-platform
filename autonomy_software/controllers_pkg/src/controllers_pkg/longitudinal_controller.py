@@ -28,11 +28,6 @@ class LongitudinalController:
         # Constants
         rate = rospy.get_param("~rate", 10.0)
 
-        # TODO figure out how we want to handle the PID params, do we want to have dynamic reconfigure in the PID class?
-        gain_p = rospy.get_param("~speed_control_gain_p", 0.5)
-        gain_i = rospy.get_param("~speed_control_gain_i", 0.1)
-        gain_d = rospy.get_param("~speed_control_gain_d", 0)
-
         # Subscribers
         rospy.Subscriber(
             "target_velocity",
@@ -65,7 +60,7 @@ class LongitudinalController:
         self.desired_velocity = 0
         self.current_velocity = 0
         self.anti_windup_enabled = False
-        self.pid_controller = PID(gain_p, gain_i, gain_d)
+        self.pid_controller = PID()
         self.speed_controller_enabled = False
         self.previous_t = time.time()
         self.rate = rospy.Rate(rate)
@@ -94,6 +89,9 @@ class LongitudinalController:
             self.longitudinal_control_mode = LongitudinalControlMode.ConstantPwmOutput
         else:
             raise ValueError("Invalid value for longitudinal_control_mode.")
+        self.pid_controller.kp = config["kp"]
+        self.pid_controller.ki = config["ki"]
+        self.pid_controller.kd = config["kd"]
 
         return config
 
