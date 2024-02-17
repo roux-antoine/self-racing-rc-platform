@@ -16,10 +16,12 @@ import tf
 
 
 from dynamic_reconfigure.server import Server
+
 from dynamic_reconfigure_pkg.cfg import (
     dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
 )
 from enum import Enum
+
 
 """
 NOTE:
@@ -105,6 +107,7 @@ class TargetGenerator:
             raise ValueError("Invalid value for velocity_mode.")
 
         return config
+
 
     def callback_waypoints(self, wp_msg: WaypointArray):
         """
