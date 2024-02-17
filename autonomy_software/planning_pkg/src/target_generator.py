@@ -27,12 +27,13 @@ NOTE:
 - Here we don't have the logic when the nextWaypoint is close to the starting line
 """
 
+
 class VelocityModeEnum(Enum):
     MANUAL_INPUT_SPEED = 0
     WAYPOINT_FOLLOWING = 1
 
-class TargetGenerator:
 
+class TargetGenerator:
     def __init__(self):
 
         """Initialization"""
@@ -186,9 +187,9 @@ class TargetGenerator:
             self.publish_target_curvature(curvature)
 
             """ Compute target speed """
-            if self.velocity_mode == "MANUAL_INPUT_SPEED":
+            if self.velocity_mode == VelocityModeEnum.MANUAL_INPUT_SPEED:
                 target_speed = self.user_input_speed_mps
-            elif self.velocity_mode == "WAYPOINT_FOLLOWING":
+            elif self.velocity_mode == VelocityModeEnum.WAYPOINT_FOLLOWING:
                 try:
                     if (
                         self.loop_over_waypoints is False

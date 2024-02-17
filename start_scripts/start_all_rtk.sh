@@ -17,6 +17,8 @@ tmux rename-window -t $session:$window 'Window1'
 tmux split-window -t 0 -v
 # splitting the pane 0 vertically
 tmux split-window -t 0 -v
+# splitting the pane 0 vertically
+tmux split-window -t 0 -v
 tmux select-layout even-vertical
 # splitting the pane 0 horizontally
 tmux split-window -t 0 -h
@@ -24,6 +26,8 @@ tmux split-window -t 0 -h
 tmux split-window -t 2 -h
 # splitting the pane 4 horizontally
 tmux split-window -t 4 -h
+# # splitting the pane 6 horizontally
+tmux split-window -t 6 -h
 
 # roscore
 tmux select-pane -t 0
@@ -38,25 +42,29 @@ tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "roslaunch foxglove_bridge foxglove_bridge.launch" C-m
 
-# map publisher
+# rqt_reconfigure
 tmux select-pane -t 2
+tmux send-keys "sleep 10 && rosrun rqt_reconfigure rqt_reconfigure" C-m
+
+# map publisher
+tmux select-pane -t 3
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun localization_pkg map_publisher.py _map_file_name:=MapSanMateoP1.kml" C-m
 
 # waypoint publisher
-tmux select-pane -t 3
+tmux select-pane -t 4
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun localization_pkg waypoints_publisher.py _waypoints_file:=wp_P1_loop_nov23_detail_3m.txt" C-m
 
 # rtcm correction data
-tmux select-pane -t 4
+tmux select-pane -t 5
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pkg/src'" C-m
 tmux send-keys "bash rtcm_corr_serial_pub.sh" C-m
 
 # gps listener
-tmux select-pane -t 5
+tmux select-pane -t 6
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
 tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun localization_pkg rtk_gps_serial_reader.py" C-m
