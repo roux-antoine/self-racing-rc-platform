@@ -1,0 +1,56 @@
+#!/usr/bin/python3
+
+# Copyright 2014 Open Source Robotics Foundation, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import sys
+
+import rospy
+
+from grapher import Grapher
+
+
+def install_thread_excepthook():
+    """
+    Workaround for sys.excepthook thread bug
+    (https://sourceforge.net/tracker/?func=detail&atid=105470&aid=1230540&group_id=5470).
+    Call once from __main__ before creating any threads.
+    If using psyco, call psycho.cannotcompile(threading.Thread.run)
+    since this replaces a new-style class method.
+
+    Gracefully handles ROSInterruptExceptions in rospy.Timer
+    """
+    run_old = rospy.Timer.run
+
+    def run(*args, **kwargs):
+        try:
+            sys.stdout.flush()
+            run_old(*args, **kwargs)
+        except rospy.ROSInterruptException:
+            import os
+            import traceback
+
+            rospy.logdebug(traceback.format_exc())
+            if "ROSPY_TIMER_DEBUG" in os.environ:
+                rospy.logwarn(traceback.format_exc())
+
+    rospy.Timer.run = run
+
+
+if __name__ == "__main__":
+    install_thread_excepthook()
+    rospy.init_node("rosgrapher")
+    grapher = Grapher()
+    grapher.start()
+    rospy.spin()
