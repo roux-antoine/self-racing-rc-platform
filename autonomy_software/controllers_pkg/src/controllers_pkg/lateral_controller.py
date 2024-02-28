@@ -10,9 +10,8 @@ from geometry_utils_pkg.geometry_utils import (
 
 from dynamic_reconfigure.server import Server
 
-from dynamic_reconfigure_pkg.cfg import (
-    dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
-)
+from dynamic_reconfigure_pkg.cfg import lateral_controllerConfig
+
 
 class LateralController:
     def __init__(self):
@@ -23,7 +22,9 @@ class LateralController:
         self.UPPER_BOUND_REGION_1 = 1.5  # m/s
         self.UPPER_BOUND_REGION_2 = 5  # m/s
         self.UPPER_BOUND_REGION_3 = 8  # m/s
-        self.COEFF_REGION_1 = 27 * 1.25  # max steering_diff * radius of circle at max lateral acceleration
+        self.COEFF_REGION_1 = (
+            27 * 1.25
+        )  # max steering_diff * radius of circle at max lateral acceleration
         self.COEFF_REGION_2 = 24 * 2.3
         self.COEFF_REGION_3 = 26 * 4
 
@@ -61,7 +62,7 @@ class LateralController:
         )
 
         self.dynamic_reconfigure_server = Server(
-            dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+            lateral_controllerConfig,
             self.dynamic_reconfigure_callback,
         )
 
@@ -123,28 +124,35 @@ class LateralController:
             # coeff = 1 / (max steering_diff * radius of circle at max lateral acceleration)
             if self.current_velocity == 0:
                 coeff = 1000  # just so that we get a small number later on
-            elif self.current_velocity > 0 and self.current_velocity <= self.UPPER_BOUND_REGION_1:
-                coeff = 1 / (
-                    self.COEFF_REGION_1
-                )
-            elif self.current_velocity > self.UPPER_BOUND_REGION_1 and self.current_velocity <= self.UPPER_BOUND_REGION_2:
+            elif (
+                self.current_velocity > 0
+                and self.current_velocity <= self.UPPER_BOUND_REGION_1
+            ):
+                coeff = 1 / (self.COEFF_REGION_1)
+            elif (
+                self.current_velocity > self.UPPER_BOUND_REGION_1
+                and self.current_velocity <= self.UPPER_BOUND_REGION_2
+            ):
                 coeff = 1 / (
                     self.COEFF_REGION_1
                     + (self.current_velocity - self.UPPER_BOUND_REGION_1)
                     * (self.COEFF_REGION_2 - self.COEFF_REGION_1)
                     / (self.UPPER_BOUND_REGION_2 - self.UPPER_BOUND_REGION_1)
                 )
-            elif self.current_velocity > self.UPPER_BOUND_REGION_2 and self.current_velocity <= self.UPPER_BOUND_REGION_3:
+            elif (
+                self.current_velocity > self.UPPER_BOUND_REGION_2
+                and self.current_velocity <= self.UPPER_BOUND_REGION_3
+            ):
                 coeff = 1 / (
                     self.COEFF_REGION_2
-                    + (self.current_velocity - self.UPPER_BOUND_REGION_2) * (self.COEFF_REGION_3 - self.COEFF_REGION_2) / (self.UPPER_BOUND_REGION_3 - self.UPPER_BOUND_REGION_2)
+                    + (self.current_velocity - self.UPPER_BOUND_REGION_2)
+                    * (self.COEFF_REGION_3 - self.COEFF_REGION_2)
+                    / (self.UPPER_BOUND_REGION_3 - self.UPPER_BOUND_REGION_2)
                 )
             elif self.current_velocity > self.UPPER_BOUND_REGION_3:
                 coeff = 1 / self.COEFF_REGION_3
 
-            steering_pwn_cmd = (
-                self.STEERING_IDLE_PWM - self.target_curvature / coeff
-            )
+            steering_pwn_cmd = self.STEERING_IDLE_PWM - self.target_curvature / coeff
 
             if steering_pwn_cmd > self.STEERING_MAX_PWM:
                 steering_pwn_cmd = self.STEERING_MAX_PWM

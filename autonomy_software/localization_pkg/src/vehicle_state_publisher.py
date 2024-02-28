@@ -19,12 +19,13 @@ from nmea_msgs.msg import Gprmc
 from dynamic_reconfigure.server import Server
 
 from dynamic_reconfigure_pkg.cfg import (
-    dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+    vehicle_state_publisherConfig,
 )
+
 
 class VehicleStatePublisher:
     def __init__(self):
-        rospy.init_node("vehicle_state_publisher", anonymous=True)
+        rospy.init_node("vehicle_state_publisher")
 
         # Subscribers
         self.sub = rospy.Subscriber(
@@ -43,7 +44,7 @@ class VehicleStatePublisher:
 
         """ Dynamic reconfigure setup """
         self.dynamic_reconfigure_server = Server(
-            dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+            vehicle_state_publisherConfig,
             self.dynamic_reconfigure_callback,
         )
 

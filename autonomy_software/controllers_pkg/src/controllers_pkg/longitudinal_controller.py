@@ -13,7 +13,7 @@ from std_msgs.msg import Float32
 from dynamic_reconfigure.server import Server
 
 from dynamic_reconfigure_pkg.cfg import (
-    dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+    longitudinal_controllerConfig,
 )
 
 
@@ -67,7 +67,7 @@ class LongitudinalController:
         self.time_last_arduino_msg = time.time()
 
         self.dynamic_reconfigure_server = Server(
-            dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+            longitudinal_controllerConfig,
             self.dynamic_reconfigure_callback,
         )
 
