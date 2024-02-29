@@ -32,4 +32,4 @@ Then run: `catkin build arduino_pkg`
 # Running the code
 
 * Start roscore if needed
-* Initiate the "bridge": `rosrun rosserial_python serial_node.py _port:=/dev/ttyACM0 _baud:=57600` (or whatever the port and baudrate are)
+* Initiate the "bridge": `rosrun rosserial_python serial_node.py _port:=/dev/arduino _baud:=57600` (or whatever the port and baudrate are)
