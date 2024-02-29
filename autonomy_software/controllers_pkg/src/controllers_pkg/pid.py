@@ -1,24 +1,67 @@
 #!/usr/bin/python3
 import rospy
+from typing import Optional
 
 
 class PID:
     def __init__(
         self,
-        gain_p: float = 0.0,
-        gain_i: float = 0.0,
-        gain_d: float = 0.0,
+        gain_p: Optional[float] = None,
+        gain_i: Optional[float] = None,
+        gain_d: Optional[float] = None,
     ):
 
-        self.kp = gain_p
-        self.ki = gain_i
-        self.kd = gain_d
+        # two modes to get the parameters:
+        # - if they are passed as arguments, set them so and don't allow to change them after the fact
+        # - if not, they are set to 0 and will be retrieved using dynamic reconfigure
+        if gain_p or gain_i or gain_d:
+            self.allow_dynamic_reconfigure = False
+            self._kp = gain_p or 0.0
+            self._ki = gain_i or 0.0
+            self._kd = gain_d or 0.0
+        else:
+            self.allow_dynamic_reconfigure = True
+            self._kp = 0.0
+            self._ki = 0.0
+            self._kd = 0.0
 
         self.min_sampling_time_sec = 0.01  # 10 ms
-
         self.output = 0
         self.i_value = 0
         self.previous_error = 0
+
+    @property
+    def kp(self):
+        return self._kp
+
+    @kp.setter
+    def kp(self, value):
+        if self.allow_dynamic_reconfigure:
+            self._kp = value
+        else:
+            raise Exception("You are not allowed to modify the value of kp")
+
+    @property
+    def ki(self):
+        return self._ki
+
+    @ki.setter
+    def ki(self, value):
+        if self.allow_dynamic_reconfigure:
+            self._ki = value
+        else:
+            raise Exception("You are not allowed to modify the value of ki")
+
+    @property
+    def kd(self):
+        return self._kd
+
+    @kd.setter
+    def kd(self, value):
+        if self.allow_dynamic_reconfigure:
+            self._kd = value
+        else:
+            raise Exception("You are not allowed to modify the value of kd")
 
     def update(self, error: float, activate_anti_windup: bool, dt: float):
         """
@@ -51,12 +94,12 @@ class PID:
         output_d = (error - self.previous_error) / dt
 
         # Sum all the components
-        output = self.kp * output_p + self.ki * output_i + self.kd * output_d
+        output = self._kp * output_p + self._ki * output_i + self._kd * output_d
 
         self.i_value = output_i
         self.previous_error = error
 
-        return output, self.kp * output_p, self.ki * output_i, self.kd * output_d
+        return output, self._kp * output_p, self._ki * output_i, self._kd * output_d
 
     def reset(self):
         """

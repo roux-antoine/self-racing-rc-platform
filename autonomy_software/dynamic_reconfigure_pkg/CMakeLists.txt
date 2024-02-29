@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(planning_pkg)
+project(dynamic_reconfigure_pkg)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -10,8 +10,6 @@ project(planning_pkg)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
-  self_racing_car_msgs
-  std_msgs
   dynamic_reconfigure
 )
 
@@ -90,7 +88,9 @@ find_package(catkin REQUIRED COMPONENTS
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-
+generate_dynamic_reconfigure_options(
+  cfg/dynamic_reconfigure_pkg_dynamic_reconfigure.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -158,10 +158,10 @@ include_directories(
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-catkin_install_python(PROGRAMS
-  src/target_generator.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+# catkin_install_python(PROGRAMS
+#   src/foo.py
+#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html

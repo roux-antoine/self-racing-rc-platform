@@ -16,9 +16,11 @@ import tf
 
 
 from dynamic_reconfigure.server import Server
-from planning_pkg.cfg import (
-    planning_pkg_dynamic_reconfigureConfig,
+
+from dynamic_reconfigure_pkg.cfg import (
+    dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
 )
+from enum import Enum
 
 
 """
@@ -26,6 +28,11 @@ NOTE:
 - Publish some additional things? Lookahead circle?
 - Here we don't have the logic when the nextWaypoint is close to the starting line
 """
+
+
+class VelocityModeEnum(Enum):
+    MANUAL_INPUT_SPEED = 0
+    WAYPOINT_FOLLOWING = 1
 
 
 class TargetGenerator:
@@ -81,27 +88,26 @@ class TargetGenerator:
             queue_size=10,
         )
 
-        """ Parameters """
-        self.curvature_min = 0.001
-
-
         """ Dynamic reconfigure setup """
-
-        def dynamic_reconfigure_callback(config, level):
-            self.lookahead_distance = config["lookahead_distance"]
-            return config
-
         self.dynamic_reconfigure_server = Server(
-            planning_pkg_dynamic_reconfigureConfig,
-            dynamic_reconfigure_callback,
+            dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+            self.dynamic_reconfigure_callback,
         )
 
+    def dynamic_reconfigure_callback(self, config, level):
+        self.lookahead_distance = config["lookahead_distance"]
+        self.curvature_min = config["curvature_min"]
+        self.speed_scale_factor = config["speed_scale_factor"]
+        self.loop_over_waypoints = config["loop_over_waypoints"]
+        if config["velocity_mode"] == VelocityModeEnum.MANUAL_INPUT_SPEED.value:
+            self.velocity_mode = VelocityModeEnum.MANUAL_INPUT_SPEED
+        elif config["velocity_mode"] == VelocityModeEnum.WAYPOINT_FOLLOWING.value:
+            self.velocity_mode = VelocityModeEnum.WAYPOINT_FOLLOWING
+        else:
+            raise ValueError("Invalid value for velocity_mode.")
 
-        self.velocity_mode = rospy.get_param(
-            "~velocity_mode", "WAYPOINT_FOLLOWING"
-        )  # "MANUAL_INPUT_SPEED" / "WAYPOINT_FOLLOWING"
-        self.speed_scale_factor = rospy.get_param("~speed_scale_factor", 1)
-        self.loop_over_waypoints = rospy.get_param("~loop_over_waypoints", False)
+        return config
+
 
     def callback_waypoints(self, wp_msg: WaypointArray):
         """
@@ -184,9 +190,9 @@ class TargetGenerator:
             self.publish_target_curvature(curvature)
 
             """ Compute target speed """
-            if self.velocity_mode == "MANUAL_INPUT_SPEED":
+            if self.velocity_mode == VelocityModeEnum.MANUAL_INPUT_SPEED:
                 target_speed = self.user_input_speed_mps
-            elif self.velocity_mode == "WAYPOINT_FOLLOWING":
+            elif self.velocity_mode == VelocityModeEnum.WAYPOINT_FOLLOWING:
                 try:
                     if (
                         self.loop_over_waypoints is False

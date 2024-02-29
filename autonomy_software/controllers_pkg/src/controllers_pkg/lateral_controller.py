@@ -8,6 +8,11 @@ from geometry_utils_pkg.geometry_utils import (
     State,
 )
 
+from dynamic_reconfigure.server import Server
+
+from dynamic_reconfigure_pkg.cfg import (
+    dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+)
 
 class LateralController:
     def __init__(self):
@@ -15,9 +20,6 @@ class LateralController:
         # Constants
         # TODO these values will be shared by many nodes -> use a rosparam
         rate = rospy.get_param("~rate", 10.0)
-        self.STEERING_IDLE_PWM = 98  # unitless
-        self.STEERING_MAX_PWM = 123  # unitless
-        self.STEERING_MIN_PWM = 68  # unitless
         self.UPPER_BOUND_REGION_1 = 1.5  # m/s
         self.UPPER_BOUND_REGION_2 = 5  # m/s
         self.UPPER_BOUND_REGION_3 = 8  # m/s
@@ -58,12 +60,23 @@ class LateralController:
             queue_size=10,
         )
 
+        self.dynamic_reconfigure_server = Server(
+            dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+            self.dynamic_reconfigure_callback,
+        )
+
         # Publishers
         self.steering_cmd_pub = rospy.Publisher(
             steering_pwm_cmd_topic_name,
             Float32,
             queue_size=10,
         )
+
+    def dynamic_reconfigure_callback(self, config, level):
+        self.STEERING_IDLE_PWM = config["steering_idle_pwm"]
+        self.STEERING_MAX_PWM = config["steering_max_pwm"]
+        self.STEERING_MIN_PWM = config["steering_min_pwm"]
+        return config
 
     def current_pose_callback(self, msg: PoseStamped):
         """
