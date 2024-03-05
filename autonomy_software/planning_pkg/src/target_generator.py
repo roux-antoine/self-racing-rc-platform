@@ -18,7 +18,7 @@ import tf
 from dynamic_reconfigure.server import Server
 
 from dynamic_reconfigure_pkg.cfg import (
-    dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+    target_generatorConfig,
 )
 from enum import Enum
 
@@ -90,7 +90,7 @@ class TargetGenerator:
 
         """ Dynamic reconfigure setup """
         self.dynamic_reconfigure_server = Server(
-            dynamic_reconfigure_pkg_dynamic_reconfigureConfig,
+            target_generatorConfig,
             self.dynamic_reconfigure_callback,
         )
 
@@ -107,7 +107,6 @@ class TargetGenerator:
             raise ValueError("Invalid value for velocity_mode.")
 
         return config
-
 
     def callback_waypoints(self, wp_msg: WaypointArray):
         """
@@ -403,7 +402,7 @@ class TargetGenerator:
 
 if __name__ == "__main__":
     try:
-        rospy.init_node("target_generator", anonymous=True)
+        rospy.init_node("target_generator")
         target_gen = TargetGenerator()
         rospy.spin()
 
