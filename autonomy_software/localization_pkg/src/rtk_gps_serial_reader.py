@@ -7,7 +7,7 @@ from pynmeagps import NMEAReader
 
 from nmea_msgs.msg import Gprmc
 
-SERIAL_PORT = "/dev/ttyACM1"
+SERIAL_PORT = "/dev/gps"
 BAUD_RATE = 9600
 
 """
