@@ -93,6 +93,7 @@ generate_dynamic_reconfigure_options(
   cfg/target_generator.cfg
   cfg/longitudinal_controller.cfg
   cfg/vehicle_state_publisher.cfg
+  cfg/vehicle_sim.cfg
   )
 
 ###################################
