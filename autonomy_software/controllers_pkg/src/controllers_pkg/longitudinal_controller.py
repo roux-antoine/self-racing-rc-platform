@@ -27,7 +27,6 @@ class LongitudinalController:
 
         # Constants
         rate = rospy.get_param("~rate", 10.0)
-        self.t_ramp = 5  # [sec]
 
         # Subscribers
         rospy.Subscriber(
@@ -82,6 +81,7 @@ class LongitudinalController:
         self.timeout_engage_msg_before_stop_secs = config[
             "timeout_engage_msg_before_stop_secs"
         ]
+        self.t_ramp_sec = config["t_ramp_sec"]
 
         if config["longitudinal_control_mode"] == LongitudinalControlMode.PID.value:
             self.longitudinal_control_mode = LongitudinalControlMode.PID
@@ -141,7 +141,6 @@ class LongitudinalController:
 
                     # TODO: Change some variables' names
                     # TODO: We could also not trigger the PID in startup mode (?)
-                    # TODO: Add the startup flag to debug?
                     # Check if we have just enabled the controller
                     if self.controller_previously_disabled:
                         self.controller_previously_disabled = False
@@ -157,7 +156,7 @@ class LongitudinalController:
 
                         rampRate = (
                             self.desired_velocity - self.speed_when_controller_enabled
-                        ) / self.t_ramp
+                        ) / self.t_ramp_sec
                         target_speed_ramp = (
                             self.speed_when_controller_enabled
                             + rampRate * t_elapsed_since_controller_enabled
@@ -168,10 +167,11 @@ class LongitudinalController:
                         # Check if we still need to be in startup mode
                         # Exit startup mode if the ramp time is elapsed or if we the ramp speed is higher than target speed
                         if (
-                            t_elapsed_since_controller_enabled > self.t_ramp
+                            t_elapsed_since_controller_enabled > self.t_ramp_sec
                             or target_speed_ramp > self.desired_velocity
                         ):
                             self.startup_mode_enabled = False
+                            target_velocity = self.desired_velocity
 
                     # Not in startup mode
                     else:
@@ -237,6 +237,7 @@ class LongitudinalController:
                         i,
                         d,
                         error,
+                        ff,
                         self.startup_mode_enabled,
                         target_velocity,
                     )
@@ -254,6 +255,19 @@ class LongitudinalController:
                     self.publish_throttle_cmd(self.throttle_idle_autonomous_pwm)
                     # Reset the integral component
                     self.pid_controller.reset()
+
+                    # Publish debug but with all values at zero
+                    self.publish_debug_pid(
+                        False,
+                        False,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        False,
+                        0,
+                    )
 
             elif (
                 self.longitudinal_control_mode
@@ -295,6 +309,7 @@ class LongitudinalController:
         i,
         d,
         error,
+        ff,
         startup_mode_enabled,
         target_velocity,
     ):
@@ -309,6 +324,7 @@ class LongitudinalController:
         debug_msg.i = i
         debug_msg.d = d
         debug_msg.error = error
+        debug_msg.feedforward = ff
         debug_msg.startup_mode_enabled = startup_mode_enabled
         debug_msg.target_velocity = target_velocity
 
@@ -320,7 +336,8 @@ class LongitudinalController:
         given a simple linear approximation
         """
 
-        ff = 1.92 * desired_velocity + 94.1
+        # ff = 1.92 * desired_velocity + 94.1
+        ff = 1.4 * desired_velocity + 94.1
 
         return ff
 
