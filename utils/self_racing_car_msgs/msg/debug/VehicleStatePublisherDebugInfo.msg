@@ -1,0 +1,3 @@
+float64 gps_timestamp
+PoseStamped current_pose
+Twist current_velocity
