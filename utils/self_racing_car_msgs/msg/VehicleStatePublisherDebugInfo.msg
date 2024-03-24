@@ -1,3 +1,3 @@
 float64 gps_timestamp
-PoseStamped current_pose
-TwistStamped current_velocity
+geometry_msgs/PoseStamped current_pose
+geometry_msgs/TwistStamped current_velocity
