@@ -17,7 +17,7 @@ from nmea_msgs.msg import Gprmc
 
 
 from dynamic_reconfigure.server import Server
-
+#from self_racing_car_msgs.msg import VehicleStatePublisherDebugInfo
 from dynamic_reconfigure_pkg.cfg import (
     vehicle_state_publisherConfig,
 )
@@ -37,6 +37,10 @@ class VehicleStatePublisher:
         self.pub_velocity = rospy.Publisher(
             "current_velocity", TwistStamped, queue_size=10
         )
+
+        #self.pub_debug = rospy.Publisher("vehicle_state_debug", 
+            #VehicleStatePublisherDebugInfo, queue_size=10
+        #)
 
         self.rate = rospy.Rate(1000)
 
@@ -115,9 +119,16 @@ class VehicleStatePublisher:
             (x_utm, y_utm, 0), quaternion, rospy.Time.now(), "car", "world"
         )
 
+        #debug_msg = VehicleStatePublisherDebugInfo()
+        #debug_msg.current_pose = pose_msg
+        #debug_msg.current_velocity = vel_msg
+        #debug_msg.gps_timestamp = 0.5
+
         """ Publish topics """
         self.pub_pose.publish(pose_msg)
         self.pub_velocity.publish(vel_msg)
+        #elf.pub_debug(debug_msg)
+        rospy.logwarn("hello")
 
 
 if __name__ == "__main__":
