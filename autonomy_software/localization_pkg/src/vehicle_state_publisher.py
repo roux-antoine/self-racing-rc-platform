@@ -16,9 +16,16 @@ from geometry_msgs.msg import PoseStamped, TwistStamped
 from nmea_msgs.msg import Gprmc
 
 
+from dynamic_reconfigure.server import Server
+
+from dynamic_reconfigure_pkg.cfg import (
+    vehicle_state_publisherConfig,
+)
+
+
 class VehicleStatePublisher:
     def __init__(self):
-        rospy.init_node("vehicle_state_publisher", anonymous=True)
+        rospy.init_node("vehicle_state_publisher")
 
         # Subscribers
         self.sub = rospy.Subscriber(
@@ -34,9 +41,18 @@ class VehicleStatePublisher:
         self.rate = rospy.Rate(1000)
 
         self.last_msg_seq = None
-        self.JUMPING_MESSAGE_FACTOR = 1
+
+        """ Dynamic reconfigure setup """
+        self.dynamic_reconfigure_server = Server(
+            vehicle_state_publisherConfig,
+            self.dynamic_reconfigure_callback,
+        )
 
         rospy.logwarn("Finished init")
+
+    def dynamic_reconfigure_callback(self, config, level):
+        self.jumping_message_nbr = config["jumping_message_nbr"]
+        return config
 
     def callback_rmc_msg(self, rmc_msg: Gprmc):
 
@@ -47,9 +63,9 @@ class VehicleStatePublisher:
                 rospy.logwarn(
                     "Either you restarted the gps_publisher (or a rosbag play) or there is a problem"
                 )
-            elif rmc_msg.header.seq - self.last_msg_seq < self.JUMPING_MESSAGE_FACTOR:
+            elif rmc_msg.header.seq - self.last_msg_seq < 1 + self.jumping_message_nbr:
                 # This condition can be used to skip every N message if we ever want.
-                # To do so, increase self.JUMPING_MESSAGE_FACTOR to more than 1
+                # To do so, increase self.jumping_message_nbr to more than 0
                 return
 
         self.last_msg_seq = rmc_msg.header.seq

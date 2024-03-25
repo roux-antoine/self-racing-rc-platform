@@ -1,89 +1,131 @@
 #!/usr/bin/python3
-import numpy as np
-from enum import Enum
 from geometry_utils_pkg.geometry_utils import State
+import numpy as np
 
 
-class LateralModel(Enum):
-    PERFECT = 1
-    DELAY = 2
+class LongitudinalControlModel:
+    def __init__(
+        self, tau_delay: float = 0.0, noise: float = 0.0, max_speed_mps: float = 10
+    ):
+        self.tau_delay = tau_delay
+        self.noise = noise
+        self.max_speed_mps = max_speed_mps
+
+    def throttle_to_speed(self, throttle_pwm_cmd: int):
+        """
+        Function that returns the speed the vehicle reaches given a throttle pwm input.
+        This is an big assumption of course, not close to what happens in real life.
+        Arguments:
+            - throttle_pwm_cmd [pwm]: Throttle input
+        """
+        speed = 0.54 * throttle_pwm_cmd - 51.1
+
+        if speed < 0:
+            speed = 0
+
+        return speed
+
+    def update_speed(self, current_speed, throttle_pwm_cmd, dt):
+        """
+        Function that updates the simulated vehicle's speed
+        Arguments:
+            - current_speed [m/s]: Simulated vehicle's current speed
+            - throttle_pwm_cmd [pwm]: Throttle input
+            - dt [s]: Timestamp difference between two simulated speeds
+        """
+
+        speed_feedforward = self.throttle_to_speed(throttle_pwm_cmd)
+
+        # Add delay
+        if self.tau_delay != 0:
+            next_speed = current_speed + (dt / self.tau_delay) * (
+                speed_feedforward - current_speed
+            )
+        else:
+            next_speed = speed_feedforward
+
+        # Add noise
+        if self.noise != 0:
+            pass
+
+        return next_speed
+
+    def update_tau_delay(self, input_tau):
+        self.tau_delay = input_tau
+
+    def update_noise(self, input_noise):
+        self.noise = input_noise
 
 
-class LongitudinalModel(Enum):
-    PERFECT = 1
-    DELAY = 2
-    ACC_P_CONTROl = 3
+class LateralControlModel:
+    def __init__(self, wheelbase: float = 0.406):
+        self.wheelbase = wheelbase
+
+    def update_position(self, current_state: State, steering_input, dt):
+        """
+        Function that updates the simulated vehicle's position and orientation using a bicycle model.
+
+        Arguments:
+            - current_state: Simulate vehicle's current state
+            - steering_input [rad]: Steering input to apply to simulated lateral control model
+            - dt [s]: Timestamp difference between two simulated positions
+        """
+
+        new_x = current_state.x + current_state.vx * np.cos(current_state.angle) * dt
+
+        new_y = current_state.y + current_state.vx * np.sin(current_state.angle) * dt
+
+        new_angle = (
+            current_state.angle
+            + (current_state.vx / self.wheelbase) * np.tan(steering_input) * dt
+        )
+
+        return new_x, new_y, new_angle
+
+    def update_wheelbase(self, input_wheelbase):
+        self.wheelbase = input_wheelbase
 
 
 class VehicleSim:
     def __init__(
         self,
+        lateral_model: LateralControlModel,
+        longitudinal_model: LongitudinalControlModel,
         initial_state: State = State(),
-        wheelbase_m: float = 0.406,
-        lateral_model: LateralModel = LateralModel.PERFECT,
-        longitudinal_model: LongitudinalModel = LongitudinalModel.ACC_P_CONTROl,
-        max_steering_rad: float = np.pi / 4,
-        desired_acc_gain_p: float = 0.5,
     ):
-        self.current_state = initial_state
-        self.wheelbase_m = wheelbase_m
         self.lateral_model = lateral_model
         self.longitudinal_model = longitudinal_model
-        self.max_steering_rad = max_steering_rad
-        self.desired_acc_gain_p = desired_acc_gain_p
+        self.current_state = initial_state
 
-    def predict_next_pose(self, steering_input: float, dt: float) -> None:
+    def update_position(self, steering_input: float, dt: float) -> None:
         """
         Function that updates the simulated vehicle's position and orientation using a bicycle model.
-
         Arguments:
             - steering_input [rad]: Steering input to apply to simulated lateral control model
             - dt [s]: Timestamp difference between two simulated positions
         """
 
-        if self.lateral_model == LateralModel.PERFECT:
+        (
+            self.current_state.x,
+            self.current_state.y,
+            self.current_state.angle,
+        ) = self.lateral_model.update_position(self.current_state, steering_input, dt)
 
-            self.current_state.x = (
-                self.current_state.x
-                + self.current_state.vx * np.cos(self.current_state.angle) * dt
-            )
-            self.current_state.y = (
-                self.current_state.y
-                + self.current_state.vx * np.sin(self.current_state.angle) * dt
-            )
-
-            self.current_state.angle = (
-                self.current_state.angle
-                + (self.current_state.vx / self.wheelbase_m)
-                * np.tan(steering_input)
-                * dt
-            )
-
-        else:
-            # TODO
-            pass
-
-    def predict_next_velocity(self, target_velocity: float, dt: float):
+    def update_speed(self, throttle_pwm_cmd: int, dt: float):
         """
-        Function that updates the simulated vehicle's velocity, based on a simulated upper-level proportional controller
-        (that calculates the desired acceleration) and a perfect lower-level controller (the actual acceleration is the desired acceleration)
-
+        Function to update the simulated vehicle's current speed.
         Arguments:
-            - target_velocity [m/s]: Velocity the vehicle needs to follow
-            - dt [s]: Timestamp difference between two simulated positions
+            - throttle_pwm_cmd [pwm]: Throttle input
+            - dt [s]: Timestamp difference between two simulated speeds
         """
 
-        if self.longitudinal_model == LongitudinalModel.ACC_P_CONTROl:
+        self.current_state.vx = self.longitudinal_model.update_speed(
+            self.current_state.vx, throttle_pwm_cmd, dt
+        )
 
-            desired_acc = self.desired_acc_gain_p * (
-                target_velocity - self.current_state.vx
-            )
+    def stop(self):
+        """
+        Function that updates the simulated vehicle's state to simulate a stop
+        """
 
-            self.current_state.vx = self.current_state.vx + desired_acc * dt
-
-        elif self.longitudinal_model == LongitudinalModel.PERFECT:
-            self.current_state.vx = target_velocity
-
-        else:
-            # TODO
-            pass
+        self.current_state.vx = 0
