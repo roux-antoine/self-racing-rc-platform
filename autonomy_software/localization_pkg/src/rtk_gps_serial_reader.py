@@ -23,6 +23,7 @@ class RtkGpsSerialReader:
         self.serial_port = serial.Serial(SERIAL_PORT, baudrate=BAUD_RATE, timeout=1)
 
         self.pub = rospy.Publisher("gps_info", Gprmc, queue_size=10)
+        self.pub_debug = rospy.Publisher("debug_rtk_gps", Gprmc, queue_size=10)
 
         rospy.init_node("rtk_gps_serial_reader", anonymous=True)
 
@@ -80,6 +81,7 @@ class RtkGpsSerialReader:
         msg.mode_indicator = parsed_msg.posMode
 
         self.pub.publish(msg)
+        self.pub_debug(msg)
 
 
 if __name__ == "__main__":

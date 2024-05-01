@@ -53,7 +53,7 @@ class LongitudinalController:
         )
 
         self.pub_debug_pid = rospy.Publisher(
-            "pid_debug", LongitudinalControllerDebugInfo, queue_size=10
+            "debug_longitudinal", LongitudinalControllerDebugInfo, queue_size=10
         )
 
         # Variables

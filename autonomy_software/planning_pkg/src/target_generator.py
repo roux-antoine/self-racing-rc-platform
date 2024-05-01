@@ -2,7 +2,7 @@
 
 import rospy
 from geometry_msgs.msg import PoseStamped, TwistStamped
-from self_racing_car_msgs.msg import WaypointArray
+from self_racing_car_msgs.msg import WaypointArray, Waypoint, TargetGeneratorDebugInfo
 from visualization_msgs.msg import Marker
 
 from geometry_utils_pkg.geometry_utils import (
@@ -43,6 +43,7 @@ class TargetGenerator:
         self.waypoints = None
         self.user_input_speed_mps = 0
         self.id_closest_wp = 0
+        self.target_point_marker = None
 
         """ Subscribers """
         rospy.Subscriber(
@@ -86,6 +87,12 @@ class TargetGenerator:
             "target_point_marker",
             Marker,
             queue_size=10,
+        )
+
+        self.target_debug_pub = rospy.Publisher(
+            "debug_target",
+            TargetGeneratorDebugInfo,
+            queue_size=10
         )
 
         """ Dynamic reconfigure setup """
@@ -211,6 +218,34 @@ class TargetGenerator:
 
             """ Publish target speed """
             self.publish_target_speed(target_speed)
+
+            target_debug = TargetGeneratorDebugInfo()
+            
+            target_debug.target_curvature = curvature
+            target_debug.target_velocity = target_speed
+            target_debug.target_point_x = targetPoint.x
+            target_debug.target_point_y = targetPoint.y
+            target_debug.next_waypoint = nextWaypointId
+            
+
+            
+            #target_debug.closest_waypoint = self.id_closest_wp
+            #target_debug.next_waypoint = targetPoint
+
+            self.target_debug_pub.publish(target_debug)
+
+    """def publish_target_debug(self, targetPoint: State, target_speed: float, curvature: float):
+            
+            target_debug = TargetGeneratorDebugInfo()
+            
+            target_debug.target_curvature = curvature
+            target_debug.target_velocity = target_speed
+            #target_debug.target_point_marker = self.target_point_marker
+            #target_debug.closest_waypoint = self.id_closest_wp
+            #target_debug.next_waypoint = targetPoint
+
+            self.target_debug_pub.publish(target_debug)"""
+        
 
     def callback_current_velocity(self, twist_msg: TwistStamped):
         """ """
@@ -349,7 +384,9 @@ class TargetGenerator:
         """
         Publishes the targetPoint marker for visualization
         """
-
+        #int32 closest_waypoint
+        #int32 next_waypoint
+        #Waypoint target_point
         marker_msg = Marker()
 
         marker_msg.header.frame_id = "world"
@@ -372,7 +409,7 @@ class TargetGenerator:
         marker_msg.pose.position.y = targetPoint.y
 
         marker_msg.pose.orientation.w = 1.0
-
+        self.target_point_marker = marker_msg
         self.target_point_marker_pub.publish(marker_msg)
 
     def publish_target_speed(self, target_speed: float):

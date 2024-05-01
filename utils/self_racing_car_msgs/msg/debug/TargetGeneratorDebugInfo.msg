@@ -1,6 +1,0 @@
-float64 target_curvature
-TwistStamped target_velocity
-Marker target_point_marker
-Waypoint closest_waypoint
-Waypoint next_waypoint
-Waypoint target_point
