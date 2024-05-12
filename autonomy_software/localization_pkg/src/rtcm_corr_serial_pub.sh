@@ -7,6 +7,8 @@ BAUD_RATE=115200
 
 echo "Starting NTRIP client"
 echo " ------------------------ "
+echo "Username: ${USERNAME}"
+echo "PASSWORD: ${PASSWORD}"
 echo "Port: ${PORT}"
 echo "Mount point: ${MOUNT_POINT}"
 echo "Serial port: ${SERIAL_PORT}"
