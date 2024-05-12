@@ -11,7 +11,7 @@ import math
 import rospy
 import tf
 import utm
-
+#from datetime import datetime, timezone
 from geometry_msgs.msg import PoseStamped, TwistStamped
 from nmea_msgs.msg import Gprmc
 
@@ -83,6 +83,7 @@ class VehicleStatePublisher:
         """ Convert to utm coordinates"""
         utm_values = utm.from_latlon(latitude, longitude)
         x_utm, y_utm = utm_values[0], utm_values[1]
+        #gps_timestamp = datetime.fromtimestamp(rmc_msg.utc_seconds, timezone.utc).isoformat('T','seconds')
 
         """ Build the /current_pose [PoseStamped] message """
         pose_msg = PoseStamped()
@@ -122,7 +123,7 @@ class VehicleStatePublisher:
         debug_msg = VehicleStatePublisherDebugInfo()
         debug_msg.current_pose = pose_msg
         debug_msg.current_velocity = vel_msg
-        debug_msg.gps_timestamp = 0.5
+        debug_msg.gps_timestamp = rmc_msg.utc_seconds
 
         """ Publish topics """
         self.pub_pose.publish(pose_msg)

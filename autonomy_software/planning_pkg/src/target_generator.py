@@ -226,6 +226,7 @@ class TargetGenerator:
             target_debug.target_point_x = targetPoint.x
             target_debug.target_point_y = targetPoint.y
             target_debug.next_waypoint = nextWaypointId
+            target_debug.closest_waypoint = self.id_closest_wp
             
 
             

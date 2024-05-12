@@ -159,19 +159,19 @@ class LateralController:
             elif self.current_velocity > self.UPPER_BOUND_REGION_3:
                 coeff = 1 / self.COEFF_REGION_3
 
-            steering_pwn_cmd = self.STEERING_IDLE_PWM - self.target_curvature / coeff
+            steering_pwm_cmd = self.STEERING_IDLE_PWM - self.target_curvature / coeff
 
-            if steering_pwn_cmd > self.STEERING_MAX_PWM:
-                steering_pwn_cmd = self.STEERING_MAX_PWM
-            elif steering_pwn_cmd < self.STEERING_MIN_PWM:
-                steering_pwn_cmd = self.STEERING_MIN_PWM
+            if steering_pwm_cmd > self.STEERING_MAX_PWM:
+                steering_pwm_cmd = self.STEERING_MAX_PWM
+            elif steering_pwm_cmd < self.STEERING_MIN_PWM:
+                steering_pwm_cmd = self.STEERING_MIN_PWM
 
             debug_msg = LateralControllerDebugInfo()
             debug_msg.coeff = coeff
-            debug_msg.steering_pwm_cmd = steering_pwn_cmd
+            debug_msg.steering_pwm_cmd = steering_pwm_cmd
 
 
-            self.steering_cmd_pub.publish(steering_pwn_cmd)
+            self.steering_cmd_pub.publish(steering_pwm_cmd)
             self.lat_debug_pub.publish(debug_msg)
             self.rate.sleep()
 

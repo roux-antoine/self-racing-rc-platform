@@ -1,2 +1,0 @@
-float64 steering_pwm_cmd
-float64 coeff

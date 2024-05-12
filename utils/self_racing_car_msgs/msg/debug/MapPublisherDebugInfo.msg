@@ -1,2 +1,0 @@
-TransformStamped static_transform
-MarkerArray map_viz

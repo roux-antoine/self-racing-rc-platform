@@ -12,6 +12,7 @@ from typing import List, Tuple
 
 from geometry_msgs.msg import Point, TransformStamped
 from visualization_msgs.msg import Marker, MarkerArray
+#from self_racing_car_msgs.msg import MapPublisherDebugInfo
 
 
 class PlacemarkType(Enum):

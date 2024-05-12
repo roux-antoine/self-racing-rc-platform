@@ -3,3 +3,4 @@ float64 target_velocity
 float64 target_point_x
 float64 target_point_y
 int32 next_waypoint
+int32 closest_waypoint

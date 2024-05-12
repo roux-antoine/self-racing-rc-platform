@@ -1,5 +1,0 @@
-float64 gps_timestamp
-PoseStamped current_pose
-TwistStamped current_velocity
-tf world
-tf car

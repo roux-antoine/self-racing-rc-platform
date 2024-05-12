@@ -184,7 +184,7 @@ class LongitudinalController:
                     #  Publish result
                     self.publish_throttle_cmd(throttle_value)
                     self.publish_debug_pid(
-                        throttle_saturating, controller_saturating, p, i, d
+                        throttle_saturating, controller_saturating, p, i, d, duration_since_last_message, self.anti_windup_enabled, self.constant_pwm_output
                     )
 
                 else:
@@ -219,14 +219,17 @@ class LongitudinalController:
 
         self.throttle_cmd_pub.publish(throttle_msg)
 
-    def publish_debug_pid(self, throttle_saturating, controller_saturating, p, i, d):
+    def publish_debug_pid(self, throttle_saturating, controller_saturating, p, i, d, duration_since_last_message, anti_windup_enabled, constant_pwm_output):
         """
         Function to publish debug info regarding speed controller
         """
-
+        rospy.loginfo(str(duration_since_last_message))
         debug_msg = LongitudinalControllerDebugInfo()
         debug_msg.throttle_saturating = throttle_saturating
         debug_msg.controller_saturating = controller_saturating
+        debug_msg.anti_windup_enabled = anti_windup_enabled
+        debug_msg.duration_since_last_message = duration_since_last_message
+        debug_msg.pwm_value = constant_pwm_output
         debug_msg.p = p
         debug_msg.i = i
         debug_msg.d = d
