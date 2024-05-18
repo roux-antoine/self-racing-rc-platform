@@ -1,3 +1,4 @@
 float64 gps_timestamp
 geometry_msgs/PoseStamped current_pose
 geometry_msgs/TwistStamped current_velocity
+geometry_msgs/TransformStamped tf_stamped

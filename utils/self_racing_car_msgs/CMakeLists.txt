@@ -59,6 +59,7 @@ add_message_files(
   Waypoint.msg
   WaypointArray.msg
   LongitudinalControllerDebugInfo.msg
+  MapPublisherDebugInfo.msg
   LateralControllerDebugInfo.msg
   TargetGeneratorDebugInfo.msg
   VehicleStatePublisherDebugInfo.msg

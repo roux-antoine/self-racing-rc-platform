@@ -89,7 +89,7 @@ class TargetGenerator:
             queue_size=10,
         )
 
-        self.target_debug_pub = rospy.Publisher(
+        self.debug_pub = rospy.Publisher(
             "debug_target",
             TargetGeneratorDebugInfo,
             queue_size=10
@@ -219,21 +219,21 @@ class TargetGenerator:
             """ Publish target speed """
             self.publish_target_speed(target_speed)
 
-            target_debug = TargetGeneratorDebugInfo()
+            debug_msg = TargetGeneratorDebugInfo()
             
-            target_debug.target_curvature = curvature
-            target_debug.target_velocity = target_speed
-            target_debug.target_point_x = targetPoint.x
-            target_debug.target_point_y = targetPoint.y
-            target_debug.next_waypoint = nextWaypointId
-            target_debug.closest_waypoint = self.id_closest_wp
+            debug_msg.target_curvature = curvature
+            debug_msg.target_velocity = target_speed
+            debug_msg.target_point_x = targetPoint.x
+            debug_msg.target_point_y = targetPoint.y
+            debug_msg.next_waypoint = nextWaypointId
+            debug_msg.closest_waypoint = self.id_closest_wp
             
 
             
             #target_debug.closest_waypoint = self.id_closest_wp
             #target_debug.next_waypoint = targetPoint
 
-            self.target_debug_pub.publish(target_debug)
+            self.debug_pub.publish(debug_msg)
 
     """def publish_target_debug(self, targetPoint: State, target_speed: float, curvature: float):
             

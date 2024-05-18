@@ -74,7 +74,7 @@ class LateralController:
             queue_size=10,
         )
 
-        self.lat_debug_pub = rospy.Publisher(
+        self.debug_pub = rospy.Publisher(
             "debug_lateral",
             LateralControllerDebugInfo,
             queue_size=10
@@ -172,7 +172,7 @@ class LateralController:
 
 
             self.steering_cmd_pub.publish(steering_pwm_cmd)
-            self.lat_debug_pub.publish(debug_msg)
+            self.debug_pub.publish(debug_msg)
             self.rate.sleep()
 
 

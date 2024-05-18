@@ -52,7 +52,7 @@ class LongitudinalController:
             queue_size=10,
         )
 
-        self.pub_debug_pid = rospy.Publisher(
+        self.debug_pub = rospy.Publisher(
             "debug_longitudinal", LongitudinalControllerDebugInfo, queue_size=10
         )
 
@@ -234,7 +234,7 @@ class LongitudinalController:
         debug_msg.i = i
         debug_msg.d = d
 
-        self.pub_debug_pid.publish(debug_msg)
+        self.debug_pub.publish(debug_msg)
 
 
 if __name__ == "__main__":

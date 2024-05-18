@@ -1,2 +1,2 @@
 geometry_msgs/TransformStamped static_transform
-MarkerArray map_viz
+visualization_msgs/MarkerArray map_viz

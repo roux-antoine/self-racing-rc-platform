@@ -12,7 +12,7 @@ import rospy
 import tf
 import utm
 #from datetime import datetime, timezone
-from geometry_msgs.msg import PoseStamped, TwistStamped
+from geometry_msgs.msg import Vector3, Quaternion, PoseStamped, TwistStamped, TransformStamped, Transform
 from nmea_msgs.msg import Gprmc
 
 
@@ -38,7 +38,7 @@ class VehicleStatePublisher:
             "current_velocity", TwistStamped, queue_size=10
         )
 
-        self.pub_debug = rospy.Publisher("debug_vehicle_state", 
+        self.debug_pub = rospy.Publisher("debug_vehicle_state", 
             VehicleStatePublisherDebugInfo, queue_size=10
         )
 
@@ -120,15 +120,37 @@ class VehicleStatePublisher:
             (x_utm, y_utm, 0), quaternion, rospy.Time.now(), "car", "world"
         )
 
+        translation = Vector3()
+        translation.x = x_utm
+        translation.y = y_utm
+        translation.z = 0
+
+        rot = Quaternion()
+        rot.x = quaternion[0]
+        rot.y = quaternion[1]
+        rot.z = quaternion[2]
+        rot.w = quaternion[3]
+
+        debug_tf = Transform()
+
+        debug_tf.translation = translation
+        debug_tf.rotation = rot
+
+        debug_tf_stamped = TransformStamped()
+        debug_tf_stamped.child_frame_id = "car"
+        debug_tf_stamped.transform = debug_tf
+
+
         debug_msg = VehicleStatePublisherDebugInfo()
         debug_msg.current_pose = pose_msg
         debug_msg.current_velocity = vel_msg
         debug_msg.gps_timestamp = rmc_msg.utc_seconds
+        debug_msg.tf_stamped = debug_tf_stamped
 
         """ Publish topics """
         self.pub_pose.publish(pose_msg)
         self.pub_velocity.publish(vel_msg)
-        self.pub_debug.publish(debug_msg)
+        self.debug_pub.publish(debug_msg)
         #rospy.logwarn("hello")
 
 
