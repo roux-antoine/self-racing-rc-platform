@@ -1,1 +1,1 @@
-Gprmc msg_gprmc
+nmea_msgs/Gprmc msg_gprmc

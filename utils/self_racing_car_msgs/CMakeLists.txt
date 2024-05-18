@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   message_generation
   visualization_msgs
+  nmea_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -59,6 +60,7 @@ add_message_files(
   Waypoint.msg
   WaypointArray.msg
   LongitudinalControllerDebugInfo.msg
+  GpsRtkSerialReaderDebugInfo.msg
   MapPublisherDebugInfo.msg
   LateralControllerDebugInfo.msg
   TargetGeneratorDebugInfo.msg
@@ -86,6 +88,7 @@ generate_messages(
   std_msgs
   geometry_msgs
   visualization_msgs
+  nmea_msgs
 )
 
 ################################################

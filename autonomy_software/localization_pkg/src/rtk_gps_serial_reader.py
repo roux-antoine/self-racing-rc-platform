@@ -6,6 +6,7 @@ import serial
 from pynmeagps import NMEAReader
 
 from nmea_msgs.msg import Gprmc
+from self_racing_car_msgs.msg import GpsRtkSerialReaderDebugInfo
 
 SERIAL_PORT = "/dev/ttyACM1"
 BAUD_RATE = 9600
