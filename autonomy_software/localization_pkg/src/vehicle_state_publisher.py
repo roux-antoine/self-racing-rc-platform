@@ -11,13 +11,13 @@ import math
 import rospy
 import tf
 import utm
-
-from geometry_msgs.msg import PoseStamped, TwistStamped
+#from datetime import datetime, timezone
+from geometry_msgs.msg import Vector3, Quaternion, PoseStamped, TwistStamped, TransformStamped, Transform
 from nmea_msgs.msg import Gprmc
 
 
 from dynamic_reconfigure.server import Server
-
+from self_racing_car_msgs.msg import VehicleStatePublisherDebugInfo
 from dynamic_reconfigure_pkg.cfg import (
     vehicle_state_publisherConfig,
 )
@@ -36,6 +36,10 @@ class VehicleStatePublisher:
         self.pub_pose = rospy.Publisher("current_pose", PoseStamped, queue_size=10)
         self.pub_velocity = rospy.Publisher(
             "current_velocity", TwistStamped, queue_size=10
+        )
+
+        self.debug_pub = rospy.Publisher("debug_vehicle_state", 
+            VehicleStatePublisherDebugInfo, queue_size=10
         )
 
         self.rate = rospy.Rate(1000)
@@ -79,6 +83,7 @@ class VehicleStatePublisher:
         """ Convert to utm coordinates"""
         utm_values = utm.from_latlon(latitude, longitude)
         x_utm, y_utm = utm_values[0], utm_values[1]
+        #gps_timestamp = datetime.fromtimestamp(rmc_msg.utc_seconds, timezone.utc).isoformat('T','seconds')
 
         """ Build the /current_pose [PoseStamped] message """
         pose_msg = PoseStamped()
@@ -115,9 +120,38 @@ class VehicleStatePublisher:
             (x_utm, y_utm, 0), quaternion, rospy.Time.now(), "car", "world"
         )
 
+        translation = Vector3()
+        translation.x = x_utm
+        translation.y = y_utm
+        translation.z = 0
+
+        rot = Quaternion()
+        rot.x = quaternion[0]
+        rot.y = quaternion[1]
+        rot.z = quaternion[2]
+        rot.w = quaternion[3]
+
+        debug_tf = Transform()
+
+        debug_tf.translation = translation
+        debug_tf.rotation = rot
+
+        debug_tf_stamped = TransformStamped()
+        debug_tf_stamped.child_frame_id = "car"
+        debug_tf_stamped.transform = debug_tf
+
+
+        debug_msg = VehicleStatePublisherDebugInfo()
+        debug_msg.current_pose = pose_msg
+        debug_msg.current_velocity = vel_msg
+        debug_msg.gps_timestamp = rmc_msg.utc_seconds
+        debug_msg.tf_stamped = debug_tf_stamped
+
         """ Publish topics """
         self.pub_pose.publish(pose_msg)
         self.pub_velocity.publish(vel_msg)
+        self.debug_pub.publish(debug_msg)
+        #rospy.logwarn("hello")
 
 
 if __name__ == "__main__":
