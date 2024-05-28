@@ -218,34 +218,11 @@ class TargetGenerator:
 
             """ Publish target speed """
             self.publish_target_speed(target_speed)
-
-            debug_msg = TargetGeneratorDebugInfo()
-            
-            debug_msg.target_curvature = curvature
-            debug_msg.target_velocity = target_speed
-            debug_msg.target_point_x = targetPoint.x
-            debug_msg.target_point_y = targetPoint.y
-            debug_msg.next_waypoint = nextWaypointId
-            debug_msg.closest_waypoint = self.id_closest_wp
-            
+            self.publish_debug_target_generator(curvature, target_speed, targetPoint.x, targetPoint.y, nextWaypointId, self.id_closest_wp)
+    
+        
 
             
-            #target_debug.closest_waypoint = self.id_closest_wp
-            #target_debug.next_waypoint = targetPoint
-
-            self.debug_pub.publish(debug_msg)
-
-    """def publish_target_debug(self, targetPoint: State, target_speed: float, curvature: float):
-            
-            target_debug = TargetGeneratorDebugInfo()
-            
-            target_debug.target_curvature = curvature
-            target_debug.target_velocity = target_speed
-            #target_debug.target_point_marker = self.target_point_marker
-            #target_debug.closest_waypoint = self.id_closest_wp
-            #target_debug.next_waypoint = targetPoint
-
-            self.target_debug_pub.publish(target_debug)"""
         
 
     def callback_current_velocity(self, twist_msg: TwistStamped):
@@ -385,9 +362,7 @@ class TargetGenerator:
         """
         Publishes the targetPoint marker for visualization
         """
-        #int32 closest_waypoint
-        #int32 next_waypoint
-        #Waypoint target_point
+        
         marker_msg = Marker()
 
         marker_msg.header.frame_id = "world"
@@ -411,7 +386,7 @@ class TargetGenerator:
 
         marker_msg.pose.orientation.w = 1.0
         self.target_point_marker = marker_msg
-        self.target_point_marker_pub.publish(marker_msg)
+        self.target_point_marker_pub.publish(self.target_point_marker)
 
     def publish_target_speed(self, target_speed: float):
         """
@@ -436,7 +411,22 @@ class TargetGenerator:
         curvature_msg.data = curvature
 
         self.target_curvature_pub.publish(curvature_msg)
+    
+    def publish_debug_target_generator(self, curvature, target_speed, target_x, target_y, nextWaypointId, closestWaypointId):
+        """
+        Publishes debug information for the target generator
+        """
+        
+        debug_msg = TargetGeneratorDebugInfo()
 
+        debug_msg.target_curvature = curvature
+        debug_msg.target_velocity = target_speed
+        debug_msg.target_point_x = target_x
+        debug_msg.target_point_y = target_y
+        debug_msg.next_waypoint = nextWaypointId
+        debug_msg.closest_waypoint = closestWaypointId
+
+        self.debug_pub.publish(debug_msg)
 
 if __name__ == "__main__":
     try:

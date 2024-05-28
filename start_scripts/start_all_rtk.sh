@@ -40,15 +40,15 @@ tmux send-keys "source $setup_bash_path" C-m
 tmux send-keys "rosrun localization_pkg waypoints_publisher.py _waypoints_file:=wp_P1_loop_nov23_detail_3m.txt" C-m
 
 # rtcm correction data
-#tmux select-pane -t 2
-#tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pkg/src'" C-m
-#tmux send-keys "bash rtcm_corr_serial_pub.sh" C-m
+tmux select-pane -t 2
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pkg/src'" C-m
+tmux send-keys "bash rtcm_corr_serial_pub.sh" C-m
 
 # gps listener
-#tmux select-pane -t 3
-#tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
-#tmux send-keys "source $setup_bash_path" C-m
-#tmux send-keys "rosrun localization_pkg rtk_gps_serial_reader.py" C-m
+tmux select-pane -t 3
+tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software'" C-m
+tmux send-keys "source $setup_bash_path" C-m
+tmux send-keys "rosrun localization_pkg rtk_gps_serial_reader.py" C-m
 
 # vehicle state publisher
 tmux select-pane -t 4

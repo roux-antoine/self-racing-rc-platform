@@ -75,7 +75,7 @@ class LateralController:
         )
 
         self.debug_pub = rospy.Publisher(
-            "debug_lateral",
+            "debug_lateral_controller",
             LateralControllerDebugInfo,
             queue_size=10
         )
@@ -167,8 +167,8 @@ class LateralController:
                 steering_pwm_cmd = self.STEERING_MIN_PWM
 
             debug_msg = LateralControllerDebugInfo()
-            debug_msg.coeff = coeff
             debug_msg.steering_pwm_cmd = steering_pwm_cmd
+            debug_msg.coeff = coeff
 
 
             self.steering_cmd_pub.publish(steering_pwm_cmd)
