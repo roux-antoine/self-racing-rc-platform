@@ -2,12 +2,12 @@
 
 ## What is this
 
-Set of scripts (still work-in-progress) to do parameter identification for the steering of the RC car. Hopefully it will enable us to get rid of the bicycle mode in the controller.
+Set of scripts to do parameter identification for the steering of the RC car, in order to create a steering model closer to the reality.
 
 ## Steps
 
 - record multiple bags of the car driving in a circle, at different speeds and circle radiuses
-- put them in a folder
+- put the bags in a folder
 - pass this folder as argument to `steering_param_identification.py`
 - for each bag, the script will generate a plotly html and ask you to enter the start and end time of the window of interest
     - open the html
@@ -18,11 +18,9 @@ Set of scripts (still work-in-progress) to do parameter identification for the s
 - pass the generated CSV to `csv_processor.py`
 - check the generated plotly HTML
 
-## Remaining work
+## Results
 
-- figure out how to interpolate this data and use it in the controller
-- make `steering_param_identification.py` more robust
-
+The CSV has been used to improve the steering model, see https://github.com/roux-antoine/self-racing-rc-platform/pull/18/files#diff-9610bc43a27d91df0c97542873b8bd770d34c94b8bfa7c0dc9cb0b21338fd278 and https://github.com/roux-antoine/self-racing-rc-platform/blob/master/autonomy_software/doc/Lateral_Controller_self_racing_rc_platform.pdf
 
 ## Example images
 
