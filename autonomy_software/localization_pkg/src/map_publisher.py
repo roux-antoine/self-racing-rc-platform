@@ -47,7 +47,7 @@ class MapPublisher:
         )
 
         self.debug_pub = rospy.Publisher(
-            "debug_map", MapPublisherDebugInfo, queue_size = 10, latch=True
+            "debug_map_publisher", MapPublisherDebugInfo, queue_size=10, latch=True
         )
 
         # Parameters
@@ -170,8 +170,8 @@ class MapPublisher:
 
             markerArray.markers.append(marker)
 
-        self.map_marker_pub.publish(markerArray)
         self.map_viz = markerArray
+        self.map_marker_pub.publish(self.map_viz)
 
     def publish_tf_world_map(self, map):
         """
@@ -203,10 +203,6 @@ class MapPublisher:
         debug_msg.static_transform = static_transform
         debug_msg.map_viz = self.map_viz
         self.debug_pub.publish(debug_msg)
-
-
-
-    
 
 
 if __name__ == "__main__":

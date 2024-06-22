@@ -60,7 +60,6 @@ add_message_files(
   Waypoint.msg
   WaypointArray.msg
   LongitudinalControllerDebugInfo.msg
-  GpsRtkSerialReaderDebugInfo.msg
   MapPublisherDebugInfo.msg
   LateralControllerDebugInfo.msg
   TargetGeneratorDebugInfo.msg

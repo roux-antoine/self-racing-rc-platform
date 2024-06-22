@@ -11,8 +11,13 @@ import math
 import rospy
 import tf
 import utm
-#from datetime import datetime, timezone
-from geometry_msgs.msg import Vector3, Quaternion, PoseStamped, TwistStamped, TransformStamped, Transform
+
+# from datetime import datetime, timezone
+from geometry_msgs.msg import (
+    PoseStamped,
+    TwistStamped,
+    TransformStamped,
+)
 from nmea_msgs.msg import Gprmc
 
 
@@ -38,8 +43,10 @@ class VehicleStatePublisher:
             "current_velocity", TwistStamped, queue_size=10
         )
 
-        self.debug_pub = rospy.Publisher("debug_vehicle_state", 
-            VehicleStatePublisherDebugInfo, queue_size=10
+        self.debug_pub = rospy.Publisher(
+            "debug_vehicle_state_publisher",
+            VehicleStatePublisherDebugInfo,
+            queue_size=10,
         )
 
         self.rate = rospy.Rate(1000)
@@ -83,7 +90,6 @@ class VehicleStatePublisher:
         """ Convert to utm coordinates"""
         utm_values = utm.from_latlon(latitude, longitude)
         x_utm, y_utm = utm_values[0], utm_values[1]
-        #gps_timestamp = datetime.fromtimestamp(rmc_msg.utc_seconds, timezone.utc).isoformat('T','seconds')
 
         """ Build the /current_pose [PoseStamped] message """
         pose_msg = PoseStamped()
@@ -120,26 +126,16 @@ class VehicleStatePublisher:
             (x_utm, y_utm, 0), quaternion, rospy.Time.now(), "car", "world"
         )
 
-        translation = Vector3()
-        translation.x = x_utm
-        translation.y = y_utm
-        translation.z = 0
-
-        rot = Quaternion()
-        rot.x = quaternion[0]
-        rot.y = quaternion[1]
-        rot.z = quaternion[2]
-        rot.w = quaternion[3]
-
-        debug_tf = Transform()
-
-        debug_tf.translation = translation
-        debug_tf.rotation = rot
-
+        """ Creating the debug info """
         debug_tf_stamped = TransformStamped()
+        debug_tf_stamped.transform.translation.x = x_utm
+        debug_tf_stamped.transform.translation.y = y_utm
+        debug_tf_stamped.transform.translation.z = y_utm
+        debug_tf_stamped.transform.rotation.x = pose_msg.pose.orientation.x
+        debug_tf_stamped.transform.rotation.y = pose_msg.pose.orientation.y
+        debug_tf_stamped.transform.rotation.z = pose_msg.pose.orientation.z
+        debug_tf_stamped.transform.rotation.w = pose_msg.pose.orientation.w
         debug_tf_stamped.child_frame_id = "car"
-        debug_tf_stamped.transform = debug_tf
-
 
         debug_msg = VehicleStatePublisherDebugInfo()
         debug_msg.current_pose = pose_msg
@@ -151,7 +147,6 @@ class VehicleStatePublisher:
         self.pub_pose.publish(pose_msg)
         self.pub_velocity.publish(vel_msg)
         self.debug_pub.publish(debug_msg)
-        #rospy.logwarn("hello")
 
 
 if __name__ == "__main__":
