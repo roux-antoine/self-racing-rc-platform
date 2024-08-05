@@ -1,7 +1,11 @@
 adafruit-circuitpython-gps==3.10.4
+kaleido
 matplotlib
+pandas
+plotly
 pre-commit
 pynmeagps
 pyserial
 pyshp
+scipy
 utm
