@@ -202,7 +202,17 @@ class LongitudinalController:
                 == LongitudinalControlMode.ConstantPwmOutput
             ):
 
-                self.publish_throttle_cmd(self.constant_pwm_output)
+                if (
+                    self.speed_controller_enabled
+                    and duration_since_last_message
+                    < self.timeout_engage_msg_before_stop_secs
+                ):
+
+                    self.publish_throttle_cmd(self.constant_pwm_output)
+
+                else:
+                    # Publish the throttle IDLE value
+                    self.publish_throttle_cmd(self.throttle_idle_autonomous_pwm)
 
             # Reset the previous time to avoid having a large integral value when we engage again
             self.previous_t = time.time()
