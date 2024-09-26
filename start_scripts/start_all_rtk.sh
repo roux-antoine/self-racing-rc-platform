@@ -31,13 +31,13 @@ tmux split-window -t 4 -h
 tmux select-pane -t 0
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun localization_pkg map_publisher.py _map_file_name:=MapSanMateoP1.kml" C-m
+tmux send-keys "rosrun localization_pkg map_publisher.py _map_file_name:=ParkingBuilding19.kml" C-m
 
 # waypoint publisher
 tmux select-pane -t 1
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun localization_pkg waypoints_publisher.py _waypoints_file:=wp_P1_loop_nov23_detail_3m.txt" C-m
+tmux send-keys "rosrun localization_pkg waypoints_publisher.py _waypoints_file:=WaypointsParkingBuilding19_detail_1m_speed.txt" C-m
 
 # rtcm correction data
 tmux select-pane -t 2
