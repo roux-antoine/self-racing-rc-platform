@@ -1,0 +1,2 @@
+visualization_msgs/Marker waypoints_viz
+WaypointArray waypoints

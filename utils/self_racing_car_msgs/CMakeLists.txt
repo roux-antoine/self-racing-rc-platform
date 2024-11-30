@@ -13,6 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   message_generation
+  visualization_msgs
+  nmea_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -58,6 +60,11 @@ add_message_files(
   Waypoint.msg
   WaypointArray.msg
   LongitudinalControllerDebugInfo.msg
+  MapPublisherDebugInfo.msg
+  LateralControllerDebugInfo.msg
+  TargetGeneratorDebugInfo.msg
+  VehicleStatePublisherDebugInfo.msg
+  WaypointsPublisherDebugInfo.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -79,6 +86,8 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   geometry_msgs
+  visualization_msgs
+  nmea_msgs
 )
 
 ################################################

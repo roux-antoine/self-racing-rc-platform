@@ -41,7 +41,7 @@ tmux send-keys "rosrun localization_pkg map_publisher.py _map_file_name:=MapSanM
 tmux select-pane -t 2
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../autonomy_software/localization_pkg/src'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun localization_pkg waypoints_publisher.py _waypoints_file:=waypoints_P1_straight_1_detail_3m_speed.txt" C-m
+tmux send-keys "rosrun localization_pkg waypoints_publisher.py _waypoints_file:=Waypoints_loop_P1_detail_3m_speed.txt" C-m
 
 # vehicle state publisher
 tmux select-pane -t 3
