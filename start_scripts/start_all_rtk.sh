@@ -95,7 +95,7 @@ tmux send-keys "rosrun controllers_pkg longitudinal_controller.py" C-m
 tmux select-pane -t 3
 tmux send-keys "cd '$ABS_SCRIPT_DIR/../firmware'" C-m
 tmux send-keys "source $setup_bash_path" C-m
-tmux send-keys "rosrun rosserial_python serial_node.py _port:=/dev/ttyACM0 _baud:=57600" C-m
+tmux send-keys "rosrun rosserial_python serial_node.py _port:=/dev/arduino _baud:=57600" C-m
 
 # rostopic echo /arduino_logging
 tmux select-pane -t 4
