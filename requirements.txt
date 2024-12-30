@@ -1,4 +1,5 @@
 adafruit-circuitpython-gps==3.10.4
+circle_fit
 kaleido
 matplotlib
 pandas
@@ -8,4 +9,5 @@ pynmeagps
 pyserial
 pyshp
 scipy
+sklearn
 utm
