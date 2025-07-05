@@ -19,6 +19,7 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive apt install --yes \
 
 RUN python3 -m pip install \
     pre-commit \
+    numpy \
     matplotlib \
     pyshp \
     utm

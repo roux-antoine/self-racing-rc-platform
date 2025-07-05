@@ -1,0 +1,13 @@
+numpy
+matplotlib
+pre-commit
+
+--extra-index-url https://rospypi.github.io/simple/ 
+rospy
+rosbag
+roslz4
+
+# NOTE: run the following before installing the package
+# brew install lz4
+# export CFLAGS="-I$(brew --prefix lz4)/include"
+# export LDFLAGS="-L$(brew --prefix lz4)/lib"
