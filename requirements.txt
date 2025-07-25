@@ -9,5 +9,5 @@ pynmeagps
 pyserial
 pyshp
 scipy
-sklearn
+#sklearn
 utm
