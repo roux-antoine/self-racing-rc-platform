@@ -4,6 +4,7 @@ from typing import List
 
 MIN_CURVATURE = 0.3  # m
 MAX_CURVATURE = 100000  # m
+MPS_TO_KNOTS = 1.94384
 
 
 class State:
