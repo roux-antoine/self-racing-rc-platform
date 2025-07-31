@@ -15,14 +15,14 @@ const int THROTTLE_OUTPUT_PIN = 8;
 
 const int LED_PIN = 13;
 
-const float STEERING_IDLE_PWM = 98;
-const float STEERING_MAX_PWM = 123;
-const float STEERING_MIN_PWM = 68;
+const float STEERING_IDLE_PWM = 90;
+const float STEERING_MAX_PWM = 119; // 122 - 3
+const float STEERING_MIN_PWM = 75;  // 72 + 2
 
 const float THROTTLE_IDLE_PWM = 90;
-const float THROTTLE_MAX_MANUAL_PWM = 102; // without load, the wheels start turning around 96
+const float THROTTLE_MAX_MANUAL_PWM = 115; // without load, the wheels start turning around 96
 const float THROTTLE_MIN_MANUAL_PWM = 70;
-const float THROTTLE_MAX_AUTONOMOUS_PWM = 115;
+const float THROTTLE_MAX_AUTONOMOUS_PWM = 102;
 const float THROTTLE_MIN_AUTONOMOUS_PWM = 70;
 
 const unsigned long PULSE_WIDTH_THRESHOLD = 2000;
@@ -48,6 +48,8 @@ const unsigned long CHANNEL_3_OVERRIDE_MAX = 1582;
 const unsigned long CHANNEL_5_THRESHOLD = 1700;
 
 const bool ROS_MODE = true;
+
+const int steering_fbk_analog_pin = A0;
 
 // ------ VARIABLES ------
 
@@ -84,6 +86,9 @@ unsigned int steering_override_hysteresis_counter = 0;
 unsigned int throttle_override_hysteresis_counter = 0;
 bool override_steering = false;
 bool override_throttle = false;
+
+// Steering fbk
+int steering_fbk;
 
 // Servo objects
 Servo throttle_servo;
@@ -312,6 +317,9 @@ void loop() {
   steering_servo.write(steering_cmd_final);
   throttle_servo.write(throttle_cmd_final);
 
+  // Read analog input steering feedback
+  steering_fbk = analogRead(steering_fbk_analog_pin);
+
   // Publishing the logging info
   if (ROS_MODE) {
     arduino_logging_msg.steering_cmd_rx = steering_cmd_rx;
@@ -326,6 +334,7 @@ void loop() {
     arduino_logging_msg.engaged_mode = engaged_mode;
     arduino_logging_msg.override_steering = override_steering;
     arduino_logging_msg.override_throttle = override_throttle;
+    arduino_logging_msg.steering_fbk = steering_fbk;
 
     arduino_logging_pub.publish(&arduino_logging_msg);
   }
