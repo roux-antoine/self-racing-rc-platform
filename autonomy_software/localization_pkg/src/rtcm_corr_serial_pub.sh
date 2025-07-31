@@ -1,7 +1,7 @@
 USERNAME=${UNAVCO_USERNAME} # make sure that this env var is being set in your bashrc
 PASSWORD=${UNAVCO_PASSWORD} # make sure that this env var is being set in your bashrc
 PORT=2101
-MOUNT_POINT=P178_RTCM3
+MOUNT_POINT=P178_RTCM3P3
 SERIAL_PORT=ttyUSB0
 BAUD_RATE=115200
 
@@ -16,6 +16,6 @@ echo " ------------------------ "
 # TODO: Check if serial port is available
 # TODO: Exception handling?
 
-str2str -in ntrip://$USERNAME:$PASSWORD@rtgpsout.unavco.org:$PORT/$MOUNT_POINT -out serial://$SERIAL_PORT:$BAUD_RATE:8:n:1
+str2str -in "ntrip://${USERNAME}:${PASSWORD}@ntrip.earthscope.org:${PORT}/${MOUNT_POINT}" -out serial://${SERIAL_PORT}:${BAUD_RATE}:8:n:1
 
-# str2str -in ntrip://$USERNAME:$PASSWORD@rtgpsout.unavco.org:$PORT/$MOUNT_POINT -out temp.log
+# str2str -in "ntrip://${USERNAME}:${PASSWORD}@ntrip.earthscope.org:${PORT}/${MOUNT_POINT}" -out temp.log
