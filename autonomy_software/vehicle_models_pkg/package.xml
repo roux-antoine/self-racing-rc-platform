@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>controllers_pkg</name>
+  <name>vehicle_models_pkg</name>
   <version>0.0.0</version>
-  <description>The controllers_pkg package</description>
+  <description>The vehicle_models_pkg package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -64,7 +64,6 @@
   <depend>dynamic_reconfigure</depend>
   <depend>dynamic_reconfigure_pkg</depend>
   <depend>geometry_utils_pkg</depend>
-  <depend>vehicle_models_pkg</depend>
 
 
 

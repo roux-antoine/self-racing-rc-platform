@@ -165,6 +165,6 @@ class VehicleSim:
         calculate the steering angle using a simple bicycle model.
         """
 
-        b = constants.EFFECTIVE_MAX_STEERING_ANGLE_RAD * constants.STEERING_PWM_IDLE / (constants.STEERING_PWM_IDLE - constants.STEERING_PWM_MIN)
+        b = constants.EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1 * constants.STEERING_PWM_IDLE / (constants.STEERING_PWM_IDLE - constants.STEERING_PWM_MIN)
 
-        return (-constants.EFFECTIVE_MAX_STEERING_ANGLE_RAD / (constants.STEERING_PWM_IDLE - constants.STEERING_PWM_MIN)) * steering_pwm + b
+        return (-constants.EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1 / (constants.STEERING_PWM_IDLE - constants.STEERING_PWM_MIN)) * steering_pwm + b
