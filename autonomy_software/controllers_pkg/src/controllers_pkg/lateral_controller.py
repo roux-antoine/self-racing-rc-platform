@@ -119,8 +119,10 @@ class LateralController:
                 if self.target_curvature == 0:
                     steering_command_pwm = self.STEERING_IDLE_PWM
                 else:
-                    steering_command_pwm = CarModelBicycleV1.compute_steering_command_from_radius(
-                        curvature=1/self.target_curvature
+                    steering_command_pwm = (
+                        CarModelBicycleV1.compute_steering_command_from_radius(
+                            curvature=1 / self.target_curvature
+                        )
                     )
 
             elif self.controller_type == LateralControllerType.CarModelBicycleV2:
@@ -128,14 +130,14 @@ class LateralController:
                 if self.target_curvature == 0:
                     steering_command_pwm = self.STEERING_IDLE_PWM
                 else:
-                    steering_command_pwm = CarModelBicycleV2.compute_steering_command_from_radius(
-                        curvature=1/self.target_curvature
+                    steering_command_pwm = (
+                        CarModelBicycleV2.compute_steering_command_from_radius(
+                            curvature=1 / self.target_curvature
+                        )
                     )
             else:
-                raise ValueError(
-                    f"Unknown controller type: {self.controller_type}"
-                )
-                
+                raise ValueError(f"Unknown controller type: {self.controller_type}")
+
             # Sanity checking
             if steering_command_pwm > self.STEERING_MAX_PWM:
                 steering_command_pwm = self.STEERING_MAX_PWM

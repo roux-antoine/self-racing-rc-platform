@@ -107,6 +107,7 @@ def plane_distance(current_state: State, target_state: State):
         + (target_state.y - current_state.y) ** 2
     )
 
+
 # TODO we will be able to get rid of this one once the models are properly implemented
 def compute_steering_angle_from_curvature(curvature: float, wheel_base: float):
     """
