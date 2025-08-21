@@ -126,53 +126,53 @@ class CarModelBase:
 #         )
 
 
-# class CarModelBicyclePure(CarModelBase):
-#     """Models the car behavior as a kinematic bicycle model.
+class CarModelBicyclePure(CarModelBase):
+    """Models the car behavior as a kinematic bicycle model.
 
-#     The model assumes that the car is moving in a circular path, with a constant radius determined by the steering command.
-#     """
+    The model assumes that the car is moving in a circular path, with a constant radius determined by the steering command.
+    """
 
-#     def compute_radius_from_steering_command(self, cmd_steering: float, speed: float):
-#         """Has to be implemented in the child class."""
+    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float):
+        """Has to be implemented in the child class."""
 
-#     def compute_steering_command_from_radius(self, radius: float, speed: float):
-#         """Has to be implemented in the child class.
+    def compute_steering_command_from_radius(self, radius: float, speed: float):
+        """Has to be implemented in the child class.
 
-#         Obtained by inversing the compute_radius_from_steering_command function.
-#         """
+        Obtained by inversing the compute_radius_from_steering_command function.
+        """
 
-#     def step(
-#         self,
-#         dt: float,
-#         cmd_steering: float,
-#         cmd_throttle: Optional[float] = None,
-#         v_ground_truth: Optional[float] = None,
-#     ):
+    def step(
+        self,
+        dt: float,
+        cmd_steering: float,
+        cmd_throttle: Optional[float] = None,
+        v_ground_truth: Optional[float] = None,
+    ):
 
-#         assert not cmd_throttle, "cmd_throttle should not be used in this model"
+        assert not cmd_throttle, "cmd_throttle should not be used in this model"
 
-#         x = self.states[-1].x
-#         y = self.states[-1].y
-#         yaw = self.states[-1].angle
-#         v = self.states[-1].vx
+        x = self.states[-1].x
+        y = self.states[-1].y
+        yaw = self.states[-1].angle
+        v = self.states[-1].vx
 
-#         radius = self.compute_radius_from_steering_command(cmd_steering, v)
+        radius = self.compute_radius_from_steering_command(cmd_steering, v)
 
-#         updated_x = x + radius * (-np.sin(yaw) + np.sin(v * dt / radius + yaw))
-#         updated_y = y + radius * (np.cos(yaw) - np.cos(v * dt / radius + yaw))
-#         updated_yaw = yaw + v * dt / radius
+        updated_x = x + radius * (-np.sin(yaw) + np.sin(v * dt / radius + yaw))
+        updated_y = y + radius * (np.cos(yaw) - np.cos(v * dt / radius + yaw))
+        updated_yaw = yaw + v * dt / radius
 
-#         self.states.append(
-#             State(
-#                 x=updated_x,
-#                 y=updated_y,
-#                 z=None,
-#                 vx=self.states[-1].state.vx,
-#                 vy=None,
-#                 vz=None,
-#                 angle=updated_yaw,
-#             )
-#         )
+        self.states.append(
+            State(
+                x=updated_x,
+                y=updated_y,
+                z=None,
+                vx=self.states[-1].state.vx,
+                vy=None,
+                vz=None,
+                angle=updated_yaw,
+            )
+        )
 
 
 class CarModelBicycleV0(CarModelBicyclePure):
