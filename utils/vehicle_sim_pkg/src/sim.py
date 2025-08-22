@@ -9,15 +9,14 @@ import utm
 
 import constants
 from dynamic_reconfigure.server import Server
-from dynamic_reconfigure_pkg.cfg import (
-    vehicle_simConfig,
-)
+from dynamic_reconfigure_pkg.cfg import vehicle_simConfig
 from geometry_msgs.msg import PoseStamped, TwistStamped
-from geometry_utils_pkg.geometry_utils import compute_steering_angle_from_curvature, State, MPS_TO_KNOTS
+from geometry_utils_pkg.geometry_utils import State, MPS_TO_KNOTS
 from nmea_msgs.msg import Gprmc
 from self_racing_car_msgs.msg import ArduinoLogging
 from std_msgs.msg import Float32
-from vehicle_sim import LateralModel, LongitudinalModel, VehicleSim
+
+from vehicle_models_pkg.vehicle_models import CarModelBicycleV1
 
 
 class Sim:
@@ -25,7 +24,7 @@ class Sim:
 
         # Constants
         rate = rospy.get_param("~rate", constants.SIM_FREQUENCY_HZ)
-                
+
         # Subscribers
         rospy.Subscriber(
             "initialpose",
@@ -54,29 +53,15 @@ class Sim:
             TwistStamped,
             queue_size=10,
         )
-        self.rmc_pub = rospy.Publisher(
-            "gps_info",
-            Gprmc,
-            queue_size=10
-        )
+        self.rmc_pub = rospy.Publisher("gps_info", Gprmc, queue_size=10)
         self.arduino_logging_pub = rospy.Publisher(
-            "arduino_logging", 
-            ArduinoLogging, 
-            queue_size=10
+            "arduino_logging", ArduinoLogging, queue_size=10
         )
 
         # Dynamic reconfigure server
         self.dynamic_reconfigure_server = Server(
             vehicle_simConfig,
             self.dynamic_reconfigure_callback,
-        )
-
-        # Initialization
-        self.simulated_vehicle = VehicleSim(
-            lateral_model=LateralModel.PERFECT,
-            longitudinal_model=LongitudinalModel.ACC_P_CONTROl,
-            wheelbase_m=constants.WHEELBASE_M,
-            desired_acc_gain_p=constants.DESIRED_ACC_GAIN_P,
         )
 
         self.state_initialized = False
@@ -109,12 +94,12 @@ class Sim:
             )
 
             # Initialize the position and orientation using the position of the clicked point
-            self.simulated_vehicle.current_state.x = msg.pose.position.x + trans[0]
-            self.simulated_vehicle.current_state.y = msg.pose.position.y + trans[1]
-            self.simulated_vehicle.current_state.angle = yaw
-
-            # Initialize the speed to zero
-            self.simulated_vehicle.current_state.vx = 0
+            self.vehicle_model = CarModelBicycleV1(
+                x=msg.pose.position.x + trans[0],
+                y=msg.pose.position.y + trans[1],
+                vx=0,
+                angle=yaw,
+            )
 
             self.state_initialized = True
 
@@ -128,7 +113,7 @@ class Sim:
     def dynamic_reconfigure_callback(self, config, level):
         """
         Dynamic reconfigure callback, to change parameters.
-        
+
         Args:
             - config (dict): Dictionary containing current values of all reconfigurable parameters
             - level (int): Bitmask used to indicate the level of change
@@ -162,23 +147,20 @@ class Sim:
 
             else:
 
-                # Predict next position given steering input
-                self.simulated_vehicle.predict_next_pose_from_steering_pwm_cmd(
-                    self.steering_pwm_cmd, constants.SIM_TIME_STEP_SECS,
-                )
-
-                # Predict next velocity based on throttle input
-                self.simulated_vehicle.predict_next_velocity_from_throttle_pwm_cmd(
-                    self.throttle_pwm_cmd, constants.SIM_TIME_STEP_SECS,
+                # Predict next position
+                self.vehicle_model.step(
+                    dt=0.1,  # TODO: maybe un-harcode
+                    cmd_steering=self.steering_pwm_cmd,
+                    cmd_throttle=self.throttle_pwm_cmd,
                 )
 
                 # Publish current simulated state for debugging
-                self.publish_sim_state(self.simulated_vehicle.current_state)
+                self.publish_sim_state(self.vehicle_model.states[-1])
 
                 self.publish_arduino_logging()
 
                 # Publish Gprmc topic
-                self.publish_nmea_sentence(self.simulated_vehicle.current_state)
+                self.publish_nmea_sentence(self.vehicle_model.states[-1])
 
                 # Convert position and velocity to NMEA sentence
                 # sentence = self.nmea.create_sentence_string_from_state(self.simulated_vehicle.current_state)

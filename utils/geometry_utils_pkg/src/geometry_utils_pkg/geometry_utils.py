@@ -2,8 +2,7 @@ import math
 import numpy as np
 from typing import List
 
-MIN_CURVATURE = 0.3  # m
-MAX_CURVATURE = 100000  # m
+
 MPS_TO_KNOTS = 1.94384
 
 
@@ -106,22 +105,6 @@ def plane_distance(current_state: State, target_state: State):
         (target_state.x - current_state.x) ** 2
         + (target_state.y - current_state.y) ** 2
     )
-
-
-# TODO we will be able to get rid of this one once the models are properly implemented
-def compute_steering_angle_from_curvature(curvature: float, wheel_base: float):
-    """
-    Compute the steering angle required to drive on a circle of a given curvature, assuming a bicycle model
-
-    Args:
-        curvature: the curvature of the circle to drive on
-        wheel_base: wheel base of the vehicle
-
-    Returns:
-        float: the steering angle
-    """
-
-    return np.arctan(curvature * wheel_base)
 
 
 def circle_line_segment_intersection(

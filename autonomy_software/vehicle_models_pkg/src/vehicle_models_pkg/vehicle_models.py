@@ -1,6 +1,14 @@
-import constants
 import numpy as np
 from geometry_utils_pkg.geometry_utils import State
+from vehicle_models_pkg.vehicle_models_constants import (
+    STEERING_PWM_IDLE,
+    STEERING_DIRECTION_FACTOR,
+    WHEELBASE,
+    EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1,
+    PWM_DIFF_AT_MAX_STEER_ANGLE,
+    PHYSICAL_MAX_STEERING_ANGLE_RAD,
+)
+
 
 from typing import List, Optional
 
@@ -43,87 +51,6 @@ class CarModelBase:
     @property
     def name(self):
         return self.__class__.__name__
-
-
-# TODO Antoine: check and uncomment the 2 below
-# class CarModelStraightLine(CarModelBase):
-#     """Models the car behavior as just going in the current direction with constant speed."""
-
-#     def step(
-#         self,
-#         dt: float,
-#         cmd_steering: float,
-#         cmd_throttle: Optional[float] = None,
-#         v_ground_truth: Optional[float] = None,
-#     ):
-
-#         self.states.append(
-#             State(
-#                 x=self.states[-1].x
-#                 + self.states[-1].vx * dt * np.cos(self.states[-1].angle),
-#                 y=self.states[-1].y
-#                 + self.states[-1].vx * dt * np.sin(self.states[-1].angle),
-#                 z=None,
-#                 vx=self.states[-1].vx,
-#                 vy=None,
-#                 vz=None,
-#                 angle=self.states[-1].angle,
-#             )
-#         )
-
-
-# class CarModelStraightLineWithAngleUpdateV0(CarModelBase):
-#     """Models the car behavior as:
-#     - going in the current direction with constant speed during the step
-#     - updating the angle based on the steering command
-#     """
-
-#     def steering_pwm_to_steering_rad(self, steering_pwm: float):
-#         """
-#         Function that converts a given steering pwm command into an actual steering angle from the wheels, with the V0 steering model
-#         """
-
-#         return (
-#             constants.STEERING_DIRECTION_FACTOR
-#             * (steering_pwm - constants.STEERING_PWM_IDLE)
-#             * (
-#                 constants.PHYSICAL_MAX_STEERING_ANGLE_RAD
-#                 / (constants.STEERING_PWM_IDLE - constants.STEERING_PWM_MIN)
-#             )
-#         )
-
-#     def step(
-#         self,
-#         dt: float,
-#         cmd_steering: float,
-#         cmd_throttle: Optional[float] = None,
-#         v_ground_truth: Optional[float] = None,
-#     ):
-
-#         wheel_angle_rad = self.steering_pwm_to_steering_rad(cmd_steering)
-
-#         updated_x = self.states[-1].x + self.states[-1].vx * dt * np.cos(
-#             self.states[-1].state.angle
-#         )
-#         updated_y = self.states[-1].y + self.states[-1].vx * dt * np.sin(
-#             self.states[-1].state.angle
-#         )
-#         updated_angle = (
-#             self.states[-1].angle
-#             + (self.states[-1].vx / constants.WHEELBASE) * np.tan(wheel_angle_rad) * dt
-#         )
-
-#         self.states.append(
-#             State(
-#                 x=updated_x,
-#                 y=updated_y,
-#                 z=None,
-#                 vx=self.states[-1].state.vx,
-#                 vy=None,
-#                 vz=None,
-#                 angle=updated_angle,
-#             )
-#         )
 
 
 class CarModelBicyclePure(CarModelBase):
@@ -184,26 +111,22 @@ class CarModelBicycleV0(CarModelBicyclePure):
 
     def compute_radius_from_steering_command(self, cmd_steering: float, speed: float):
         """TODO"""
-        if cmd_steering == constants.STEERING_PWM_IDLE:
+        if cmd_steering == STEERING_PWM_IDLE:
             return 100000000  # TODO make this better
         else:
-            return constants.WHEELBASE / (
+            return WHEELBASE / (
                 np.tan(
-                    constants.STEERING_DIRECTION_FACTOR
-                    * (
-                        constants.PHYSICAL_MAX_STEERING_ANGLE_RAD
-                        / constants.PWM_DIFF_AT_MAX_STEER_ANGLE
-                    )
-                    * (cmd_steering - constants.STEER_IDLE_PWM)
+                    STEERING_DIRECTION_FACTOR
+                    * (PHYSICAL_MAX_STEERING_ANGLE_RAD / PWM_DIFF_AT_MAX_STEER_ANGLE)
+                    * (cmd_steering - STEERING_PWM_IDLE)
                 )
             )
 
     def compute_steering_command_from_radius(self, radius: float, speed: float):
         """Obtained by inversing the compute_radius_from_steering_command function."""
-        return constants.STEERING_PWM_IDLE + constants.STEERING_DIRECTION_FACTOR * (
-            constants.PWM_DIFF_AT_MAX_STEER_ANGLE
-            / constants.PHYSICAL_MAX_STEERING_ANGLE_RAD
-        ) * np.arctan(constants.WHEELBASE / radius)
+        return STEERING_PWM_IDLE + STEERING_DIRECTION_FACTOR * (
+            PWM_DIFF_AT_MAX_STEER_ANGLE / PHYSICAL_MAX_STEERING_ANGLE_RAD
+        ) * np.arctan(WHEELBASE / radius)
 
 
 class CarModelBicycleV1(CarModelBicyclePure):
@@ -215,26 +138,25 @@ class CarModelBicycleV1(CarModelBicyclePure):
 
     def compute_radius_from_steering_command(self, cmd_steering: float, speed: float):
         """TODO"""
-        if cmd_steering == constants.STEERING_PWM_IDLE:
+        if cmd_steering == STEERING_PWM_IDLE:
             return 100000000  # TODO make this better
         else:
-            return constants.WHEELBASE / (
+            return WHEELBASE / (
                 np.tan(
-                    constants.STEERING_DIRECTION_FACTOR
+                    STEERING_DIRECTION_FACTOR
                     * (
-                        constants.EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1
-                        / constants.PWM_DIFF_AT_MAX_STEER_ANGLE
+                        EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1
+                        / PWM_DIFF_AT_MAX_STEER_ANGLE
                     )
-                    * (cmd_steering - constants.STEER_IDLE_PWM)
+                    * (cmd_steering - STEERING_PWM_IDLE)
                 )
             )
 
     def compute_steering_command_from_radius(self, radius: float, speed: float):
         """Obtained by inversing the compute_radius_from_steering_command function."""
-        return constants.STEERING_PWM_IDLE + constants.STEERING_DIRECTION_FACTOR * (
-            constants.PWM_DIFF_AT_MAX_STEER_ANGLE
-            / constants.EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1
-        ) * np.arctan(constants.WHEELBASE / radius)
+        return STEERING_PWM_IDLE + STEERING_DIRECTION_FACTOR * (
+            PWM_DIFF_AT_MAX_STEER_ANGLE / EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1
+        ) * np.arctan(WHEELBASE / radius)
 
 
 class CarModelBicycleV2(CarModelBicyclePure):
@@ -277,23 +199,19 @@ class CarModelBicycleV2(CarModelBicyclePure):
 
     def compute_radius_from_steering_command(self, cmd_steering: float, speed: float):
         """TODO"""
-        if cmd_steering == constants.STEERING_PWM_IDLE:
+        if cmd_steering == STEERING_PWM_IDLE:
             return 100000000  # TODO make this better
         else:
             coeff = self._compute_coefficient(speed)
             radius = (
-                constants.STEERING_DIRECTION_FACTOR
-                * coeff
-                * (cmd_steering - constants.STEERING_PWM_IDLE)
+                STEERING_DIRECTION_FACTOR * coeff * (cmd_steering - STEERING_PWM_IDLE)
             )
             return radius
 
     def compute_steering_command_from_radius(self, radius: float, speed: float):
         """Obtained by inversing the compute_radius_from_steering_command function."""
         if radius == 0:
-            return constants.STEERING_PWM_IDLE
+            return STEERING_PWM_IDLE
         else:
             coeff = self._compute_coefficient(speed)
-            return constants.STEERING_PWM_IDLE + constants.STEERING_DIRECTION_FACTOR * (
-                radius / coeff
-            )
+            return STEERING_PWM_IDLE + STEERING_DIRECTION_FACTOR * (radius / coeff)

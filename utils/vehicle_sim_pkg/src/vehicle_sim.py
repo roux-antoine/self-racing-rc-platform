@@ -5,6 +5,10 @@ from enum import Enum
 from geometry_utils_pkg.geometry_utils import State
 
 
+# NOTE: I think we can get rid of this file altogether, now that we have the vehicle models implemented.
+# We just need to port some of the logic in the from here into the vehicle models.
+
+
 class LateralModel(Enum):
     PERFECT = 1
     DELAY = 2
