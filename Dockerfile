@@ -17,12 +17,6 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive apt install --yes \
     ros-noetic-foxglove-bridge \
     ros-noetic-rqt-reconfigure
 
-RUN python3 -m pip install \
-    pre-commit \
-    matplotlib \
-    pyshp \
-    utm
-
 COPY requirements.txt /tmp
 RUN python3 -m pip install -r /tmp/requirements.txt
 

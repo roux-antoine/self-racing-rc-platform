@@ -8,6 +8,6 @@ pre-commit
 pynmeagps
 pyserial
 pyshp
+scikit-learn
 scipy
-#sklearn
 utm

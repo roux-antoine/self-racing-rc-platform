@@ -1,11 +1,11 @@
 # Vehicle simulator
 
-This package provids a lightweight vehicle simulator designe to test the majority of the nodes running in the actual self driving stack.
+This package provides a lightweight vehicle simulator designed to test the majority of the nodes running in the actual self driving stack.
 
 ## Usage
 Use this almost as if you were running an actual vehicle test.
 
-1. 
+1.
 ```console
 $ cd start_scripts/
 $ ./start_infra.sh
@@ -18,7 +18,7 @@ $ ./start_sim.sh
 ## High level architecture
 ![](images/vehicle_sim_high_level.png)
 
-All the components from the actual self driving stack are running as part of the simulation except the ones related to GPS data acquisition (gps_rtk_serial_reader.py and rtcm_corr_serial_pub.sh) and the firmware running on the arduino. 
+All the components from the actual self driving stack are running as part of the simulation except the ones related to GPS data acquisition (gps_rtk_serial_reader.py and rtcm_corr_serial_pub.sh) and the firmware running on the arduino.
 The sim component has the following inputs:
 1. `/tf_static`: The transformation between the world and map frames, published by the map_publisher
 2: `/initial_pose`: The initial position published by Foxglove, after the user manually selects an initial position and orientation in the map
