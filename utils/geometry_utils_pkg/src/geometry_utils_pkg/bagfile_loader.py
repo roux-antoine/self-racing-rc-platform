@@ -1,6 +1,6 @@
-from typing import Dict
+from typing import Dict, List
 import argparse
-
+import plotly.graph_objs as go
 import matplotlib.pyplot as plt
 import rosbag
 from geometry_utils import State
@@ -43,6 +43,7 @@ class BagfileLoader:
         self.bag_path: str = bag_path
         self.debug: bool = debug
         self.bagfile_records_dicts: Dict[float, BagfileRecord] = {}
+        self.windows: List[Dict[float, BagfileRecord]] = []
 
         with rosbag.Bag(self.bag_path) as bag:
 
@@ -173,6 +174,89 @@ class BagfileLoader:
             )
             plt.show()
 
+    def plot_xy_coordinates_plotly(self, use_windows: bool = False) -> None:
+        """Plot the X and Y coordinates from the bagfile records using Plotly.
+
+        Args:
+            - use_windows (bool): If True, plot only the extracted windows. If False, plot all data.
+        """
+        if use_windows and not self.windows:
+            raise ValueError(
+                "No windows extracted. Please run extract_windows() first."
+            )
+        if use_windows:
+            fig = go.Figure()
+            for window in self.windows:
+                x_vals = [bagfile_record.state.x for bagfile_record in window.values()]
+                y_vals = [bagfile_record.state.y for bagfile_record in window.values()]
+                fig.add_trace(go.Scatter(x=x_vals, y=y_vals, mode="lines+markers"))
+            fig.show()
+        else:
+            x_vals = [
+                bagfile_record.state.x
+                for bagfile_record in self.bagfile_records_dicts.values()
+            ]
+            y_vals = [
+                bagfile_record.state.y
+                for bagfile_record in self.bagfile_records_dicts.values()
+            ]
+            fig = go.Figure(data=go.Scatter(x=x_vals, y=y_vals, mode="lines+markers"))
+            fig.show()
+
+    def extract_windows(self, min_window_size: int = 10, tolerance: int = 0) -> None:
+        """Find portions of the data where the GPS fix type is constant and valid (F or R).
+
+        Args:
+            - min_window_size (int): Minimum number of consecutive records with the same valid fix type to consider it a window.
+            - tolerance (int): Number of consecutive invalid fix types allowed within a window before closing it.
+        """
+        ALLOWED_FIX_TYPES = ["F", "R"]
+        current_window = {}
+        last_fix_type = None
+        tolerance_counter = 0
+        for t, bagfile_record in self.bagfile_records_dicts.items():
+
+            current_fix_type = bagfile_record.fix_type
+
+            if not last_fix_type:
+                if current_fix_type in ALLOWED_FIX_TYPES:
+                    last_fix_type = current_fix_type
+                else:
+                    continue
+            else:
+                if current_fix_type not in ALLOWED_FIX_TYPES:
+                    if tolerance_counter < tolerance:
+                        tolerance_counter += 1
+                    else:
+                        # we close the window
+                        if len(current_window) >= min_window_size:
+                            self.windows.append(current_window)
+                        current_window = {}
+                        tolerance_counter = 0
+                else:
+                    if current_fix_type != last_fix_type:
+                        if tolerance_counter < tolerance:
+                            tolerance_counter += 1
+                        else:
+                            # we close the window
+                            if len(current_window) >= min_window_size:
+                                self.windows.append(current_window)
+                            current_window = {}
+                            tolerance_counter = 0
+                    else:
+                        # we continue the window
+                        current_window[t] = bagfile_record
+            last_fix_type = current_fix_type
+
+        if len(current_window) >= min_window_size:
+            self.windows.append(current_window)
+
+        print(f"Found {len(self.windows)} windows: ")
+        for window in self.windows:
+            window_start = min(window.keys())
+            window_end = max(window.keys())
+            print(f"  {window_start} to {window_end} ({len(window)})")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Load and process a ROS bag file.")
@@ -181,3 +265,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     loader = BagfileLoader(args.bag_path, debug=args.debug)
+
+    loader.extract_windows(min_window_size=10)
+
+    loader.plot_xy_coordinates_plotly(use_windows=True)

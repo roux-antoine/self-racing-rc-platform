@@ -8,6 +8,7 @@
 numpy
 matplotlib
 pre-commit
+plotly
 
 --extra-index-url https://rospypi.github.io/simple/
 rospy
