@@ -68,7 +68,9 @@ def compute_angle_difference():
             # TODO plot the direction
 
     # fitting a circle
-    xc_taubinSVD, yc_taubinSVD, r_taubinSVD, sigma_taubinSVD = circle_fit.taubinSVD(gps_positions)
+    xc_taubinSVD, yc_taubinSVD, r_taubinSVD, sigma_taubinSVD = circle_fit.taubinSVD(
+        gps_positions
+    )
     print(xc_taubinSVD, yc_taubinSVD, r_taubinSVD, sigma_taubinSVD)
     fitted_center = [xc_taubinSVD, yc_taubinSVD]
     if DEBUG:
@@ -81,7 +83,11 @@ def compute_angle_difference():
 
         distances_to_center = []
         for point in gps_positions:
-            distances_to_center.append(np.linalg.norm([point[0] - fitted_center[0], point[1] - fitted_center[1]]))
+            distances_to_center.append(
+                np.linalg.norm(
+                    [point[0] - fitted_center[0], point[1] - fitted_center[1]]
+                )
+            )
 
         print(min(distances_to_center))
         print(max(distances_to_center))
@@ -96,20 +102,26 @@ def compute_angle_difference():
     angle_diffs_filtered = []
     angles_gps_filtered = []
     times = []
-    for gps_position, gps_yaw_rad, gps_speed, gps_time in zip(gps_positions, gps_yaw_rads, gps_speeds, gps_times):
+    for gps_position, gps_yaw_rad, gps_speed, gps_time in zip(
+        gps_positions, gps_yaw_rads, gps_speeds, gps_times
+    ):
 
         if gps_speed < SPEED_THRESHOLD:
             print(f"discarding message at t={t}")
         else:
-            vec_to_fitted_center = np.array([fitted_center[0] - gps_position[0], fitted_center[1] - gps_position[1]])
+            vec_to_fitted_center = np.array(
+                [fitted_center[0] - gps_position[0], fitted_center[1] - gps_position[1]]
+            )
 
             vec_from_fitted_center = -vec_to_fitted_center
             horizontal = np.array([1, 0])
             angle_real = (
                 -MAGIC_FACTOR * np.pi / 2
                 + np.arctan2(
-                    horizontal[0] * vec_from_fitted_center[1] - horizontal[1] * vec_from_fitted_center[0],
-                    horizontal[0] * vec_from_fitted_center[0] + horizontal[1] * vec_from_fitted_center[1],
+                    horizontal[0] * vec_from_fitted_center[1]
+                    - horizontal[1] * vec_from_fitted_center[0],
+                    horizontal[0] * vec_from_fitted_center[0]
+                    + horizontal[1] * vec_from_fitted_center[1],
                 )
             ) % (2 * np.pi)
 
@@ -178,41 +190,79 @@ def plot_stats_and_do_regression():
     x_max_array = np.array([x_max]).reshape(-1, 1)
 
     reg_baseline = LinearRegression().fit(
-        np.asarray(w_baseline).reshape(-1, 1), np.asarray(theta_diff_baseline).reshape(-1, 1)
+        np.asarray(w_baseline).reshape(-1, 1),
+        np.asarray(theta_diff_baseline).reshape(-1, 1),
     )
     reg_vehicle_no_pass = LinearRegression().fit(
-        np.asarray(w_vehicle_no_pass).reshape(-1, 1), np.asarray(theta_diff_vehicle_no_pass).reshape(-1, 1)
+        np.asarray(w_vehicle_no_pass).reshape(-1, 1),
+        np.asarray(theta_diff_vehicle_no_pass).reshape(-1, 1),
     )
     reg_vehicle_weak_pass = LinearRegression().fit(
-        np.asarray(w_vehicle_weak_pass).reshape(-1, 1), np.asarray(theta_diff_vehicle_weak_pass).reshape(-1, 1)
+        np.asarray(w_vehicle_weak_pass).reshape(-1, 1),
+        np.asarray(theta_diff_vehicle_weak_pass).reshape(-1, 1),
     )
     reg_vehicle_med_pass = LinearRegression().fit(
-        np.asarray(w_vehicle_med_pass).reshape(-1, 1), np.asarray(theta_diff_vehicle_med_pass).reshape(-1, 1)
+        np.asarray(w_vehicle_med_pass).reshape(-1, 1),
+        np.asarray(theta_diff_vehicle_med_pass).reshape(-1, 1),
     )
     reg_vehicle_strong_pass = LinearRegression().fit(
-        np.asarray(w_vehicle_strong_pass).reshape(-1, 1), np.asarray(theta_diff_vehicle_strong_pass).reshape(-1, 1)
+        np.asarray(w_vehicle_strong_pass).reshape(-1, 1),
+        np.asarray(theta_diff_vehicle_strong_pass).reshape(-1, 1),
     )
 
     plt.scatter(w_baseline, theta_diff_baseline, label="baseline - no low pass")
-    plt.plot([x_min, x_max], [reg_baseline.predict(x_min_array)[0][0], reg_baseline.predict(x_max_array)[0][0]])
-    plt.scatter(w_vehicle_no_pass, theta_diff_vehicle_no_pass, label="vehicle - no low pass")
-    plt.plot(
-        [x_min, x_max], [reg_vehicle_no_pass.predict(x_min_array)[0][0], reg_vehicle_no_pass.predict(x_max_array)[0][0]]
-    )
-    plt.scatter(w_vehicle_weak_pass, theta_diff_vehicle_weak_pass, label="vehicle - weak low pass")
     plt.plot(
         [x_min, x_max],
-        [reg_vehicle_weak_pass.predict(x_min_array)[0][0], reg_vehicle_weak_pass.predict(x_max_array)[0][0]],
+        [
+            reg_baseline.predict(x_min_array)[0][0],
+            reg_baseline.predict(x_max_array)[0][0],
+        ],
     )
-    plt.scatter(w_vehicle_med_pass, theta_diff_vehicle_med_pass, label="vehicle - medium low pass")
+    plt.scatter(
+        w_vehicle_no_pass, theta_diff_vehicle_no_pass, label="vehicle - no low pass"
+    )
     plt.plot(
         [x_min, x_max],
-        [reg_vehicle_med_pass.predict(x_min_array)[0][0], reg_vehicle_med_pass.predict(x_max_array)[0][0]],
+        [
+            reg_vehicle_no_pass.predict(x_min_array)[0][0],
+            reg_vehicle_no_pass.predict(x_max_array)[0][0],
+        ],
     )
-    plt.scatter(w_vehicle_strong_pass, theta_diff_vehicle_strong_pass, label="vehicle - strong low pass")
+    plt.scatter(
+        w_vehicle_weak_pass,
+        theta_diff_vehicle_weak_pass,
+        label="vehicle - weak low pass",
+    )
+    plt.plot(
+        [x_min, x_max],
+        [
+            reg_vehicle_weak_pass.predict(x_min_array)[0][0],
+            reg_vehicle_weak_pass.predict(x_max_array)[0][0],
+        ],
+    )
+    plt.scatter(
+        w_vehicle_med_pass,
+        theta_diff_vehicle_med_pass,
+        label="vehicle - medium low pass",
+    )
+    plt.plot(
+        [x_min, x_max],
+        [
+            reg_vehicle_med_pass.predict(x_min_array)[0][0],
+            reg_vehicle_med_pass.predict(x_max_array)[0][0],
+        ],
+    )
+    plt.scatter(
+        w_vehicle_strong_pass,
+        theta_diff_vehicle_strong_pass,
+        label="vehicle - strong low pass",
+    )
     plt.plot(
         [x_min, x_mid],
-        [reg_vehicle_strong_pass.predict(x_min_array)[0][0], reg_vehicle_strong_pass.predict(x_mid_array)[0][0]],
+        [
+            reg_vehicle_strong_pass.predict(x_min_array)[0][0],
+            reg_vehicle_strong_pass.predict(x_mid_array)[0][0],
+        ],
     )
 
     plt.xlim([x_min, x_max])
