@@ -94,7 +94,8 @@ class Sim:
             )
 
             # Initialize the position and orientation using the position of the clicked point
-            self.vehicle_model = CarModelBicycleV1(
+            self.vehicle_model = CarModelBicycleV1()
+            self.vehicle_model.init(
                 x=msg.pose.position.x + trans[0],
                 y=msg.pose.position.y + trans[1],
                 vx=0,

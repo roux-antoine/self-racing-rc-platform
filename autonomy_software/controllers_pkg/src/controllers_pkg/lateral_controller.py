@@ -24,7 +24,15 @@ class LateralController:
         # Constants
         rate = rospy.get_param("~rate", 10.0)
 
-        self.controller_type = LateralControllerType.CarModelBicycleV1
+        self.vehicle_model_type = LateralControllerType.CarModelBicycleV1
+
+        if self.vehicle_model_type == LateralControllerType.CarModelBicycleV1:
+            self.vehicle_model = CarModelBicycleV1()
+        elif self.vehicle_model_type == LateralControllerType.CarModelBicycleV2:
+             self.vehicle_model = CarModelBicycleV2()
+        else:
+            raise ValueError(f"Unknown controller type: {self.controller_type}")
+
 
         # Variables
         target_curvature_topic_name = rospy.get_param(
@@ -114,29 +122,15 @@ class LateralController:
 
         while not rospy.is_shutdown():
 
-            if self.controller_type == LateralControllerType.CarModelBicycleV1:
-
-                if self.target_curvature == 0:
-                    steering_command_pwm = self.STEERING_IDLE_PWM
-                else:
-                    steering_command_pwm = (
-                        CarModelBicycleV1.compute_steering_command_from_radius(
-                            curvature=1 / self.target_curvature
-                        )
-                    )
-
-            elif self.controller_type == LateralControllerType.CarModelBicycleV2:
-
-                if self.target_curvature == 0:
-                    steering_command_pwm = self.STEERING_IDLE_PWM
-                else:
-                    steering_command_pwm = (
-                        CarModelBicycleV2.compute_steering_command_from_radius(
-                            curvature=1 / self.target_curvature
-                        )
-                    )
+            # Compute the commands based on the controller
+            if self.target_curvature == 0:
+                steering_command_pwm = self.STEERING_IDLE_PWM
             else:
-                raise ValueError(f"Unknown controller type: {self.controller_type}")
+                steering_command_pwm = (
+                    self.vehicle_model.compute_steering_command_from_radius(
+                        radius=1 / self.target_curvature, speed=self.current_velocity,
+                    )
+                )
 
             # Sanity checking
             if steering_command_pwm > self.STEERING_MAX_PWM:

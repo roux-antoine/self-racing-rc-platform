@@ -17,9 +17,9 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive apt install --yes \
     ros-noetic-foxglove-bridge \
     ros-noetic-rqt-reconfigure
 
+RUN apt install ros-noetic-rviz -y
+
 COPY requirements.txt /tmp
 RUN python3 -m pip install -r /tmp/requirements.txt
-
-RUN apt install ros-noetic-rviz -y
 
 # start with `docker exec -it src-app-1 /bin/bash`

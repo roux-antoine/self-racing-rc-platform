@@ -10,7 +10,7 @@ from vehicle_models_pkg.vehicle_models_constants import (
 )
 
 
-from typing import List, Optional
+from typing import List
 
 # TODO change them all to the current angle that we get from the potentiometer?
 
@@ -21,8 +21,10 @@ class CarModelBase:
     Child classes shall implement the `step` method to update the vehicle state based on commands etc.
     """
 
-    def __init__(self, x: float, y: float, vx: float, angle: float):
+    def __init__(self):
         self.states: List[State] = []
+    
+    def init(self, x: float, y: float, vx: float, angle: float):
         self.states.append(
             State(
                 x=x,
@@ -39,13 +41,10 @@ class CarModelBase:
         self,
         dt: float,
         cmd_steering: float,
-        cmd_throttle: Optional[float] = None,
-        v_ground_truth: Optional[float] = None,
     ):
         """Make one step of the vehicle model state, based on commands.
 
         This method needs to be implemented in the child classes.
-        TODO need to think about args etc
         """
 
     @property
@@ -72,11 +71,7 @@ class CarModelBicyclePure(CarModelBase):
         self,
         dt: float,
         cmd_steering: float,
-        cmd_throttle: Optional[float] = None,
-        v_ground_truth: Optional[float] = None,
     ):
-
-        assert not cmd_throttle, "cmd_throttle should not be used in this model"
 
         x = self.states[-1].x
         y = self.states[-1].y
