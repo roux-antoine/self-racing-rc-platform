@@ -16,6 +16,12 @@ sys.path.append(
 from bagfile_loader import BagfileLoader  # noqa: E402
 from geometry_utils import fit_circle_to_points  # noqa: E402
 
+# HACK antoine move these values in a better place
+MIN_STEERING_CMD = 68
+MAX_STEERING_CMD = 120
+MIN_STEERING_FBK = 215
+MAX_STEERING_FBK = 450
+
 
 def find_bagfiles(folder_path: str) -> List[str]:
     """Find all .bag files in the given folder.
@@ -45,7 +51,7 @@ def find_bagfiles(folder_path: str) -> List[str]:
 def fit_circles(
     bagfile_records,
     sliding_window_size: int,
-    radius_threshold: float = 50,
+    radius_threshold: float = 30,
     debug: bool = False,
 ):
     """Process bagfile records using a sliding window approach and fit circles to each window.
@@ -90,17 +96,26 @@ def fit_circles(
             if radius < radius_threshold:
                 # Store the result with the middle timestamp of the window
                 if debug:
-                    # Create subplot figure with 2 rows, 1 column
+                    # Create subplot figure with 3 rows, 1 column
                     fig = make_subplots(
-                        rows=2,
+                        rows=3,
                         cols=1,
                         subplot_titles=(
                             "Trajectory and Fitted Circle",
-                            "Steering Commands",
+                            f"Steering Commands  (full range: {MIN_STEERING_CMD}-{MAX_STEERING_CMD})",
+                            f"Steering Feedback (full range: {MIN_STEERING_FBK}-{MAX_STEERING_FBK})",
                         ),
-                        specs=[[{"secondary_y": False}], [{"secondary_y": False}]],
-                        row_heights=[0.7, 0.3],  # More balanced distribution
-                        vertical_spacing=0.05,  # Minimal space between subplots
+                        specs=[
+                            [{"secondary_y": False}],
+                            [{"secondary_y": False}],
+                            [{"secondary_y": False}],
+                        ],
+                        row_heights=[
+                            0.6,
+                            0.2,
+                            0.22,
+                        ],  # Give more space to trajectory plot
+                        vertical_spacing=0.07,  # Minimal space between subplots
                     )
 
                     # Top subplot: trajectory and circle
@@ -141,12 +156,12 @@ def fit_circles(
                         col=1,
                     )
 
-                    # Bottom subplot: steering commands
+                    # Second subplot: steering commands
                     steering_commands = [
                         record.steering_cmd for _, record in window_records
                     ]
+
                     timestamps = [timestamp for timestamp, _ in window_records]
-                    # Convert timestamps to relative time for better readability
                     relative_times = [t - timestamps[0] for t in timestamps]
 
                     fig.add_trace(
@@ -160,6 +175,70 @@ def fit_circles(
                         row=2,
                         col=1,
                     )
+                    fig.update_yaxes(
+                        range=[MIN_STEERING_CMD - 1, MAX_STEERING_CMD + 1], row=2, col=1
+                    )
+                    fig.add_shape(
+                        type="line",
+                        x0=relative_times[0],
+                        y0=MIN_STEERING_CMD,
+                        x1=relative_times[-1],
+                        y1=MIN_STEERING_CMD,
+                        line=dict(color="black", width=2),
+                        row=2,
+                        col=1,
+                    )
+                    fig.add_shape(
+                        type="line",
+                        x0=relative_times[0],
+                        y0=MAX_STEERING_CMD,
+                        x1=relative_times[-1],
+                        y1=MAX_STEERING_CMD,
+                        line=dict(color="black", width=2),
+                        row=2,
+                        col=1,
+                    )
+
+                    # Third subplot: steering feedback
+                    steering_feedbacks = [
+                        record.steering_fbk for _, record in window_records
+                    ]
+                    fig.add_trace(
+                        go.Scatter(
+                            x=relative_times,
+                            y=steering_feedbacks,
+                            mode="lines+markers",
+                            name="Steering Feedback",
+                            line=dict(color="blue"),
+                        ),
+                        row=3,
+                        col=1,
+                    )
+                    fig.update_yaxes(
+                        range=[MIN_STEERING_FBK - 10, MAX_STEERING_FBK + 10],
+                        row=3,
+                        col=1,
+                    )
+                    fig.add_shape(
+                        type="line",
+                        x0=relative_times[0],
+                        y0=MIN_STEERING_FBK,
+                        x1=relative_times[-1],
+                        y1=MIN_STEERING_FBK,
+                        line=dict(color="black", width=2),
+                        row=3,
+                        col=1,
+                    )
+                    fig.add_shape(
+                        type="line",
+                        x0=relative_times[0],
+                        y0=MAX_STEERING_FBK,
+                        x1=relative_times[-1],
+                        y1=MAX_STEERING_FBK,
+                        line=dict(color="black", width=2),
+                        row=3,
+                        col=1,
+                    )
 
                     fig.update_layout(
                         title=f"Circle Fit Debug - Window {i} to {i + sliding_window_size - 1}, Radius: {radius:.2f}m",  # noqa: E231
@@ -171,6 +250,8 @@ def fit_circles(
                     fig.update_yaxes(title_text="Y (m)", row=1, col=1)
                     fig.update_xaxes(title_text="Time (s)", row=2, col=1)
                     fig.update_yaxes(title_text="Steering Command", row=2, col=1)
+                    fig.update_xaxes(title_text="Time (s)", row=3, col=1)
+                    fig.update_yaxes(title_text="Steering Feedback", row=3, col=1)
 
                     # Make trajectory plot aspect ratio equal
                     fig.update_yaxes(scaleanchor="x", scaleratio=1, row=1, col=1)
