@@ -7,6 +7,7 @@ from typing import List
 import sys
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # HACK antoine, fix the import
 sys.path.append(
@@ -89,11 +90,25 @@ def fit_circles(
             if radius < radius_threshold:
                 # Store the result with the middle timestamp of the window
                 if debug:
+                    # Create subplot figure with 2 rows, 1 column
+                    fig = make_subplots(
+                        rows=2,
+                        cols=1,
+                        subplot_titles=(
+                            "Trajectory and Fitted Circle",
+                            "Steering Commands",
+                        ),
+                        specs=[[{"secondary_y": False}], [{"secondary_y": False}]],
+                        row_heights=[0.7, 0.3],  # More balanced distribution
+                        vertical_spacing=0.05,  # Minimal space between subplots
+                    )
 
-                    fig = go.Figure()
+                    # Top subplot: trajectory and circle
                     x_vals, y_vals = zip(*points)
                     fig.add_trace(
-                        go.Scatter(x=x_vals, y=y_vals, mode="markers", name="Points")
+                        go.Scatter(x=x_vals, y=y_vals, mode="markers", name="Points"),
+                        row=1,
+                        col=1,
                     )
                     outside_points = [
                         pt
@@ -110,7 +125,9 @@ def fit_circles(
                                 mode="markers",
                                 name="Other Points",
                                 marker=dict(color="gray", size=5, opacity=0.5),
-                            )
+                            ),
+                            row=1,
+                            col=1,
                         )
                     # Plot fitted circle
                     theta = np.linspace(0, 2 * np.pi, 100)
@@ -119,16 +136,45 @@ def fit_circles(
                     fig.add_trace(
                         go.Scatter(
                             x=circle_x, y=circle_y, mode="lines", name="Fitted Circle"
-                        )
+                        ),
+                        row=1,
+                        col=1,
+                    )
+
+                    # Bottom subplot: steering commands
+                    steering_commands = [
+                        record.steering_cmd for _, record in window_records
+                    ]
+                    timestamps = [timestamp for timestamp, _ in window_records]
+                    # Convert timestamps to relative time for better readability
+                    relative_times = [t - timestamps[0] for t in timestamps]
+
+                    fig.add_trace(
+                        go.Scatter(
+                            x=relative_times,
+                            y=steering_commands,
+                            mode="lines+markers",
+                            name="Steering Commands",
+                            line=dict(color="red"),
+                        ),
+                        row=2,
+                        col=1,
                     )
 
                     fig.update_layout(
-                        title="Circle Fit Debug",
-                        xaxis_title="X",
-                        yaxis_title="Y",
+                        title=f"Circle Fit Debug - Window {i} to {i + sliding_window_size - 1}, Radius: {radius:.2f}m",  # noqa: E231
                         showlegend=True,
                     )
-                    fig.update_yaxes(scaleanchor="x", scaleratio=1)
+
+                    # Update axes labels
+                    fig.update_xaxes(title_text="X (m)", row=1, col=1)
+                    fig.update_yaxes(title_text="Y (m)", row=1, col=1)
+                    fig.update_xaxes(title_text="Time (s)", row=2, col=1)
+                    fig.update_yaxes(title_text="Steering Command", row=2, col=1)
+
+                    # Make trajectory plot aspect ratio equal
+                    fig.update_yaxes(scaleanchor="x", scaleratio=1, row=1, col=1)
+
                     fig.show()
                     input()
 
