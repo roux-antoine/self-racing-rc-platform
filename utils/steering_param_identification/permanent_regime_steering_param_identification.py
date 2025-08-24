@@ -96,26 +96,29 @@ def fit_circles(
             if radius < radius_threshold:
                 # Store the result with the middle timestamp of the window
                 if debug:
-                    # Create subplot figure with 3 rows, 1 column
+                    # Create subplot figure with 4 rows, 1 column
                     fig = make_subplots(
-                        rows=3,
+                        rows=4,
                         cols=1,
                         subplot_titles=(
                             "Trajectory and Fitted Circle",
                             f"Steering Commands  (full range: {MIN_STEERING_CMD}-{MAX_STEERING_CMD})",
                             f"Steering Feedback (full range: {MIN_STEERING_FBK}-{MAX_STEERING_FBK})",
+                            "Speed (m/s)",
                         ),
                         specs=[
+                            [{"secondary_y": False}],
                             [{"secondary_y": False}],
                             [{"secondary_y": False}],
                             [{"secondary_y": False}],
                         ],
                         row_heights=[
                             0.6,
-                            0.2,
-                            0.22,
-                        ],  # Give more space to trajectory plot
-                        vertical_spacing=0.07,  # Minimal space between subplots
+                            0.13,
+                            0.13,
+                            0.13,
+                        ],  # Distribute space across 4 plots
+                        vertical_spacing=0.05,  # Minimal space between subplots
                     )
 
                     # Top subplot: trajectory and circle
@@ -240,8 +243,31 @@ def fit_circles(
                         col=1,
                     )
 
+                    # Fourth subplot: speed
+                    speeds = [record.state.vx for _, record in window_records]
+
+                    # Compute ranges (differences between min and max)
+                    speed_range = max(speeds) - min(speeds)
+                    steering_cmd_range = max(steering_commands) - min(steering_commands)
+                    steering_fbk_range = max(steering_feedbacks) - min(
+                        steering_feedbacks
+                    )
+
+                    fig.add_trace(
+                        go.Scatter(
+                            x=relative_times,
+                            y=speeds,
+                            mode="lines+markers",
+                            name="Speed",
+                            line=dict(color="green"),
+                        ),
+                        row=4,
+                        col=1,
+                    )
+
                     fig.update_layout(
-                        title=f"Circle Fit Debug - Window {i} to {i + sliding_window_size - 1}, Radius: {radius:.2f}m",  # noqa: E231
+                        title=f"Circle Fit Debug - Window {i} to {i + sliding_window_size - 1}, Radius: {radius:.2f}m<br>"  # noqa: E231
+                        f"Ranges: Speed: {speed_range:.2f} m/s, Steering Cmd: {steering_cmd_range:.1f}, Steering Fbk: {steering_fbk_range:.1f}",  # noqa: E231
                         showlegend=True,
                     )
 
@@ -252,6 +278,8 @@ def fit_circles(
                     fig.update_yaxes(title_text="Steering Command", row=2, col=1)
                     fig.update_xaxes(title_text="Time (s)", row=3, col=1)
                     fig.update_yaxes(title_text="Steering Feedback", row=3, col=1)
+                    fig.update_xaxes(title_text="Time (s)", row=4, col=1)
+                    fig.update_yaxes(title_text="Speed (m/s)", row=4, col=1)
 
                     # Make trajectory plot aspect ratio equal
                     fig.update_yaxes(scaleanchor="x", scaleratio=1, row=1, col=1)
@@ -267,6 +295,12 @@ def fit_circles(
                         "window_start_idx": i,
                         "window_end_idx": i + sliding_window_size - 1,
                         "points": points,
+                        "speed_range": speed_range,
+                        "steering_cmd_range": steering_cmd_range,
+                        "steering_fbk_range": steering_fbk_range,
+                        "mean_speed": np.mean(speeds),
+                        "mean_steering_cmd": np.mean(steering_commands),
+                        "mean_steering_fbk": np.mean(steering_feedbacks),
                     }
                 )
 
