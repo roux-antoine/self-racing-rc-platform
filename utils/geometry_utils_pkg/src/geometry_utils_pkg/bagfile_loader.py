@@ -39,7 +39,7 @@ class BagfileRecord:
 
 
 class BagfileLoader:
-    def __init__(self, bag_path: str, debug: bool = True) -> None:
+    def __init__(self, bag_path: str, debug: bool = False) -> None:
         self.bag_path: str = bag_path
         self.debug: bool = debug
         self.bagfile_records_dicts: Dict[float, BagfileRecord] = {}
