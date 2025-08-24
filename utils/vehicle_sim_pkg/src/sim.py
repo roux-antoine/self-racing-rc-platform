@@ -152,7 +152,6 @@ class Sim:
                 self.vehicle_model.step(
                     dt=0.1,  # TODO: maybe un-harcode
                     cmd_steering=self.steering_pwm_cmd,
-                    cmd_throttle=self.throttle_pwm_cmd,
                 )
 
                 # Publish current simulated state for debugging
