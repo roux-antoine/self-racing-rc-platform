@@ -164,3 +164,22 @@ def circle_line_segment_intersection(
             return [intersections[0]]
         else:
             return intersections
+
+
+def fit_circle_to_points(points: List[tuple]) -> tuple:
+    """
+    Fits a circle to a list of N points using the Kasa method (least squares).
+    Args:
+        points: List of (x, y) tuples.
+    Returns:
+        (center_x, center_y, radius)
+    """
+    points = np.array(points)
+    x = points[:, 0]
+    y = points[:, 1]
+    A = np.c_[2 * x, 2 * y, np.ones(points.shape[0])]
+    b = x**2 + y**2
+    c, residuals, rank, s = np.linalg.lstsq(A, b, rcond=None)
+    center_x, center_y = c[0], c[1]
+    radius = np.sqrt(c[2] + center_x**2 + center_y**2)
+    return center_x, center_y, radius
