@@ -8,6 +8,7 @@ import sys
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import csv
 
 # HACK antoine, fix the import
 sys.path.append(
@@ -65,6 +66,10 @@ def fit_circles(
     Returns:
         List of fitted circle parameters for each window
     """
+    STEP = 5
+    SPEED_RANGE_THRESHOLD = 1.0  # m/s
+    STEERING_CMD_RANGE_THRESHOLD = 5.0  # PWM units
+
     # Convert records to a sorted list of (timestamp, record) tuples
     sorted_records = sorted(bagfile_records.items())
 
@@ -81,7 +86,7 @@ def fit_circles(
     )
 
     # Iterate through all possible windows
-    for i in range(0, len(sorted_records) - sliding_window_size + 1, 5):
+    for i in range(0, len(sorted_records) - sliding_window_size + 1, STEP):
         window_records = sorted_records[i : i + sliding_window_size]
 
         # Extract (x, y) points from the window
@@ -94,7 +99,19 @@ def fit_circles(
             center_x, center_y, radius = fit_circle_to_points(points)
 
             if radius < radius_threshold:
-                # Store the result with the middle timestamp of the window
+
+                # Compute ranges of interesting metrics
+                speeds = [record.state.vx for _, record in window_records]
+                steering_commands = [
+                    record.steering_cmd for _, record in window_records
+                ]
+                steering_feedbacks = [
+                    record.steering_fbk for _, record in window_records
+                ]
+                speed_range = max(speeds) - min(speeds)
+                steering_cmd_range = max(steering_commands) - min(steering_commands)
+                steering_fbk_range = max(steering_feedbacks) - min(steering_feedbacks)
+
                 if debug:
                     # Create subplot figure with 4 rows, 1 column
                     fig = make_subplots(
@@ -160,13 +177,8 @@ def fit_circles(
                     )
 
                     # Second subplot: steering commands
-                    steering_commands = [
-                        record.steering_cmd for _, record in window_records
-                    ]
-
                     timestamps = [timestamp for timestamp, _ in window_records]
                     relative_times = [t - timestamps[0] for t in timestamps]
-
                     fig.add_trace(
                         go.Scatter(
                             x=relative_times,
@@ -203,9 +215,6 @@ def fit_circles(
                     )
 
                     # Third subplot: steering feedback
-                    steering_feedbacks = [
-                        record.steering_fbk for _, record in window_records
-                    ]
                     fig.add_trace(
                         go.Scatter(
                             x=relative_times,
@@ -244,15 +253,6 @@ def fit_circles(
                     )
 
                     # Fourth subplot: speed
-                    speeds = [record.state.vx for _, record in window_records]
-
-                    # Compute ranges (differences between min and max)
-                    speed_range = max(speeds) - min(speeds)
-                    steering_cmd_range = max(steering_commands) - min(steering_commands)
-                    steering_fbk_range = max(steering_feedbacks) - min(
-                        steering_feedbacks
-                    )
-
                     fig.add_trace(
                         go.Scatter(
                             x=relative_times,
@@ -285,7 +285,13 @@ def fit_circles(
                     fig.update_yaxes(scaleanchor="x", scaleratio=1, row=1, col=1)
 
                     fig.show()
-                    input()
+                    input("Check the plot and press Enter to continue...")
+
+                if speed_range > SPEED_RANGE_THRESHOLD:
+                    continue
+
+                if steering_cmd_range > STEERING_CMD_RANGE_THRESHOLD:
+                    continue
 
                 circle_fits.append(
                     {
@@ -310,7 +316,6 @@ def fit_circles(
             )
             continue
 
-    print(f"Successfully fitted circles to {len(circle_fits)} windows")
     return circle_fits
 
 
@@ -354,6 +359,7 @@ def main():
         print(f"\nSuccessfully loaded {len(loaders)} out of {len(bagfiles)} bagfiles")
 
         # Process each loader's data using sliding windows
+        all_circle_fits = []
 
         for i, loader in enumerate(loaders):
             print(
@@ -361,11 +367,42 @@ def main():
             )
 
             # Apply sliding window circle fitting to this window
-            _ = fit_circles(
+            circle_fits = fit_circles(
                 bagfile_records=loader.bagfile_records_dicts,
                 sliding_window_size=args.window_size,
                 debug=args.debug,
             )
+            print(f"Successfully fitted {len(circle_fits)} circles")
+            all_circle_fits.extend(circle_fits)
+
+        # Write CSV file with all fitted circles
+        if all_circle_fits:
+            csv_filename = os.path.join(args.bagfiles_folder, "fitted_circles.csv")
+            print(f"\nWriting {len(all_circle_fits)} fitted circles to {csv_filename}")
+
+            with open(csv_filename, "w", newline="") as csvfile:
+                fieldnames = [
+                    "radius",
+                    "mean_speed",
+                    "mean_steering_cmd",
+                    "mean_steering_fbk",
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+                writer.writeheader()
+                for circle_fit in all_circle_fits:
+                    writer.writerow(
+                        {
+                            "radius": circle_fit["radius"],
+                            "mean_speed": circle_fit["mean_speed"],
+                            "mean_steering_cmd": circle_fit["mean_steering_cmd"],
+                            "mean_steering_fbk": circle_fit["mean_steering_fbk"],
+                        }
+                    )
+
+            print(f"CSV file written successfully with {len(all_circle_fits)} rows")
+        else:
+            print("\nNo fitted circles found, skipping CSV output")
 
     except (FileNotFoundError, NotADirectoryError, OSError) as e:
         print(f"Error: {e}")
