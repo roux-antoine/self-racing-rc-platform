@@ -24,15 +24,14 @@ class LateralController:
         # Constants
         rate = rospy.get_param("~rate", 10.0)
 
-        self.vehicle_model_type = LateralControllerType.CarModelBicycleV1
+        self.vehicle_model_type = LateralControllerType.CarModelBicycleV2
 
         if self.vehicle_model_type == LateralControllerType.CarModelBicycleV1:
             self.vehicle_model = CarModelBicycleV1()
         elif self.vehicle_model_type == LateralControllerType.CarModelBicycleV2:
-             self.vehicle_model = CarModelBicycleV2()
+            self.vehicle_model = CarModelBicycleV2()
         else:
             raise ValueError(f"Unknown controller type: {self.controller_type}")
-
 
         # Variables
         target_curvature_topic_name = rospy.get_param(
@@ -128,7 +127,8 @@ class LateralController:
             else:
                 steering_command_pwm = (
                     self.vehicle_model.compute_steering_command_from_radius(
-                        radius=1 / self.target_curvature, speed=self.current_velocity,
+                        radius=1 / self.target_curvature,
+                        speed=self.current_velocity,
                     )
                 )
 

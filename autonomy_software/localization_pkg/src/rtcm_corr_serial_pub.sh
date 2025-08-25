@@ -1,7 +1,7 @@
 USERNAME=${UNAVCO_USERNAME} # make sure that this env var is being set in your bashrc
 PASSWORD=${UNAVCO_PASSWORD} # make sure that this env var is being set in your bashrc
 PORT=2101
-MOUNT_POINT=P178_RTCM3
+MOUNT_POINT=P178_RTCM3P3
 SERIAL_PORT=ttyUSB0
 BAUD_RATE=115200
 
