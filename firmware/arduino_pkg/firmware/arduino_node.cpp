@@ -16,13 +16,13 @@ const int THROTTLE_OUTPUT_PIN = 8;
 const int LED_PIN = 13;
 
 const float STEERING_IDLE_PWM = 90;
-const float STEERING_MAX_PWM = 119; // 122 - 3
-const float STEERING_MIN_PWM = 75;  // 72 + 2
+const float STEERING_MAX_PWM = 116; // 118 - 2
+const float STEERING_MIN_PWM = 64;  // 62 + 2
 
 const float THROTTLE_IDLE_PWM = 90;
 const float THROTTLE_MAX_MANUAL_PWM = 115; // without load, the wheels start turning around 96
 const float THROTTLE_MIN_MANUAL_PWM = 70;
-const float THROTTLE_MAX_AUTONOMOUS_PWM = 102;
+const float THROTTLE_MAX_AUTONOMOUS_PWM = 115;
 const float THROTTLE_MIN_AUTONOMOUS_PWM = 70;
 
 const unsigned long PULSE_WIDTH_THRESHOLD = 2000;
@@ -31,19 +31,19 @@ const unsigned int DISENGAGEMENT_HYSTERESIS_THRESHOLD = 3;
 const unsigned int STEERING_OVERRIDE_HYSTERESIS_THRESHOLD = 3;
 const unsigned int THROTTLE_OVERRIDE_HYSTERESIS_THRESHOLD = 3;
 
-const unsigned long CHANNEL_2_IDLE_MIN = 1470; // = steering
-const unsigned long CHANNEL_2_IDLE_MAX = 1530;
-const unsigned long CHANNEL_2_MAX = 1880;
-const unsigned long CHANNEL_2_MIN = 1180;
-const unsigned long CHANNEL_2_OVERRIDE_MIN = 1353;
-const unsigned long CHANNEL_2_OVERRIDE_MAX = 1647;
+const unsigned long CHANNEL_2_IDLE_MIN = 1400 - 20; // = steering
+const unsigned long CHANNEL_2_IDLE_MAX = 1436 + 20;
+const unsigned long CHANNEL_2_MAX = 1876 - 20;
+const unsigned long CHANNEL_2_MIN = 1216 + 20;
+const unsigned long CHANNEL_2_OVERRIDE_MIN = 1400 - 50;
+const unsigned long CHANNEL_2_OVERRIDE_MAX = 1436 + 50;
 
-const unsigned long CHANNEL_3_IDLE_MIN = 1455; // throttle
-const unsigned long CHANNEL_3_IDLE_MAX = 1515;
-const unsigned long CHANNEL_3_MAX = 1716;
-const unsigned long CHANNEL_3_MIN = 1092;
-const unsigned long CHANNEL_3_OVERRIDE_MIN = 1388;
-const unsigned long CHANNEL_3_OVERRIDE_MAX = 1582;
+const unsigned long CHANNEL_3_IDLE_MIN = 1372 - 20; // throttle
+const unsigned long CHANNEL_3_IDLE_MAX = 1396 + 20;
+const unsigned long CHANNEL_3_MAX = 1712 - 20;
+const unsigned long CHANNEL_3_MIN = 1128 + 20;
+const unsigned long CHANNEL_3_OVERRIDE_MIN = 1372 - 50;
+const unsigned long CHANNEL_3_OVERRIDE_MAX = 1396 + 50;
 
 const unsigned long CHANNEL_5_THRESHOLD = 1700;
 

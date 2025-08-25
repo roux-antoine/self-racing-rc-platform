@@ -23,7 +23,7 @@ class CarModelBase:
 
     def __init__(self):
         self.states: List[State] = []
-    
+
     def init(self, x: float, y: float, vx: float, angle: float):
         self.states.append(
             State(
@@ -190,6 +190,8 @@ class CarModelBicycleV2(CarModelBicyclePure):
         elif speed > self.UPPER_BOUND_REGION_3:
             coeff = self.COEFF_REGION_3
 
+        print(f"Speed: {speed}, coeff: {coeff}")
+
         return coeff
 
     def compute_radius_from_steering_command(self, cmd_steering: float, speed: float):
@@ -209,4 +211,6 @@ class CarModelBicycleV2(CarModelBicyclePure):
             return STEERING_PWM_IDLE
         else:
             coeff = self._compute_coefficient(speed)
-            return STEERING_PWM_IDLE + STEERING_DIRECTION_FACTOR * (radius / coeff)
+            print(radius, coeff)
+            return STEERING_PWM_IDLE + STEERING_DIRECTION_FACTOR * (coeff / radius)
+            # return STEERING_PWM_IDLE + STEERING_DIRECTION_FACTOR * (radius / coeff)

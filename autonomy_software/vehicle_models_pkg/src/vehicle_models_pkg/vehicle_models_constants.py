@@ -6,7 +6,8 @@ EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1 = (
     0.30  # _Effective_ steering angle achievable by wheels (average left and right)
 )
 STEERING_PWM_IDLE = 90
-STEERING_PWM_MIN = 65
+STEERING_PWM_MIN = 64  # 62 + 2
+STEERING_PWM_MIN = 116  # 118 - 2
 STEERING_DIRECTION_FACTOR = -1  # TODO explain
 
 WHEELBASE = 0.406
