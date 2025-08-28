@@ -3,6 +3,12 @@
 #include <ros.h>
 #include <self_racing_car_msgs/ArduinoLogging.h>
 #include <std_msgs/Float32.h>
+#include <self_racing_car_msgs/ImuSensing.h>
+
+// Imports for IMU
+#include <Wire.h>
+#include <Adafruit_BNO055.h>
+#include <Adafruit_Sensor.h>
 
 // ------ CONSTANTS ------
 
@@ -94,6 +100,10 @@ int steering_fbk;
 Servo throttle_servo;
 Servo steering_servo;
 
+// IMU object
+Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire);
+
+
 // ROS stuff
 ros::NodeHandle nh;
 
@@ -121,6 +131,10 @@ ros::Subscriber<std_msgs::Float32> steering_pwm_cmd_sub("steering_pwm_cmd", stee
 ros::Subscriber<std_msgs::Float32> throttle_pwm_cmd_sub("throttle_pwm_cmd", throttle_pwm_cmd_callback);
 self_racing_car_msgs::ArduinoLogging arduino_logging_msg;
 ros::Publisher arduino_logging_pub("arduino_logging", &arduino_logging_msg);
+
+// IMU
+self_racing_car_msgs::ImuSensing imu_msg;
+ros::Publisher imu_pub("imu", &imu_msg);
 
 // ------ FUNCTIONS ------
 
@@ -197,6 +211,18 @@ void setup() {
     nh.subscribe(steering_pwm_cmd_sub);
     nh.subscribe(throttle_pwm_cmd_sub);
     nh.advertise(arduino_logging_pub);
+    nh.advertise(imu_pub);
+
+    if (!bno.begin()) {
+      /* There was a problem detecting the BNO055 ... check your connections */
+      // Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+      while (1);
+    }
+    delay(1000);
+    // Tells sensor to use external oscillator instead of external one
+    bno.setExtCrystalUse(true);
+    bno.setMode(OPERATION_MODE_ACCGYRO); // Fast 6-DOF mode
+
     nh.loginfo("In the setup");
   } else {
     Serial.begin(57600);
@@ -338,6 +364,22 @@ void loop() {
 
     arduino_logging_pub.publish(&arduino_logging_msg);
   }
+
+
+  // IMU reading and publishing
+  imu::Vector<3> acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER); // Acceleration
+  // imu::Quaternion quat = bno.getQuat();   // orientation
+  imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);  // angular velocity
+
+  imu_msg.ax = acc.x();
+  imu_msg.ay = acc.y();
+  imu_msg.az = acc.z();
+
+  imu_msg.gx = gyro.x();
+  imu_msg.gy = gyro.y();
+  imu_msg.gz = gyro.z();
+
+  imu_pub.publish(&imu_msg);
 
   if (ROS_MODE) {
     nh.spinOnce();
