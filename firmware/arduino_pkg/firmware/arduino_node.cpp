@@ -57,6 +57,11 @@ const bool ROS_MODE = true;
 
 const int steering_fbk_analog_pin = A0;
 
+const unsigned long LOGGING_PUB_UPDATE_PERIOD_MS = 20; // 20 ms -> 50 Hz
+const unsigned long SERVO_UPDATE_PERIOD_MS = 20; // 20 ms -> 50 Hz
+const unsigned long RC_INPUTS_UPDATE_PERIOD_MS = 20; // 20 ms -> 50 Hz
+const unsigned long IMU_UPDATE_PERIOD_MS = 20; // 20 ms -> 50 Hz
+
 // ------ VARIABLES ------
 
 // commands that will be sent by PWM
@@ -103,6 +108,11 @@ Servo steering_servo;
 // IMU object
 Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire);
 
+// Publishing frequency stuff
+unsigned long prev_log_publish_time = 0;
+unsigned long prev_servo_update_time = 0;
+unsigned long prev_rc_inputs_update_time = 0;
+unsigned long prev_imu_update_time = 0;
 
 // ROS stuff
 ros::NodeHandle nh;
@@ -261,6 +271,88 @@ void setup() {
 
 void loop() {
 
+  unsigned long current_time_ms = millis();
+
+  // Process RC inputs at desired frequency
+  if (current_time_ms - prev_rc_inputs_update_time >= RC_INPUTS_UPDATE_PERIOD_MS) {
+    prev_rc_inputs_update_time = current_time_ms;
+
+    processRCInputs();
+
+    checkOverride();
+
+    computeFinalCommands();
+  }
+
+  // Sending the commands to the servos only at desired frequency
+  unsigned long servo_now = millis();
+  if (servo_now - prev_servo_update_time >= SERVO_UPDATE_PERIOD_MS) {
+    prev_servo_update_time = servo_now;
+    steering_servo.write(steering_cmd_final);
+    throttle_servo.write(throttle_cmd_final);
+
+    // Read analog input steering feedback
+    steering_fbk = analogRead(steering_fbk_analog_pin);
+  }
+
+  if (ROS_MODE) {
+
+    // Publishing the logging info at desired frequency
+    unsigned long log_now = millis();
+    if (log_now - prev_log_publish_time >= LOGGING_PUB_UPDATE_PERIOD_MS) {
+      prev_log_publish_time = log_now;
+
+      // Filling the message
+      arduino_logging_msg.steering_cmd_rx = steering_cmd_rx;
+      arduino_logging_msg.throttle_cmd_rx = throttle_cmd_rx;
+      arduino_logging_msg.steering_cmd_autonomous = steering_cmd_autonomous;
+      arduino_logging_msg.throttle_cmd_autonomous = throttle_cmd_autonomous;
+      arduino_logging_msg.steering_cmd_final = steering_cmd_final;
+      arduino_logging_msg.throttle_cmd_final = throttle_cmd_final;
+      arduino_logging_msg.tmp_pulse_width_1 = tmp_pulse_width_steering;
+      arduino_logging_msg.tmp_pulse_width_2 = tmp_pulse_width_throttle;
+      arduino_logging_msg.tmp_pulse_width_3 = tmp_pulse_width_engaged;
+      arduino_logging_msg.engaged_mode = engaged_mode;
+      arduino_logging_msg.override_steering = override_steering;
+      arduino_logging_msg.override_throttle = override_throttle;
+      arduino_logging_msg.steering_fbk = steering_fbk;
+
+      arduino_logging_pub.publish(&arduino_logging_msg);
+
+      // Spin to trigger the ROS callbacks
+      nh.spinOnce();
+    }
+
+    // IMU reading and publishing at desired frequency
+    unsigned long imu_now = millis();
+    if (imu_now - prev_imu_update_time >= IMU_UPDATE_PERIOD_MS) {
+      prev_imu_update_time = imu_now;
+
+      imu::Vector<3> acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER); // Acceleration
+      // imu::Quaternion quat = bno.getQuat();   // orientation
+      imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);  // angular velocity
+
+      imu_msg.ax = acc.x();
+      imu_msg.ay = acc.y();
+      imu_msg.az = acc.z();
+
+      imu_msg.gx = gyro.x();
+      imu_msg.gy = gyro.y();
+      imu_msg.gz = gyro.z();
+
+      imu_pub.publish(&imu_msg);
+    }
+  }
+
+  // display_value("steering_cmd_final ", steering_cmd_final);
+  // display_value("throttle_cmd_final ", throttle_cmd_final);
+  // display_value("engaged_mode", engaged_mode);
+  // display_value("override throttle ", override_throttle);
+  // display_value("override steering ", override_steering);
+}
+
+void processRCInputs(){
+
   // Compute steering from the Rx
   if (pulse_width_steering < CHANNEL_2_IDLE_MAX && pulse_width_steering > CHANNEL_2_IDLE_MIN) {
     steering_cmd_rx = STEERING_IDLE_PWM;
@@ -281,6 +373,9 @@ void loop() {
   } else {
   }
 
+}
+
+void checkOverride(){
   // checking if we are in override mode
   if (pulse_width_steering < CHANNEL_2_OVERRIDE_MIN || pulse_width_steering > CHANNEL_2_OVERRIDE_MAX) {
     steering_override_hysteresis_counter += 1;
@@ -300,7 +395,9 @@ void loop() {
     throttle_override_hysteresis_counter = 0;
     override_throttle = false;
   }
+}
 
+void computeFinalCommands(){
   // Deciding which command to send
   // IDEA: it'd be nice to have some smoothing when switching between the 2 modes
   if (!engaged_mode) {
@@ -338,58 +435,4 @@ void loop() {
   } else if (throttle_cmd_final < throttle_min_pwm) {
     throttle_cmd_final = throttle_min_pwm;
   }
-
-  // Sending the commands
-  steering_servo.write(steering_cmd_final);
-  throttle_servo.write(throttle_cmd_final);
-
-  // Read analog input steering feedback
-  steering_fbk = analogRead(steering_fbk_analog_pin);
-
-  // Publishing the logging info
-  if (ROS_MODE) {
-    arduino_logging_msg.steering_cmd_rx = steering_cmd_rx;
-    arduino_logging_msg.throttle_cmd_rx = throttle_cmd_rx;
-    arduino_logging_msg.steering_cmd_autonomous = steering_cmd_autonomous;
-    arduino_logging_msg.throttle_cmd_autonomous = throttle_cmd_autonomous;
-    arduino_logging_msg.steering_cmd_final = steering_cmd_final;
-    arduino_logging_msg.throttle_cmd_final = throttle_cmd_final;
-    arduino_logging_msg.tmp_pulse_width_1 = tmp_pulse_width_steering;
-    arduino_logging_msg.tmp_pulse_width_2 = tmp_pulse_width_throttle;
-    arduino_logging_msg.tmp_pulse_width_3 = tmp_pulse_width_engaged;
-    arduino_logging_msg.engaged_mode = engaged_mode;
-    arduino_logging_msg.override_steering = override_steering;
-    arduino_logging_msg.override_throttle = override_throttle;
-    arduino_logging_msg.steering_fbk = steering_fbk;
-
-    arduino_logging_pub.publish(&arduino_logging_msg);
-  }
-
-
-  // IMU reading and publishing
-  imu::Vector<3> acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER); // Acceleration
-  // imu::Quaternion quat = bno.getQuat();   // orientation
-  imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);  // angular velocity
-
-  imu_msg.ax = acc.x();
-  imu_msg.ay = acc.y();
-  imu_msg.az = acc.z();
-
-  imu_msg.gx = gyro.x();
-  imu_msg.gy = gyro.y();
-  imu_msg.gz = gyro.z();
-
-  imu_pub.publish(&imu_msg);
-
-  if (ROS_MODE) {
-    nh.spinOnce();
-  }
-
-  // display_value("steering_cmd_final ", steering_cmd_final);
-  // display_value("throttle_cmd_final ", throttle_cmd_final);
-  // display_value("engaged_mode", engaged_mode);
-  // display_value("override throttle ", override_throttle);
-  // display_value("override steering ", override_steering);
-
-  delay(5);
 }
