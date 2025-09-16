@@ -1,6 +1,7 @@
 from geometry_msgs.msg import PoseStamped, TwistStamped
 import rospy
 from std_msgs.msg import Float32, Float64
+from self_racing_car_msgs.msg import LateralControllerDebugInfo
 import tf
 
 
@@ -71,6 +72,12 @@ class LateralController:
             steering_pwm_cmd_topic_name,
             Float32,
             queue_size=10,
+        )
+
+        self.debug_pub = rospy.Publisher(
+            "debug_lateral_controller",
+            LateralControllerDebugInfo,
+            queue_size=10
         )
 
     def dynamic_reconfigure_callback(self, config, level):
@@ -152,15 +159,20 @@ class LateralController:
             elif self.current_velocity > self.UPPER_BOUND_REGION_3:
                 coeff = 1 / self.COEFF_REGION_3
 
-            steering_pwn_cmd = self.STEERING_IDLE_PWM - self.target_curvature / coeff
+            steering_pwm_cmd = self.STEERING_IDLE_PWM - self.target_curvature / coeff
 
-            if steering_pwn_cmd > self.STEERING_MAX_PWM:
-                steering_pwn_cmd = self.STEERING_MAX_PWM
-            elif steering_pwn_cmd < self.STEERING_MIN_PWM:
-                steering_pwn_cmd = self.STEERING_MIN_PWM
+            if steering_pwm_cmd > self.STEERING_MAX_PWM:
+                steering_pwm_cmd = self.STEERING_MAX_PWM
+            elif steering_pwm_cmd < self.STEERING_MIN_PWM:
+                steering_pwm_cmd = self.STEERING_MIN_PWM
 
-            self.steering_cmd_pub.publish(steering_pwn_cmd)
+            debug_msg = LateralControllerDebugInfo()
+            debug_msg.steering_pwm_cmd = steering_pwm_cmd
+            debug_msg.coeff = coeff
 
+
+            self.steering_cmd_pub.publish(steering_pwm_cmd)
+            self.debug_pub.publish(debug_msg)
             self.rate.sleep()
 
 

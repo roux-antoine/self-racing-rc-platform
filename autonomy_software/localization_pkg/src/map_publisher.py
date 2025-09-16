@@ -12,6 +12,7 @@ from typing import List, Tuple
 
 from geometry_msgs.msg import Point, TransformStamped
 from visualization_msgs.msg import Marker, MarkerArray
+from self_racing_car_msgs.msg import MapPublisherDebugInfo
 
 
 class PlacemarkType(Enum):
@@ -45,8 +46,14 @@ class MapPublisher:
             "map_viz", MarkerArray, queue_size=10, latch=True
         )
 
+        self.debug_pub = rospy.Publisher(
+            "debug_map_publisher", MapPublisherDebugInfo, queue_size=10, latch=True
+        )
+
         # Parameters
         self.map_file_name = rospy.get_param("~map_file_name", "MapSanMateoP1.kml")
+
+        self.map_viz = MarkerArray()
 
     def load_map(self):
         """
@@ -163,7 +170,8 @@ class MapPublisher:
 
             markerArray.markers.append(marker)
 
-        self.map_marker_pub.publish(markerArray)
+        self.map_viz = markerArray
+        self.map_marker_pub.publish(self.map_viz)
 
     def publish_tf_world_map(self, map):
         """
@@ -189,6 +197,12 @@ class MapPublisher:
         static_transform.transform.rotation.w = quaternion[3]
 
         broadcaster.sendTransform(static_transform)
+
+        debug_msg = MapPublisherDebugInfo()
+
+        debug_msg.static_transform = static_transform
+        debug_msg.map_viz = self.map_viz
+        self.debug_pub.publish(debug_msg)
 
 
 if __name__ == "__main__":

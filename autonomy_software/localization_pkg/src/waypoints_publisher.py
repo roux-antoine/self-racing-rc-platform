@@ -10,7 +10,11 @@ import rospy
 from typing import List
 
 from geometry_msgs.msg import Point
-from self_racing_car_msgs.msg import Waypoint, WaypointArray
+from self_racing_car_msgs.msg import (
+    Waypoint,
+    WaypointArray,
+    WaypointsPublisherDebugInfo,
+)
 from visualization_msgs.msg import Marker
 
 
@@ -25,6 +29,12 @@ class WaypointsPublisher:
         )
         self.waypoint_marker_pub = rospy.Publisher(
             "waypoints_viz", Marker, queue_size=10, latch=True
+        )
+        self.debug_pub = rospy.Publisher(
+            "debug_waypoints_publisher",
+            WaypointsPublisherDebugInfo,
+            queue_size=10,
+            latch=True,
         )
 
         """ Parameters """
@@ -132,9 +142,14 @@ class WaypointsPublisher:
 
             # wp_marker_array_msg.markers.append(marker_msg)
 
+        debug_msg = WaypointsPublisherDebugInfo()
+        debug_msg.waypoints_viz = marker_msg
+        debug_msg.waypoints = wp_array_msg
+
         """ Publish """
         self.waypoint_pub.publish(wp_array_msg)
         self.waypoint_marker_pub.publish(marker_msg)
+        self.debug_pub.publish(debug_msg)
 
 
 if __name__ == "__main__":

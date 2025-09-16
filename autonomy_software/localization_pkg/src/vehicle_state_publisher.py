@@ -12,12 +12,17 @@ import rospy
 import tf
 import utm
 
-from geometry_msgs.msg import PoseStamped, TwistStamped
+# from datetime import datetime, timezone
+from geometry_msgs.msg import (
+    PoseStamped,
+    TwistStamped,
+    TransformStamped,
+)
 from nmea_msgs.msg import Gprmc
 
 
 from dynamic_reconfigure.server import Server
-
+from self_racing_car_msgs.msg import VehicleStatePublisherDebugInfo
 from dynamic_reconfigure_pkg.cfg import (
     vehicle_state_publisherConfig,
 )
@@ -36,6 +41,12 @@ class VehicleStatePublisher:
         self.pub_pose = rospy.Publisher("current_pose", PoseStamped, queue_size=10)
         self.pub_velocity = rospy.Publisher(
             "current_velocity", TwistStamped, queue_size=10
+        )
+
+        self.debug_pub = rospy.Publisher(
+            "debug_vehicle_state_publisher",
+            VehicleStatePublisherDebugInfo,
+            queue_size=10,
         )
 
         self.rate = rospy.Rate(1000)
@@ -115,9 +126,27 @@ class VehicleStatePublisher:
             (x_utm, y_utm, 0), quaternion, rospy.Time.now(), "car", "world"
         )
 
+        """ Creating the debug info """
+        debug_tf_stamped = TransformStamped()
+        debug_tf_stamped.transform.translation.x = x_utm
+        debug_tf_stamped.transform.translation.y = y_utm
+        debug_tf_stamped.transform.translation.z = y_utm
+        debug_tf_stamped.transform.rotation.x = pose_msg.pose.orientation.x
+        debug_tf_stamped.transform.rotation.y = pose_msg.pose.orientation.y
+        debug_tf_stamped.transform.rotation.z = pose_msg.pose.orientation.z
+        debug_tf_stamped.transform.rotation.w = pose_msg.pose.orientation.w
+        debug_tf_stamped.child_frame_id = "car"
+
+        debug_msg = VehicleStatePublisherDebugInfo()
+        debug_msg.current_pose = pose_msg
+        debug_msg.current_velocity = vel_msg
+        debug_msg.gps_timestamp = rmc_msg.utc_seconds
+        debug_msg.tf_stamped = debug_tf_stamped
+
         """ Publish topics """
         self.pub_pose.publish(pose_msg)
         self.pub_velocity.publish(vel_msg)
+        self.debug_pub.publish(debug_msg)
 
 
 if __name__ == "__main__":

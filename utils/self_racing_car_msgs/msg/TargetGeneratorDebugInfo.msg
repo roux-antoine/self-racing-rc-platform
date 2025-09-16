@@ -1,0 +1,6 @@
+float64 target_curvature
+float64 target_velocity
+float64 target_point_x
+float64 target_point_y
+int32 next_waypoint_id
+int32 closest_waypoint_id
