@@ -8,7 +8,7 @@ import sys
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import csv
+import pandas as pd
 
 # HACK antoine, fix the import
 sys.path.append(
@@ -17,7 +17,7 @@ sys.path.append(
 from bagfile_loader import BagfileLoader  # noqa: E402
 from geometry_utils import fit_circle_to_points  # noqa: E402
 
-# HACK antoine move these values in a better place
+# HACK antoine move these values in a better place from vehicle_models_pkg.vehicle_models_constants
 MIN_STEERING_CMD = 68
 MAX_STEERING_CMD = 120
 MIN_STEERING_FBK = 215
@@ -67,8 +67,8 @@ def fit_circles(
         List of fitted circle parameters for each window
     """
     STEP = 5
-    SPEED_RANGE_THRESHOLD = 1.0  # m/s
-    STEERING_CMD_RANGE_THRESHOLD = 5.0  # PWM units
+    SPEED_RANGE_THRESHOLD = 0.8  # m/s
+    STEERING_CMD_RANGE_THRESHOLD = 3.0  # PWM units
 
     # Convert records to a sorted list of (timestamp, record) tuples
     sorted_records = sorted(bagfile_records.items())
@@ -111,7 +111,12 @@ def fit_circles(
                 speed_range = max(speeds) - min(speeds)
                 steering_cmd_range = max(steering_commands) - min(steering_commands)
                 steering_fbk_range = max(steering_feedbacks) - min(steering_feedbacks)
-
+                relative_variation_steering_cmd = steering_cmd_range / (
+                    MAX_STEERING_CMD - MIN_STEERING_CMD
+                )
+                relative_variation_steering_fbk = steering_fbk_range / (
+                    MAX_STEERING_FBK - MIN_STEERING_FBK
+                )
                 if debug:
                     # Create subplot figure with 4 rows, 1 column
                     fig = make_subplots(
@@ -213,6 +218,15 @@ def fit_circles(
                         row=2,
                         col=1,
                     )
+                    fig.add_annotation(
+                        x=relative_times[-1],
+                        y=MAX_STEERING_CMD - 5,
+                        showarrow=False,
+                        text=f"Relative Variation: {relative_variation_steering_cmd:.0%}",  # noqa: E231
+                        font=dict(size=12, color="black"),
+                        row=2,
+                        col=1,
+                    )
 
                     # Third subplot: steering feedback
                     fig.add_trace(
@@ -248,6 +262,15 @@ def fit_circles(
                         x1=relative_times[-1],
                         y1=MAX_STEERING_FBK,
                         line=dict(color="black", width=2),
+                        row=3,
+                        col=1,
+                    )
+                    fig.add_annotation(
+                        x=relative_times[-1],
+                        y=MAX_STEERING_FBK - 20,
+                        text=f"Relative Variation: {relative_variation_steering_fbk:.0%}",  # noqa: E231
+                        showarrow=False,
+                        font=dict(size=12, color="black"),
                         row=3,
                         col=1,
                     )
@@ -307,6 +330,8 @@ def fit_circles(
                         "mean_speed": np.mean(speeds),
                         "mean_steering_cmd": np.mean(steering_commands),
                         "mean_steering_fbk": np.mean(steering_feedbacks),
+                        "relative_variation_steering_cmd": relative_variation_steering_cmd,
+                        "relative_variation_steering_fbk": relative_variation_steering_fbk,
                     }
                 )
 
@@ -380,25 +405,9 @@ def main():
             csv_filename = os.path.join(args.bagfiles_folder, "fitted_circles.csv")
             print(f"\nWriting {len(all_circle_fits)} fitted circles to {csv_filename}")
 
-            with open(csv_filename, "w", newline="") as csvfile:
-                fieldnames = [
-                    "radius",
-                    "mean_speed",
-                    "mean_steering_cmd",
-                    "mean_steering_fbk",
-                ]
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-                writer.writeheader()
-                for circle_fit in all_circle_fits:
-                    writer.writerow(
-                        {
-                            "radius": circle_fit["radius"],
-                            "mean_speed": circle_fit["mean_speed"],
-                            "mean_steering_cmd": circle_fit["mean_steering_cmd"],
-                            "mean_steering_fbk": circle_fit["mean_steering_fbk"],
-                        }
-                    )
+            # Save all_circle_fits using pandas
+            df = pd.DataFrame(all_circle_fits)
+            df.to_csv(csv_filename, index=False)
 
             print(f"CSV file written successfully with {len(all_circle_fits)} rows")
         else:
