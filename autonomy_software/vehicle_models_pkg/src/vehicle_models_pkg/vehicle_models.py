@@ -12,8 +12,6 @@ from vehicle_models_pkg.vehicle_models_constants import (
 
 from typing import List
 
-# TODO change them all to the current angle that we get from the potentiometer?
-
 
 class CarModelBase:
     """Base class for car models.
@@ -21,10 +19,12 @@ class CarModelBase:
     Child classes shall implement the `step` method to update the vehicle state based on commands etc.
     """
 
-    def __init__(self):
+    VERY_LARGE_RADIUS = 100000  # radius to return when steering is at the idle position (in m)
+
+    def __init__(self) -> None:
         self.states: List[State] = []
 
-    def init(self, x: float, y: float, vx: float, angle: float):
+    def init(self, x: float, y: float, vx: float, angle: float) -> None:
         self.states.append(
             State(
                 x=x,
@@ -41,14 +41,15 @@ class CarModelBase:
         self,
         dt: float,
         cmd_steering: float,
-    ):
+    ) -> None:
         """Make one step of the vehicle model state, based on commands.
 
         This method needs to be implemented in the child classes.
         """
+        raise NotImplementedError
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.__class__.__name__
 
 
@@ -58,20 +59,24 @@ class CarModelBicyclePure(CarModelBase):
     The model assumes that the car is moving in a circular path, with a constant radius determined by the steering command.
     """
 
-    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float):
-        """Has to be implemented in the child class."""
+    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float) -> float:
+        """Formula to compute the turning radius from the steering command.
 
-    def compute_steering_command_from_radius(self, radius: float, speed: float):
+        Has to be implemented in the child class."""
+        raise NotImplementedError
+
+    def compute_steering_command_from_radius(self, radius: float, speed: float) -> float:
         """Has to be implemented in the child class.
 
         Obtained by inversing the compute_radius_from_steering_command function.
         """
+        raise NotImplementedError
 
     def step(
         self,
         dt: float,
         cmd_steering: float,
-    ):
+    ) -> None:
 
         x = self.states[-1].x
         y = self.states[-1].y
@@ -89,7 +94,7 @@ class CarModelBicyclePure(CarModelBase):
                 x=updated_x,
                 y=updated_y,
                 z=None,
-                vx=self.states[-1].state.vx,
+                vx=self.states[-1].vx,
                 vy=None,
                 vz=None,
                 angle=updated_yaw,
@@ -104,10 +109,10 @@ class CarModelBicycleV0(CarModelBicyclePure):
     i.e. the V0 model.
     """
 
-    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float):
-        """TODO"""
+    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float) -> float:
+        """Formula to compute the turning radius from the steering command."""
         if cmd_steering == STEERING_PWM_IDLE:
-            return 100000000  # TODO make this better
+            return self.VERY_LARGE_RADIUS
         else:
             return WHEELBASE / (
                 np.tan(
@@ -117,7 +122,7 @@ class CarModelBicycleV0(CarModelBicyclePure):
                 )
             )
 
-    def compute_steering_command_from_radius(self, radius: float, speed: float):
+    def compute_steering_command_from_radius(self, radius: float, speed: float) -> float:
         """Obtained by inversing the compute_radius_from_steering_command function."""
         return STEERING_PWM_IDLE + STEERING_DIRECTION_FACTOR * (
             PWM_DIFF_AT_MAX_STEER_ANGLE / PHYSICAL_MAX_STEERING_ANGLE_RAD
@@ -131,10 +136,10 @@ class CarModelBicycleV1(CarModelBicyclePure):
     i.e. the V1 model.
     """
 
-    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float):
+    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float) -> float:
         """TODO"""
         if cmd_steering == STEERING_PWM_IDLE:
-            return 100000000  # TODO make this better
+            return self.VERY_LARGE_RADIUS
         else:
             return WHEELBASE / (
                 np.tan(
@@ -147,7 +152,7 @@ class CarModelBicycleV1(CarModelBicyclePure):
                 )
             )
 
-    def compute_steering_command_from_radius(self, radius: float, speed: float):
+    def compute_steering_command_from_radius(self, radius: float, speed: float) -> float:
         """Obtained by inversing the compute_radius_from_steering_command function."""
         return STEERING_PWM_IDLE + STEERING_DIRECTION_FACTOR * (
             PWM_DIFF_AT_MAX_STEER_ANGLE / EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1
@@ -161,22 +166,21 @@ class CarModelBicycleV2(CarModelBicyclePure):
     i.e. the V2 model.
     """
 
-    UPPER_BOUND_REGION_1 = 1.5  # m/s
-    UPPER_BOUND_REGION_2 = 5  # m/s
-    UPPER_BOUND_REGION_3 = 8  # m/s
+    UPPER_BOUND_REGION_1: float = 1.5  # m/s
+    UPPER_BOUND_REGION_2: float = 5  # m/s
+    UPPER_BOUND_REGION_3: float = 8  # m/s
     # Coeffs are computed as: steering_diff * radius of circle at the given speed
-    COEFF_REGION_1 = 27 * 1.25
-    COEFF_REGION_2 = 24 * 2.3
-    COEFF_REGION_3 = 26 * 4
+    COEFF_REGION_1: float = 27 * 1.25
+    COEFF_REGION_2: float = 24 * 2.3
+    COEFF_REGION_3: float = 26 * 4
 
-    def _compute_coefficient(self, speed: float):
-        """TODO."""
+    def _compute_coefficient(self, speed: float) -> float:
+        """Compute the coefficient used to compute the required turning radius, see model description for more details."""
 
         if speed < 0:
-            # TODO shall we raise an error here?
-            coeff = 100000000  # TODO make this better
+            raise ValueError("Speed cannot be negative!")
         if speed == 0:
-            coeff = 100000000  # TODO make this better
+            coeff = self.VERY_LARGE_RADIUS
         elif speed > 0 and speed <= self.UPPER_BOUND_REGION_1:
             coeff = self.COEFF_REGION_1
         elif speed > self.UPPER_BOUND_REGION_1 and speed <= self.UPPER_BOUND_REGION_2:
@@ -189,15 +193,15 @@ class CarModelBicycleV2(CarModelBicyclePure):
             ) / (self.UPPER_BOUND_REGION_3 - self.UPPER_BOUND_REGION_2)
         elif speed > self.UPPER_BOUND_REGION_3:
             coeff = self.COEFF_REGION_3
-
-        print(f"Speed: {speed}, coeff: {coeff}")
+        else:
+            raise ValueError("This should never happen!")
 
         return coeff
 
-    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float):
-        """TODO"""
+    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float) -> float:
+        """Formula to compute the turning radius from the steering command."""
         if cmd_steering == STEERING_PWM_IDLE:
-            return 100000000  # TODO make this better
+            return self.VERY_LARGE_RADIUS
         else:
             coeff = self._compute_coefficient(speed)
             radius = (
@@ -205,12 +209,10 @@ class CarModelBicycleV2(CarModelBicyclePure):
             )
             return radius
 
-    def compute_steering_command_from_radius(self, radius: float, speed: float):
+    def compute_steering_command_from_radius(self, radius: float, speed: float) -> float:
         """Obtained by inversing the compute_radius_from_steering_command function."""
         if radius == 0:
             return STEERING_PWM_IDLE
         else:
             coeff = self._compute_coefficient(speed)
-            print(radius, coeff)
             return STEERING_PWM_IDLE + STEERING_DIRECTION_FACTOR * (coeff / radius)
-            # return STEERING_PWM_IDLE + STEERING_DIRECTION_FACTOR * (radius / coeff)

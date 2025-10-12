@@ -15,7 +15,7 @@ class State:
         vx: float = 0,
         vy: float = 0,
         vz: float = 0,
-        angle: float = 0,  # TODO can we use yaw instead of angle?
+        angle: float = 0,
     ):
         self.x = x
         self.y = y
