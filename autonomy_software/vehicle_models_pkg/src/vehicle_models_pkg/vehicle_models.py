@@ -19,7 +19,8 @@ class CarModelBase:
     Child classes shall implement the `step` method to update the vehicle state based on commands etc.
     """
 
-    VERY_LARGE_RADIUS = 100000  # radius to return when steering is at the idle position (in m)
+    # radius to return when steering is at the idle position (in m)
+    VERY_LARGE_RADIUS = 100000
 
     def __init__(self) -> None:
         self.states: List[State] = []
@@ -59,13 +60,17 @@ class CarModelBicyclePure(CarModelBase):
     The model assumes that the car is moving in a circular path, with a constant radius determined by the steering command.
     """
 
-    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float) -> float:
+    def compute_radius_from_steering_command(
+        self, cmd_steering: float, speed: float
+    ) -> float:
         """Formula to compute the turning radius from the steering command.
 
         Has to be implemented in the child class."""
         raise NotImplementedError
 
-    def compute_steering_command_from_radius(self, radius: float, speed: float) -> float:
+    def compute_steering_command_from_radius(
+        self, radius: float, speed: float
+    ) -> float:
         """Has to be implemented in the child class.
 
         Obtained by inversing the compute_radius_from_steering_command function.
@@ -109,7 +114,9 @@ class CarModelBicycleV0(CarModelBicyclePure):
     i.e. the V0 model.
     """
 
-    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float) -> float:
+    def compute_radius_from_steering_command(
+        self, cmd_steering: float, speed: float
+    ) -> float:
         """Formula to compute the turning radius from the steering command."""
         if cmd_steering == STEERING_IDLE_PWM:
             return self.VERY_LARGE_RADIUS
@@ -122,7 +129,9 @@ class CarModelBicycleV0(CarModelBicyclePure):
                 )
             )
 
-    def compute_steering_command_from_radius(self, radius: float, speed: float) -> float:
+    def compute_steering_command_from_radius(
+        self, radius: float, speed: float
+    ) -> float:
         """Obtained by inversing the compute_radius_from_steering_command function."""
         return STEERING_IDLE_PWM + STEERING_DIRECTION_FACTOR * (
             PWM_DIFF_AT_MAX_STEER_ANGLE / PHYSICAL_MAX_STEERING_ANGLE_RAD
@@ -136,7 +145,9 @@ class CarModelBicycleV1(CarModelBicyclePure):
     i.e. the V1 model.
     """
 
-    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float) -> float:
+    def compute_radius_from_steering_command(
+        self, cmd_steering: float, speed: float
+    ) -> float:
         """TODO"""
         if cmd_steering == STEERING_IDLE_PWM:
             return self.VERY_LARGE_RADIUS
@@ -152,7 +163,9 @@ class CarModelBicycleV1(CarModelBicyclePure):
                 )
             )
 
-    def compute_steering_command_from_radius(self, radius: float, speed: float) -> float:
+    def compute_steering_command_from_radius(
+        self, radius: float, speed: float
+    ) -> float:
         """Obtained by inversing the compute_radius_from_steering_command function."""
         return STEERING_IDLE_PWM + STEERING_DIRECTION_FACTOR * (
             PWM_DIFF_AT_MAX_STEER_ANGLE / EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1
@@ -198,7 +211,9 @@ class CarModelBicycleV2(CarModelBicyclePure):
 
         return coeff
 
-    def compute_radius_from_steering_command(self, cmd_steering: float, speed: float) -> float:
+    def compute_radius_from_steering_command(
+        self, cmd_steering: float, speed: float
+    ) -> float:
         """Formula to compute the turning radius from the steering command."""
         if cmd_steering == STEERING_IDLE_PWM:
             return self.VERY_LARGE_RADIUS
@@ -209,7 +224,9 @@ class CarModelBicycleV2(CarModelBicyclePure):
             )
             return radius
 
-    def compute_steering_command_from_radius(self, radius: float, speed: float) -> float:
+    def compute_steering_command_from_radius(
+        self, radius: float, speed: float
+    ) -> float:
         """Obtained by inversing the compute_radius_from_steering_command function."""
         if radius == 0:
             return STEERING_IDLE_PWM

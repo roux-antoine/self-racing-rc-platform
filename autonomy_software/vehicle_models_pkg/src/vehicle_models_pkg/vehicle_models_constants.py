@@ -8,7 +8,11 @@ EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1 = (
 STEERING_IDLE_PWM = 90
 STEERING_MIN_PWM = 64  # 62 + 2
 STEERING_MAX_PWM = 116  # 118 - 2
-STEERING_DIRECTION_FACTOR = -1  # Used because a positive change in steering command leads to a negative change in steering angle
+STEERING_DIRECTION_FACTOR = (
+    -1
+)  # Used because a positive change in steering command leads to a negative change in steering angle
 
 WHEELBASE = 0.406
-PWM_DIFF_AT_MAX_STEER_ANGLE = STEERING_MAX_PWM - STEERING_IDLE_PWM  # Assuming symmetric steering
+PWM_DIFF_AT_MAX_STEER_ANGLE = (
+    STEERING_MAX_PWM - STEERING_IDLE_PWM
+)  # Assuming symmetric steering
