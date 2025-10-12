@@ -118,11 +118,11 @@ To do so, we use one of the most basic approaches to model the behavior of a car
 
 In the bicycle model, the vehicle is represented as a set of 2 wheels, the front one being able to steer:
 
-![bicycle_model_basic.png](src/bicycle_model_basic.png)
+![bicycle_model_basic.png](images/bicycle_model_basic.png)
 
 The assumption is that there is no slip at the wheels, meaning that the movement of the vehicle is a circle, the center of which is the intersection of the normals at the wheels. Graphically speaking, this means:
 
-![bicycle_model_with_angles.png](src/bicycle_model_with_angles.png)
+![bicycle_model_with_angles.png](images/bicycle_model_with_angles.png)
 
 Where:
 
