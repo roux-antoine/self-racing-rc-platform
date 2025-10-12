@@ -203,14 +203,19 @@ class BagfileLoader:
             fig = go.Figure(data=go.Scatter(x=x_vals, y=y_vals, mode="lines+markers"))
             fig.show()
 
-    def extract_windows(self, min_window_size: int = 10, tolerance: int = 0) -> None:
+    def extract_windows(
+        self,
+        min_window_size: int = 10,
+        tolerance: int = 0,
+        allowed_fix_types: list = ["F", "R"],
+    ) -> None:
         """Find portions of the data where the GPS fix type is constant and valid (F or R).
 
         Args:
             - min_window_size (int): Minimum number of consecutive records with the same valid fix type to consider it a window.
             - tolerance (int): Number of consecutive invalid fix types allowed within a window before closing it.
+            - allowed_fix_types (list): List of fix types (e.g. Differential, Float, Rtk) considered valid for window extraction.
         """
-        ALLOWED_FIX_TYPES = ["F", "R"]
         current_window = {}
         last_fix_type = None
         tolerance_counter = 0
@@ -219,12 +224,12 @@ class BagfileLoader:
             current_fix_type = bagfile_record.fix_type
 
             if not last_fix_type:
-                if current_fix_type in ALLOWED_FIX_TYPES:
+                if current_fix_type in allowed_fix_types:
                     last_fix_type = current_fix_type
                 else:
                     continue
             else:
-                if current_fix_type not in ALLOWED_FIX_TYPES:
+                if current_fix_type not in allowed_fix_types:
                     if tolerance_counter < tolerance:
                         tolerance_counter += 1
                     else:
