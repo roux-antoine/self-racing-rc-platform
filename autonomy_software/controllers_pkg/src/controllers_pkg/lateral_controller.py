@@ -31,7 +31,7 @@ class LateralController:
         elif self.vehicle_model_type == LateralControllerType.CarModelBicycleV2:
             self.vehicle_model = CarModelBicycleV2()
         else:
-            raise ValueError(f"Unknown controller type: {self.controller_type}")
+            raise ValueError(f"Unknown controller type: {self.vehicle_model_type}")
 
         # Variables
         target_curvature_topic_name = rospy.get_param(
