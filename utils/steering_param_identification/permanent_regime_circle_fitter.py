@@ -18,8 +18,8 @@ from bagfile_loader import BagfileLoader  # noqa: E402
 from geometry_utils import fit_circle_to_points  # noqa: E402
 
 # HACK antoine move these values in a better place from vehicle_models_pkg.vehicle_models_constants
-MIN_STEERING_CMD = 68
-MAX_STEERING_CMD = 120
+MIN_STEERING_CMD = 64
+MAX_STEERING_CMD = 116
 MIN_STEERING_FBK = 215
 MAX_STEERING_FBK = 450
 
@@ -66,9 +66,11 @@ def fit_circles(
     Returns:
         List of fitted circle parameters for each window
     """
-    STEP = 5
-    SPEED_RANGE_THRESHOLD = 0.8  # m/s
-    STEERING_CMD_RANGE_THRESHOLD = 3.0  # PWM units
+    STEP = 3
+    SPEED_RANGE_THRESHOLD = 0.8  # m/s, 'arbitrarily' chosen
+    STEERING_CMD_RANGE_THRESHOLD = 3.0  # PWM units, 'arbitrarily' chosen
+    MIN_POSSIBLE_RADIUS = 1.25  # meters, measured on the real car
+    MIN_SPEED = 1  # m/s, below which we ignore the point
 
     # Convert records to a sorted list of (timestamp, record) tuples
     sorted_records = sorted(bagfile_records.items())
@@ -98,10 +100,14 @@ def fit_circles(
             # Fit circle to the points in this window
             center_x, center_y, radius = fit_circle_to_points(points)
 
-            if radius < radius_threshold:
+            if MIN_POSSIBLE_RADIUS < radius < radius_threshold:
 
                 # Compute ranges of interesting metrics
                 speeds = [record.state.vx for _, record in window_records]
+
+                if min(speeds) < MIN_SPEED:
+                    continue
+
                 steering_commands = [
                     record.steering_cmd for _, record in window_records
                 ]

@@ -102,14 +102,12 @@ class BagfileLoader:
                     gps_timestamps.append(t.to_sec())
                     fix_types.append(msg.mode_indicator)
 
-        # Maybe we should use the GPS time as the reference time?
-
         # Align all msgs to the GPS timestamps
         for gps_msg_time in gps_timestamps:
 
             # Find the closest pose timestamp
             closest_pose_time = [ts for ts in pose_timestamps if ts >= gps_msg_time][0]
-            if (closest_pose_time - gps_msg_time) > 0.2:
+            if (closest_pose_time - gps_msg_time) > 0.25:
                 raise ValueError(
                     f"Pose and GPS timestamps are too far apart: {closest_pose_time - gps_msg_time}"
                 )
@@ -118,7 +116,7 @@ class BagfileLoader:
             closest_velocity_time = [
                 ts for ts in velocity_timestamps if ts >= gps_msg_time
             ][0]
-            if (closest_velocity_time - gps_msg_time) > 0.2:
+            if (closest_velocity_time - gps_msg_time) > 0.25:
                 raise ValueError(
                     f"Velocity and GPS timestamps are too far apart: {closest_velocity_time - gps_msg_time}"
                 )
@@ -127,7 +125,7 @@ class BagfileLoader:
             closest_arduino_time = [
                 ts for ts in arduino_timestamps if ts >= gps_msg_time
             ][0]
-            if (closest_arduino_time - gps_msg_time) > 0.2:
+            if (closest_arduino_time - gps_msg_time) > 0.25:
                 raise ValueError(
                     f"Arduino and GPS timestamps are too far apart: {closest_arduino_time - gps_msg_time}"
                 )
