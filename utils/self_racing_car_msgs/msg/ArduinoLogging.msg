@@ -10,3 +10,4 @@ int64 tmp_pulse_width_3
 bool engaged_mode
 bool override_steering
 bool override_throttle
+int64 steering_fbk

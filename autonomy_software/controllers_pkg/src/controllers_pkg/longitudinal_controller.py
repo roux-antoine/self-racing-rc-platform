@@ -93,6 +93,12 @@ class LongitudinalController:
         self.pid_controller.ki = config["ki"]
         self.pid_controller.kd = config["kd"]
 
+        # Feedforward parameters
+        self.use_constant_feedforward = config["use_constant_feedforward"]
+        self.constant_feedforward_term = config["constant_feedforward_term"]
+        self.feedforward_velocity_gain = config["feedforward_velocity_gain"]
+        self.feedfoward_bias = config["feedfoward_bias"]
+
         return config
 
     def current_velocity_callback(self, msg: TwistStamped):
@@ -133,6 +139,8 @@ class LongitudinalController:
                     rospy.loginfo("-------------")
                     rospy.loginfo("Controller ON")
 
+                    # TODO: Soft start mechanism?
+
                     # Compute sample time
                     dt = time.time() - self.previous_t
 
@@ -147,7 +155,13 @@ class LongitudinalController:
                     rospy.loginfo(f"Throttle diff: {throttle_diff}")
 
                     # Add the controller's output value to the idle position
-                    throttle_value = self.throttle_idle_autonomous_pwm + throttle_diff
+                    # throttle_value = self.throttle_idle_autonomous_pwm + throttle_diff
+
+                    # Add the feedforward term
+                    feedforward = self.compute_feedforward_term(self.desired_velocity)
+
+                    # Add the feedforward's term to the controller's output
+                    throttle_value = throttle_diff + feedforward
 
                     #  --- Anti windup strategy ---
 
@@ -184,7 +198,7 @@ class LongitudinalController:
                     #  Publish result
                     self.publish_throttle_cmd(throttle_value)
                     self.publish_debug_pid(
-                        throttle_saturating, controller_saturating, p, i, d
+                        throttle_saturating, controller_saturating, p, i, d, feedforward, error,
                     )
 
                 else:
@@ -201,13 +215,32 @@ class LongitudinalController:
                 self.longitudinal_control_mode
                 == LongitudinalControlMode.ConstantPwmOutput
             ):
-
-                self.publish_throttle_cmd(self.constant_pwm_output)
+                if (
+                    self.speed_controller_enabled
+                    and duration_since_last_message
+                    < self.timeout_engage_msg_before_stop_secs
+                ):
+                    self.publish_throttle_cmd(self.constant_pwm_output)
+                else:
+                    #  Publish the throttle IDLE value
+                    self.publish_throttle_cmd(self.throttle_idle_autonomous_pwm)
 
             # Reset the previous time to avoid having a large integral value when we engage again
             self.previous_t = time.time()
 
             self.rate.sleep()
+
+    def compute_feedforward_term(self, desired_velocity):
+        """
+        Function to correlate desired velocity (m/s) to required throttle pwm
+        """
+
+        if self.use_constant_feedforward:
+            ff = self.constant_feedforward_term
+        else:
+            ff = self.feedforward_velocity_gain * desired_velocity + self.feedfoward_bias
+
+        return ff
 
     def publish_throttle_cmd(self, throttle_value: float):
         """
@@ -219,7 +252,7 @@ class LongitudinalController:
 
         self.throttle_cmd_pub.publish(throttle_msg)
 
-    def publish_debug_pid(self, throttle_saturating, controller_saturating, p, i, d):
+    def publish_debug_pid(self, throttle_saturating, controller_saturating, p, i, d, feedforward, error):
         """
         Function to publish debug info regarding speed controller
         """
@@ -230,6 +263,8 @@ class LongitudinalController:
         debug_msg.p = p
         debug_msg.i = i
         debug_msg.d = d
+        debug_msg.feedforward = feedforward
+        debug_msg.error = error
 
         self.pub_debug_pid.publish(debug_msg)
 

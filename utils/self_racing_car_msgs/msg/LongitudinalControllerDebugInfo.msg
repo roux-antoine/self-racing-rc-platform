@@ -3,3 +3,5 @@ bool controller_saturating
 float64 p
 float64 i
 float64 d
+float64 feedforward
+float64 error
