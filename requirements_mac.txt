@@ -10,6 +10,7 @@ matplotlib
 pandas
 pre-commit
 plotly
+scipy
 
 --extra-index-url https://rospypi.github.io/simple/
 rospy
