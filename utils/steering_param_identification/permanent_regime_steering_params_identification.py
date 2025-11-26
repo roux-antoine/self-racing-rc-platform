@@ -5,6 +5,10 @@ from scipy.optimize import curve_fit
 from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 
+
+# HACKY script to identify steering params from permanent regime data.
+
+
 SPEED_REGION_WIDTH = 0.5  # m/s
 COLORS = [
     "#1f77b4",
