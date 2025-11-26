@@ -14,14 +14,17 @@ import pandas as pd
 sys.path.append(
     "/Users/antoineroux/Downloads/self-racing-rc-platform-master/src/utils/geometry_utils_pkg/src/geometry_utils_pkg"
 )
+sys.path.append(
+    "/Users/antoineroux/Downloads/self-racing-rc-platform-master/src/autonomy_software/vehicle_models_pkg/src/vehicle_models_pkg"
+)
 from bagfile_loader import BagfileLoader  # noqa: E402
 from geometry_utils import fit_circle_to_points  # noqa: E402
-
-# HACK antoine move these values in a better place from vehicle_models_pkg.vehicle_models_constants
-MIN_STEERING_CMD = 64
-MAX_STEERING_CMD = 116
-MIN_STEERING_FBK = 215
-MAX_STEERING_FBK = 450
+from vehicle_models_constants import (  # noqa: E402
+    STEERING_MIN_PWM,
+    STEERING_MAX_PWM,
+    MIN_STEERING_FBK,
+    MAX_STEERING_FBK,
+)
 
 
 def find_bagfiles(folder_path: str) -> List[str]:
@@ -118,7 +121,7 @@ def fit_circles(
                 steering_cmd_range = max(steering_commands) - min(steering_commands)
                 steering_fbk_range = max(steering_feedbacks) - min(steering_feedbacks)
                 relative_variation_steering_cmd = steering_cmd_range / (
-                    MAX_STEERING_CMD - MIN_STEERING_CMD
+                    STEERING_MAX_PWM - STEERING_MIN_PWM
                 )
                 relative_variation_steering_fbk = steering_fbk_range / (
                     MAX_STEERING_FBK - MIN_STEERING_FBK
@@ -130,7 +133,7 @@ def fit_circles(
                         cols=1,
                         subplot_titles=(
                             "Trajectory and Fitted Circle",
-                            f"Steering Commands  (full range: {MIN_STEERING_CMD}-{MAX_STEERING_CMD})",
+                            f"Steering Commands  (full range: {STEERING_MIN_PWM}-{STEERING_MAX_PWM})",
                             f"Steering Feedback (full range: {MIN_STEERING_FBK}-{MAX_STEERING_FBK})",
                             "Speed (m/s)",
                         ),
@@ -145,8 +148,8 @@ def fit_circles(
                             0.13,
                             0.13,
                             0.13,
-                        ],  # Distribute space across 4 plots
-                        vertical_spacing=0.05,  # Minimal space between subplots
+                        ],
+                        vertical_spacing=0.05,
                     )
 
                     # Top subplot: trajectory and circle
@@ -202,14 +205,14 @@ def fit_circles(
                         col=1,
                     )
                     fig.update_yaxes(
-                        range=[MIN_STEERING_CMD - 1, MAX_STEERING_CMD + 1], row=2, col=1
+                        range=[STEERING_MIN_PWM - 1, STEERING_MAX_PWM + 1], row=2, col=1
                     )
                     fig.add_shape(
                         type="line",
                         x0=relative_times[0],
-                        y0=MIN_STEERING_CMD,
+                        y0=STEERING_MIN_PWM,
                         x1=relative_times[-1],
-                        y1=MIN_STEERING_CMD,
+                        y1=STEERING_MIN_PWM,
                         line=dict(color="black", width=2),
                         row=2,
                         col=1,
@@ -217,16 +220,16 @@ def fit_circles(
                     fig.add_shape(
                         type="line",
                         x0=relative_times[0],
-                        y0=MAX_STEERING_CMD,
+                        y0=STEERING_MAX_PWM,
                         x1=relative_times[-1],
-                        y1=MAX_STEERING_CMD,
+                        y1=STEERING_MAX_PWM,
                         line=dict(color="black", width=2),
                         row=2,
                         col=1,
                     )
                     fig.add_annotation(
                         x=relative_times[-1],
-                        y=MAX_STEERING_CMD - 5,
+                        y=STEERING_MAX_PWM - 5,
                         showarrow=False,
                         text=f"Relative Variation: {relative_variation_steering_cmd:.0%}",  # noqa: E231
                         font=dict(size=12, color="black"),
