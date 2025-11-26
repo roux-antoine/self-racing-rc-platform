@@ -21,6 +21,7 @@ class CarModelBase:
 
     # radius to return when steering is at the idle position (in m)
     VERY_LARGE_RADIUS = 100000
+    VERY_LARGE_COEFF = 100000
 
     def __init__(self) -> None:
         self.states: List[State] = []
@@ -175,8 +176,8 @@ class CarModelBicycleV1(CarModelBicyclePure):
 class CarModelBicycleV2(CarModelBicyclePure):
     """Models the car behavior as a kinematic bicycle model.
 
-    The model assumes that the car is moving in a circular path, with a constant radius determined by the steering command, using measurements at low speed,
-    i.e. the V2 model.
+    The model assumes that the car is moving in a circular path, with a constant radius determined by the steering command,
+    with the first attempt at parameter fitting (2023-2024), i.e. the V2 model.
     """
 
     UPPER_BOUND_REGION_1: float = 1.5  # m/s
@@ -220,7 +221,7 @@ class CarModelBicycleV2(CarModelBicyclePure):
         else:
             coeff = self._compute_coefficient(speed)
             radius = (
-                STEERING_DIRECTION_FACTOR * coeff * (cmd_steering - STEERING_IDLE_PWM)
+                STEERING_DIRECTION_FACTOR * coeff / (cmd_steering - STEERING_IDLE_PWM)
             )
             return radius
 
@@ -233,3 +234,59 @@ class CarModelBicycleV2(CarModelBicyclePure):
         else:
             coeff = self._compute_coefficient(speed)
             return STEERING_IDLE_PWM + STEERING_DIRECTION_FACTOR * (coeff / radius)
+
+
+class CarModelBicycleV3(CarModelBicycleV2):
+    """Models the car behavior as a kinematic bicycle model.
+
+    The model assumes that the car is moving in a circular path, with a constant radius determined by the steering command,
+    with the second attempt at parameter fitting (Oct 2025), i.e. the V3 model.
+
+    UNTESTED for now, will be tested once we have the simulator
+    TODO try to unify the V2 and V3 with a base class called region-based
+
+    """
+
+    SPEEDS_TO_COEFF_MAPPING = {
+        2: 12.67852795,
+        3: 12.29078091,
+        4: 10.12400495,
+        5: 9.71443423,
+        6: 9.55109679,
+        7: 10.15111903,
+    }
+
+    def _compute_coefficient(self, speed: float) -> float:
+        """Compute the coefficient used to compute the required turning radius, see model description for more details."""
+
+        if speed < 0:
+            raise ValueError("Speed cannot be negative!")
+        if speed == 0:
+            coeff = self.VERY_LARGE_COEFF
+        else:  # NOTE not very efficient, let's see if we can do better
+            # Get sorted speeds from the mapping
+            sorted_speeds = sorted(self.SPEEDS_TO_COEFF_MAPPING.keys())
+
+            # If speed is below the minimum, use the minimum speed's coefficient
+            if speed <= sorted_speeds[0]:
+                coeff = self.SPEEDS_TO_COEFF_MAPPING[sorted_speeds[0]]
+            # If speed is above the maximum, use the maximum speed's coefficient
+            elif speed >= sorted_speeds[-1]:
+                coeff = self.SPEEDS_TO_COEFF_MAPPING[sorted_speeds[-1]]
+            else:
+                # Find the two speeds that bound the current speed
+                for i in range(len(sorted_speeds) - 1):
+                    if sorted_speeds[i] <= speed <= sorted_speeds[i + 1]:
+                        lower_speed = sorted_speeds[i]
+                        upper_speed = sorted_speeds[i + 1]
+
+                        # Compute weighted average between the two coefficients
+                        lower_coeff = self.SPEEDS_TO_COEFF_MAPPING[lower_speed]
+                        upper_coeff = self.SPEEDS_TO_COEFF_MAPPING[upper_speed]
+
+                        # Weight factor: 0 means use lower_coeff, 1 means use upper_coeff
+                        weight = (speed - lower_speed) / (upper_speed - lower_speed)
+                        coeff = lower_coeff * (1 - weight) + upper_coeff * weight
+                        break
+
+        return coeff
