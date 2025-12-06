@@ -149,7 +149,7 @@ class CarModelBicycleV1(CarModelBicyclePure):
     def compute_radius_from_steering_command(
         self, cmd_steering: float, speed: float
     ) -> float:
-        """TODO"""
+        """Compute the radius of the turn that the car will follow, based on the steering command."""
         if cmd_steering == STEERING_IDLE_PWM:
             return self.VERY_LARGE_RADIUS
         else:
@@ -243,11 +243,12 @@ class CarModelBicycleV3(CarModelBicycleV2):
     with the second attempt at parameter fitting (Oct 2025), i.e. the V3 model.
 
     UNTESTED for now, will be tested once we have the simulator
-    TODO try to unify the V2 and V3 with a base class called region-based
+    TODO later: try to unify the V2 and V3 with a base class called region-based
 
     """
 
     SPEEDS_TO_COEFF_MAPPING = {
+        # mapping of the coeff associated with each speed region TODO modify the logic to use the center of the region
         2: 12.67852795,
         3: 12.29078091,
         4: 10.12400495,
