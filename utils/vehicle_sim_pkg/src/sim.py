@@ -150,7 +150,7 @@ class Sim:
 
                 # Predict next position
                 self.vehicle_model.step(
-                    dt=0.1,  # TODO: maybe un-harcode
+                    dt=0.1,  # TODO: maybe un-hardcode
                     cmd_steering=self.steering_pwm_cmd,
                 )
 
