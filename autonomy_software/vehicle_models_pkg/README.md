@@ -200,7 +200,7 @@ At this point, we could think that we’re done: we have have a way to compute t
 When testing this lateral controller on the car for a simple motion of following a circle of a given radius, we noticed that the car was not turning enough. According to the equations derived above, a vehicle with a wheelbase of 0.406m and a maximum steering angle of 30 degrees should be able to turn on a circle of radius:
 
 $$
-\begin{split}        & \theta = \arctan(\texttt{curvature} \times \texttt{WHEELBASE})\\        \iff & \theta = \arctan(\frac{\texttt{WHEELBASE}}{\texttt{radius}})\\        \iff & \tan(\theta) = \frac{\texttt{WHEELBASE}}{\texttt{radius}}\\        \iff & \texttt{radius} = \frac{\texttt{WHEELBASE}}{\tan(\theta)}\\ 
+\begin{split}        & \theta = \arctan(\texttt{curvature} \times \texttt{WHEELBASE})\\        \iff & \theta = \arctan(\frac{\texttt{WHEELBASE}}{\texttt{radius}})\\        \iff & \tan(\theta) = \frac{\texttt{WHEELBASE}}{\texttt{radius}}\\        \iff & \texttt{radius} = \frac{\texttt{WHEELBASE}}{\tan(\theta)}\\
   \end{split}
 $$
 
@@ -209,12 +209,12 @@ $$
 If we apply this formula to find the radius of the turn when the wheels are turned all the way (= at a steering angle of 30 degrees = 0.524 radians), we get:
 
 $$
-\begin{split}        & \texttt{radius\_min} = \frac{\texttt{WHEELBASE}}{\tan(\theta_\texttt{max})}\\ 
-& \texttt{radius\_min} = \frac{0.4\text{ m}}{\tan(0.524)}\\ 
+\begin{split}        & \texttt{radius\_min} = \frac{\texttt{WHEELBASE}}{\tan(\theta_\texttt{max})}\\
+& \texttt{radius\_min} = \frac{0.4\text{ m}}{\tan(0.524)}\\
 \text{So: } & \texttt{radius\_min} = 0.70\text{ m}\\    \end{split}
 $$
 
-However, we measured that the radius of the smallest circle we could drive on (at the slow speed we tested at) is 1.25m. This means that, for a circle of radius 1.25m, the car should turn all-the-way (i.e. 30 degrees), but the bicycle model was telling it to turn of only 17 degrees. 
+However, we measured that the radius of the smallest circle we could drive on (at the slow speed we tested at) is 1.25m. This means that, for a circle of radius 1.25m, the car should turn all-the-way (i.e. 30 degrees), but the bicycle model was telling it to turn of only 17 degrees.
 
 To account for this effect, we’ve defined the EFFECTIVE_MAX_STEER_ANGLE: the steering angle that the car appears to have when turning the wheels all the way. Which, at the low speed we tested at, was around 17 degrees (as opposed to 30 degrees). This resulted in a adapted version of the equation:
 
@@ -381,7 +381,7 @@ $$
 To keep things simple, I’ve divided the speed space in 4 regions: [0,1.5] ; [1.5,5] ; [5,8] ; [8,+∞]. For each region boundary, I’ve estimated the value of the coefficient from the data, using the formula just above: coeff = steering_diff x R.
 
 Inside a region, the coefficient is a linear interpolation of the values at the two boundaries.
-Which, in the end, yields the following algorithm: 
+Which, in the end, yields the following algorithm:
 
 ```python
 bound_region_1 = 1.5
@@ -397,7 +397,7 @@ elif speed > bound_region_1 and speed <= bound_region_2:
     coeff = coeff_region_1
         + (speed - bound_region_1)
         * (coeff_region_2 - coeff_region_1)
-        / (bound_region_2 - bound_region_1) 
+        / (bound_region_2 - bound_region_1)
 elif speed > bound_region_2 and speed <= bound_region_3:
     coeff = coeff_region_2
         + (speed - bound_region_2)
@@ -406,8 +406,8 @@ elif speed > bound_region_2 and speed <= bound_region_3:
 elif speed > bound_region_3:
     coeff =  coeff_region_3
 
-sterring_diff = curvature * coeff 
-return min(27, sterring_diff)  # min is here to avoid crazy large steering values
+steering_diff = curvature * coeff
+return min(27, steering_diff)  # min is here to avoid crazy large steering values
 
 # see the real implementation in autonomy_software/vehicle_models_pkg/src/vehicle_models_pkg/vehicle_models.py
 ```
@@ -431,4 +431,3 @@ This new model is not perfect, but it’s better. When testing it in real life, 
 
 A first and relatively easy next step is to optimize the regions (bounds and associated coefficients) to minimize the error on the training set.
 Another next step is to record more datapoints to: either improve the regions-based model, or be able to revisit some of the other models.
-
