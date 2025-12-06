@@ -3,7 +3,7 @@ import argparse
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
 import rosbag
-from geometry_utils import State
+from geometry_utils_pkg.geometry_utils import State
 
 
 try:
@@ -13,7 +13,7 @@ try:
     TF_AVAILABLE = True
 except ImportError:
     # if we are on mac, we don't have tf, so we use this custom package instead
-    import ros_geometry_utils
+    from geometry_utils_pkg import ros_geometry_utils
 
     TF_AVAILABLE = False
 

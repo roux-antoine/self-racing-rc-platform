@@ -4,9 +4,10 @@ import numpy as np
 from scipy.optimize import curve_fit
 from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
+import argparse
 
 
-# A bit hacky script to identify steering params from permanent regime data.
+# A-bit-hacky script to identify steering params from permanent regime data.
 
 # Define the function to fit
 def model_function(x_data, coeff):
@@ -30,7 +31,7 @@ COLORS = [
     "#bcbd22",
     "#17becf",
 ]
-STEERING_FBK_IDLE = 335  # measured by eye
+STEERING_FBK_IDLE = 335  # measured by eye from 2025-07-20 testing session
 
 
 def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
@@ -387,7 +388,31 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
 
 
 if __name__ == "__main__":
-    # TODO unhack
-    csv_path = "/Users/antoineroux/Downloads/san_mateo_2025-07-20/fitted_circles.csv"
+    parser = argparse.ArgumentParser(
+        description="Identify steering parameters from permanent regime data in CSV."
+    )
+    parser.add_argument(
+        "--csv-path",
+        type=str,
+        help="Path to the CSV file from permanent_regime_circle_fitter.py",
+    )
+    parser.add_argument(
+        "--plot-basics",
+        action="store_true",
+        default=True,
+        help="Plot basic information about the CSV data (default: True)",
+    )
+    parser.add_argument(
+        "--plot-individual-fits",
+        action="store_true",
+        default=True,
+        help="Plot the model fitted for each speed region (default: True)",
+    )
 
-    main(csv_path=csv_path, plot_basics=True, plot_individual_fits=True)
+    args = parser.parse_args()
+
+    main(
+        csv_path=args.csv_path,
+        plot_basics=args.plot_basics,
+        plot_individual_fits=args.plot_individual_fits,
+    )

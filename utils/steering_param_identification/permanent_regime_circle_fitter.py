@@ -10,16 +10,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 
-# HACK antoine, fix the import
-sys.path.append(
-    "/Users/antoineroux/Downloads/self-racing-rc-platform-master/src/utils/geometry_utils_pkg/src/geometry_utils_pkg"
-)
-sys.path.append(
-    "/Users/antoineroux/Downloads/self-racing-rc-platform-master/src/autonomy_software/vehicle_models_pkg/src/vehicle_models_pkg"
-)
-from bagfile_loader import BagfileLoader  # noqa: E402
-from geometry_utils import fit_circle_to_points  # noqa: E402
-from vehicle_models_constants import (  # noqa: E402
+from geometry_utils_pkg.bagfile_loader import BagfileLoader
+from geometry_utils_pkg.geometry_utils import fit_circle_to_points
+from vehicle_models_pkg.vehicle_models_constants import (
     STEERING_MIN_PWM,
     STEERING_MAX_PWM,
     MIN_STEERING_FBK,
@@ -368,7 +361,7 @@ def main():
         "--window-size",
         type=int,
         default=10,
-        help="Number of points in sliding window for circle fitting (default: 10)",
+        help="Number of points in sliding window for circle fitting",
     )
 
     args = parser.parse_args()
