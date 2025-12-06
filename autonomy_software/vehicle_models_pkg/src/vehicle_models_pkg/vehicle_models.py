@@ -244,11 +244,11 @@ class CarModelBicycleV3(CarModelBicycleV2):
 
     UNTESTED for now, will be tested once we have the simulator
     TODO later: try to unify the V2 and V3 with a base class called region-based
-
     """
 
     SPEEDS_TO_COEFF_MAPPING = {
-        # mapping of the coeff associated with each speed region TODO modify the logic to use the center of the region
+        # mapping of the coeff associated with each speed region, for the San Mateo 2025-07-20 bags
+        # TODO modify the logic to use the center of the region
         2: 12.67852795,
         3: 12.29078091,
         4: 10.12400495,

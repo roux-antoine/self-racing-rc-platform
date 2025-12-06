@@ -6,6 +6,11 @@ from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 import argparse
 
+from vehicle_models_pkg.vehicle_models_constants import (
+    STEERING_FBK_IDLE,
+    STEERING_IDLE_PWM,
+)
+
 
 # A-bit-hacky script to identify steering params from permanent regime data.
 
@@ -31,7 +36,6 @@ COLORS = [
     "#bcbd22",
     "#17becf",
 ]
-STEERING_FBK_IDLE = 335  # measured by eye from 2025-07-20 testing session
 
 
 def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
@@ -43,10 +47,14 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
 
     df = pd.read_csv(csv_path)
 
+    # Data cleaning
+    # Remove rows where steering command is at idle position
+    df = df[df["mean_steering_cmd"] != STEERING_IDLE_PWM]
+
     # Extract the relevant columns
     radius_df = df["radius"]
     steering_angle_df = df["mean_steering_cmd"]  # noqa: F841
-    steering_angle_diff_df = abs(df["mean_steering_cmd"] - 90)
+    steering_angle_diff_df = abs(df["mean_steering_cmd"] - STEERING_IDLE_PWM)
     speed_df = df["mean_speed"]
     steering_fbk_df = df["mean_steering_fbk"]
 
@@ -79,7 +87,7 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
             vmax=8,
         )
         plt.colorbar(label="Speed (m/s)")
-        plt.xlabel("Steering Diff (|cmd - 90|)")
+        plt.xlabel("Steering Diff (|cmd - STEERING_IDLE_PWM|)")
         plt.ylabel("Radius (m)")
         plt.title("Radius vs Steering Diff (Colored by Speed)")
         plt.grid(True)
@@ -196,7 +204,9 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
         )
         df_at_speed = df[speed_mask]
 
-        steering_angle_diff_df_at_speed = abs(df_at_speed["mean_steering_cmd"] - 90)
+        steering_angle_diff_df_at_speed = abs(
+            df_at_speed["mean_steering_cmd"] - STEERING_IDLE_PWM
+        )
         speed_df_at_speed = df_at_speed["mean_speed"]
         radius_df_at_speed = df_at_speed["radius"]
 
@@ -273,6 +283,11 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
                 )
             )
 
+            fig.update_layout(
+                title=f"Fitted Model at {considered_speed} m/s",
+                xaxis_title="Steering angle diff (|angle - idle|)",
+                yaxis_title="Radius (m)",
+            )
             fig.update_xaxes(range=[0, 25])
             fig.show()
 
