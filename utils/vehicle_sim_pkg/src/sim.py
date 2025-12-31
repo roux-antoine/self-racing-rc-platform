@@ -15,8 +15,6 @@ from geometry_utils_pkg.geometry_utils import State, MPS_TO_KNOTS
 from nmea_msgs.msg import Gprmc
 from self_racing_car_msgs.msg import ArduinoLogging
 from std_msgs.msg import Float32
-
-# from vehicle_models_pkg.vehicle_models import CarModelBicycleV1
 from vehicle_sim import LateralModel, LongitudinalModel, VehicleSim
 
 
@@ -155,14 +153,12 @@ class Sim:
             else:
                 # Predict next position given steering input
                 self.simulated_vehicle.predict_next_pose_from_steering_pwm_cmd(
-                    self.steering_pwm_cmd,
-                    constants.SIM_TIME_STEP_SECS,
+                    self.steering_pwm_cmd, constants.SIM_TIME_STEP_SECS
                 )
 
                 # Predict next velocity based on throttle input
                 self.simulated_vehicle.predict_next_velocity_from_throttle_pwm_cmd(
-                    self.throttle_pwm_cmd,
-                    constants.SIM_TIME_STEP_SECS,
+                    self.throttle_pwm_cmd, constants.SIM_TIME_STEP_SECS
                 )
 
                 # Publish current simulated state for debugging
