@@ -81,6 +81,8 @@ if DO_CLOSED_LOOP:
         bag_path="bags_2024-06-22/open_loop_rex_manor_2024-06-22-17-05-50.bag",
         debug=False,
     )
+    bagfile_loader.load()
+    bagfile_loader.create_windows()
 
     closed_loop_simulator_pure_bicycle_model = ClosedLoopSimulator(
         name="pure_bicycle_model",
