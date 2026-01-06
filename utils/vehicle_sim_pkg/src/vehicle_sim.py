@@ -5,8 +5,7 @@ from enum import Enum
 from geometry_utils_pkg.geometry_utils import State
 
 
-# NOTE: I think we can get rid of this file altogether, now that we have the vehicle models implemented.
-# We just need to port some of the logic in the from here into the vehicle models.
+# NOTE: We can likely replace some of the logic from here with some logic from vehicle_models_pkg
 
 
 class LateralModel(Enum):
@@ -47,7 +46,6 @@ class VehicleSim:
         """
 
         if self.lateral_model == LateralModel.PERFECT:
-
             self.current_state.x = (
                 self.current_state.x
                 + self.current_state.vx * np.cos(self.current_state.angle) * dt
@@ -111,7 +109,6 @@ class VehicleSim:
         target_velocity = self.throttle_pwm_to_velocity(throttle_pwm_cmd)
 
         if self.longitudinal_model == LongitudinalModel.ACC_P_CONTROl:
-
             desired_acc = self.desired_acc_gain_p * (
                 target_velocity - self.current_state.vx
             )
@@ -119,7 +116,6 @@ class VehicleSim:
             updated_speed = self.current_state.vx + desired_acc * dt
 
         elif self.longitudinal_model == LongitudinalModel.PERFECT:
-
             updated_speed = target_velocity
 
         # Lower bound
@@ -152,7 +148,6 @@ class VehicleSim:
         """
 
         if self.longitudinal_model == LongitudinalModel.ACC_P_CONTROl:
-
             desired_acc = self.desired_acc_gain_p * (
                 target_velocity - self.current_state.vx
             )
