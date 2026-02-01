@@ -229,7 +229,7 @@ class CarModelBicycleV2(CarModelBicyclePure):
         self, radius: float, speed: float
     ) -> float:
         """Obtained by inversing the compute_radius_from_steering_command function."""
-        if radius == 0:
+        if abs(radius) < 1e-3:
             return STEERING_IDLE_PWM
         else:
             coeff = self._compute_coefficient(speed)
