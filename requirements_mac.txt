@@ -1,0 +1,18 @@
+# On Mac OS we need special flags to install package in a venv style
+
+# Run the following commands before installing the packages
+# brew install lz4
+# export CFLAGS="-I$(brew --prefix lz4)/include"
+# export LDFLAGS="-L$(brew --prefix lz4)/lib"
+
+numpy
+matplotlib
+pandas
+pre-commit
+plotly
+scipy
+
+--extra-index-url https://rospypi.github.io/simple/
+rospy
+rosbag
+roslz4

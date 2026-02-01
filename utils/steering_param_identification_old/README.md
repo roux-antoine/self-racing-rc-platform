@@ -1,5 +1,7 @@
 # Scripts to do some parameter identification for the steering
 
+> ⚠️ **Warning:** These scripts are now deprecated, and only kept 'just in case'. See `utils/steering_param_identification` for new scripts.
+
 ## What is this
 
 Set of scripts to do parameter identification for the steering of the RC car, in order to create a steering model closer to the reality.

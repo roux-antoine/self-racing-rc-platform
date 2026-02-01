@@ -26,7 +26,7 @@ class VehicleSim:
         wheelbase_m: float = constants.WHEELBASE_M,
         lateral_model: LateralModel = LateralModel.PERFECT,
         longitudinal_model: LongitudinalModel = LongitudinalModel.ACC_P_CONTROl,
-        max_steering_rad: float = constants.MAX_STEERING_ANGLE_RAD,
+        max_steering_rad: float = constants.EFFECTIVE_MAX_STEERING_ANGLE_RAD,
         desired_acc_gain_p: float = constants.DESIRED_ACC_GAIN_P,
     ):
         self.current_state = initial_state
@@ -170,12 +170,12 @@ class VehicleSim:
         """
 
         b = (
-            constants.EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1
+            constants.EFFECTIVE_MAX_STEERING_ANGLE_RAD
             * constants.STEERING_PWM_IDLE
             / (constants.STEERING_PWM_IDLE - constants.STEERING_PWM_MIN)
         )
 
         return (
-            -constants.EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1
+            -constants.EFFECTIVE_MAX_STEERING_ANGLE_RAD
             / (constants.STEERING_PWM_IDLE - constants.STEERING_PWM_MIN)
         ) * steering_pwm + b

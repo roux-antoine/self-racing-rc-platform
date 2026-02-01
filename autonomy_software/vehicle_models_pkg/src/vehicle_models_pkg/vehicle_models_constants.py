@@ -16,3 +16,8 @@ WHEELBASE = 0.406
 PWM_DIFF_AT_MAX_STEER_ANGLE = (
     STEERING_MAX_PWM - STEERING_IDLE_PWM
 )  # Assuming symmetric steering
+
+# Measured by eye from 2025-08-24 testing session
+MIN_STEERING_FBK = 215
+MAX_STEERING_FBK = 450
+STEERING_FBK_IDLE = 335

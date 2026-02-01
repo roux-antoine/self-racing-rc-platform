@@ -122,7 +122,7 @@ class LateralController:
         while not rospy.is_shutdown():
 
             # Compute the commands based on the controller
-            if self.target_curvature == 0:
+            if abs(self.target_curvature) < 1e-3:
                 steering_command_pwm = self.STEERING_IDLE_PWM
             else:
                 steering_command_pwm = (
