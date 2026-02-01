@@ -1,17 +1,17 @@
 #!/usr/bin/python3
 
-from datetime import datetime, timezone
 import math
+from datetime import datetime, timezone
+
+import constants
 import numpy as np
 import rospy
 import tf
 import utm
-
-import constants
 from dynamic_reconfigure.server import Server
 from dynamic_reconfigure_pkg.cfg import vehicle_simConfig
 from geometry_msgs.msg import PoseStamped, TwistStamped
-from geometry_utils_pkg.geometry_utils import State, MPS_TO_KNOTS
+from geometry_utils_pkg.geometry_utils import MPS_TO_KNOTS, State
 from nmea_msgs.msg import Gprmc
 from self_racing_car_msgs.msg import ArduinoLogging
 from std_msgs.msg import Float32
@@ -73,7 +73,7 @@ class Sim:
         self.state_initialized = False
         self.tf_listener = tf.TransformListener()
         self.rate = rospy.Rate(rate)
-        self.steering_pwm_cmd = constants.NEUTRAL_STEERING_PWM_CMD
+        self.steering_pwm_cmd = constants.STEERING_PWM_IDLE
         self.throttle_pwm_cmd = constants.NEUTRAL_THROTTLE_PWM_CMD
 
     def clicked_point_callback(self, msg: PoseStamped):
@@ -116,7 +116,9 @@ class Sim:
         ):
             rospy.logwarn("Error during coordinate transform")
 
-    def dynamic_reconfigure_callback(self, config, level):
+    def dynamic_reconfigure_callback(
+        self, config, level
+    ):  # pylint: disable=unused-argument
         """
         Dynamic reconfigure callback, to change parameters.
 
@@ -224,7 +226,7 @@ class Sim:
         # Current time
         now = datetime.now(timezone.utc)
         utc_seconds = now.second + now.microsecond / 1000000
-        date = "%s-%s-%s" % (now.year, now.month, now.day)
+        date = f"{now.year}-{now.month}-{now.day}"
 
         # Track angle
         track_angle_deg = ((math.pi / 2) - current_state.angle) * 180 / np.pi

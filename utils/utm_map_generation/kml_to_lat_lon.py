@@ -1,6 +1,7 @@
 import glob
 import os
 
+
 flist = glob.glob(os.path.join("kml_files", "*.kml"))
 print("Available kml:")
 for path in flist:
@@ -13,12 +14,11 @@ first_time = True
 coordinates_line = None
 with open(f"kml_files/{filename_base}.kml") as kml_file:
     for line in kml_file:
-        if "-122" in line and first_time == False:
+        if "-122" in line and not first_time:
             coordinates_line = line.strip()
             break
         if "-122" in line:
             first_time = False
-        
 
 
 with open(f"lat_lon_files/{filename_base}.txt", "w") as out_file:

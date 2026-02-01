@@ -1,15 +1,12 @@
-from geometry_msgs.msg import PoseStamped, TwistStamped
 from enum import Enum, auto
+
 import rospy
-from std_msgs.msg import Float32, Float64
 import tf
-
-
-from geometry_utils_pkg.geometry_utils import State
-
 from dynamic_reconfigure.server import Server
-
 from dynamic_reconfigure_pkg.cfg import lateral_controllerConfig
+from geometry_msgs.msg import PoseStamped, TwistStamped
+from geometry_utils_pkg.geometry_utils import State
+from std_msgs.msg import Float32, Float64
 from vehicle_models_pkg.vehicle_models import CarModelBicycleV1, CarModelBicycleV2
 
 
@@ -78,7 +75,9 @@ class LateralController:
             queue_size=10,
         )
 
-    def dynamic_reconfigure_callback(self, config, level):
+    def dynamic_reconfigure_callback(
+        self, config, level
+    ):  # pylint: disable=unused-argument
         self.STEERING_IDLE_PWM = config["steering_idle_pwm"]
         self.STEERING_MAX_PWM = config["steering_max_pwm"]
         self.STEERING_MIN_PWM = config["steering_min_pwm"]
@@ -110,7 +109,9 @@ class LateralController:
         self.target_curvature = msg.data
 
     def callback_current_velocity(self, twist_msg: TwistStamped):
-        """ """
+        """
+        Store current velocity
+        """
         self.current_velocity = twist_msg.twist.linear.x
 
     def loop(self):

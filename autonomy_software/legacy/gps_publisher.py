@@ -6,8 +6,8 @@ import time
 import adafruit_gps
 import rospy
 import serial
-
 from self_racing_car_msgs.msg import RmcNmea
+
 
 PI_PORT = "/dev/ttyUSB0"
 
@@ -18,9 +18,7 @@ TODO:
 - improve error handling
 """
 
-"""
-Documentation for package: https://github.com/adafruit/Adafruit_CircuitPython_GPS
-"""
+# Documentation for package: https://github.com/adafruit/Adafruit_CircuitPython_GPS
 
 
 class GpsPublisher:
@@ -44,9 +42,10 @@ class GpsPublisher:
                 time.sleep(1)  # sleeping 1s to avoid looping every few microseconds
                 continue
             else:
-                if "PMTK514" in self.gps._raw_sentence:
+                raw_sent = self.gps._raw_sentence  # pylint: disable=protected-access
+                if "PMTK514" in raw_sent:
                     if (
-                        self.gps._raw_sentence
+                        raw_sent
                         == "$PMTK514,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*33"
                     ):
                         print("Command PMTK314 did run successfully")

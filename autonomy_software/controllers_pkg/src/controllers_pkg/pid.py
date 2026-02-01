@@ -1,6 +1,7 @@
 #!/usr/bin/python3
-import rospy
 from typing import Optional
+
+import rospy
 
 
 class PID:
@@ -75,9 +76,7 @@ class PID:
 
         if dt <= self.min_sampling_time_sec:
             rospy.logwarn(
-                "Input sampling time is {}, which is smaller than min of {}.".format(
-                    dt, self.min_sampling_time_sec
-                )
+                f"Input sampling time is {dt}, which is smaller than min of {self.min_sampling_time_sec}."
             )
 
         # Proportional component

@@ -4,8 +4,8 @@ import numpy as np
 import rospy
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
-
 from self_racing_car_msgs.msg import VehicleState
+
 
 # WAYPOINTS_FILEPATH = "/home/antoine/workspace/catkin_ws/src/utils/utm_map_generation/x_y_files/rex_manor_parking_lot_waypoints.txt"
 WAYPOINTS_FILEPATH = "/home/antoine/workspace/catkin_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_waypoints_detail_3m.txt"
@@ -77,7 +77,7 @@ class RealTimePlotter:
     def plotting_callback(self, msg):
         self.last_point = [msg.x, msg.y]
 
-    def animate(self, i):
+    def animate(self, i):  # pylint: disable=unused-argument
         if self.last_point not in self.previous_points:
             self.previous_points.append(self.last_point)
             plt.scatter(self.last_point[0], self.last_point[1])

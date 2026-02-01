@@ -1,0 +1,89 @@
+[MASTER]
+# Use multiple processes to speed up Pylint
+jobs=0
+
+# Pickle collected data for later comparisons
+persistent=yes
+
+[MESSAGES CONTROL]
+# Disable formatting-related checks that conflict with black, isort, and flake8
+disable=
+    # Formatting (handled by black)
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+    C0116,  # missing-function-docstring
+    C0301,  # line-too-long (black handles this)
+    C0303,  # trailing-whitespace (pre-commit handles this)
+    C0304,  # missing-final-newline (pre-commit handles this)
+    C0305,  # trailing-newlines (pre-commit handles this)
+    # Import order (handled by isort)
+    C0411,  # wrong-import-order
+    C0412,  # ungrouped-imports
+    C0413,  # wrong-import-position
+    # Duplicate checks with flake8
+    W0611,  # unused-import (flake8 F401)
+    W0612,  # unused-variable (flake8 F841)
+    # Other opinionated checks you may want to disable
+    C0103,  # Variable name ... doesn't conform to pattern
+    C0207,  # use-maxsplit-arg
+    E0211,  # Method ... has no argument
+    E0401,  # Unable to import ...
+    R0801,  # duplicate-code
+    R0902,  # too-many-instance-attributes
+    R0903,  # too-few-public-methods
+    R0912,  # too-many-branches
+    R0913,  # too-many-arguments
+    R0914,  # Too many local variables
+    R0915,  # too-many-statements
+    R1702,  # Too many nested blocks
+    R1705,  # Unnecessary "else" after "return"
+    R1723,  # Unnecessary "else" after "break"
+    R1724,  # Unnecessary "else" after "continue"
+    R1731,  # Consider using max(...)
+    W0102,  # Dangerous default value [] as argument
+    W0105,  # String statement has no effect
+    W0107,  # Unnecessary pass statement
+    W0201,  # Attribute ... defined outside __init__
+    W0511,  # TODO
+    W0718,  # Catching too general exception
+    W0719,  # Raising too general exception
+    W1514,  # Using open without explicitly specifying an encoding
+    W4901,  # Deprecated module
+
+
+[BASIC]
+# Good variable names which should always be accepted
+good-names=i,j,k,ex,Run,_,x,y,z,dt,dx,dy,dz,id,ax,fig
+
+# Regular expression matching correct function names
+function-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct variable names
+variable-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct constant names
+const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__))$
+
+# Regular expression matching correct class names
+class-rgx=[A-Z_][a-zA-Z0-9]+$
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=4
+
+# Ignore comments when computing similarities
+ignore-comments=yes
+
+# Ignore docstrings when computing similarities
+ignore-docstrings=yes
+
+# Ignore imports when computing similarities
+ignore-imports=yes
+
+[TYPECHECK]
+# List of members which are set dynamically and missed by pylint inference
+generated-members=numpy.*,np.*,torch.*,cv2.*,ros.*
+
+[IMPORTS]
+# Deprecated modules which should not be used, separated by a comma
+deprecated-modules=optparse,imp

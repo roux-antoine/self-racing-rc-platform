@@ -4,6 +4,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 THRESHOLD = 3  # meters
 
 wp_file = str(sys.argv[1])
@@ -69,7 +70,8 @@ plt.show()
 
 print(wp_file.split(".")[0])
 
-file_out = open(str(wp_file.split(".")[0] + "_detail_" + str(THRESHOLD) + "m.txt"), "w")
-
-for wp in wp_list:
-    file_out.writelines(str(wp[0]) + " " + str(wp[1]) + "\n")
+with open(
+    str(wp_file.split(".")[0] + "_detail_" + str(THRESHOLD) + "m.txt"), "w"
+) as file_out:
+    for wp in wp_list:
+        file_out.writelines(str(wp[0]) + " " + str(wp[1]) + "\n")

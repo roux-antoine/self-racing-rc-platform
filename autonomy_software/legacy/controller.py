@@ -1,17 +1,16 @@
 #!/usr/bin/python3
 
 import math
+import os
 import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import rospy
 import tf
-from matplotlib.animation import FuncAnimation
-
-from self_racing_car_msgs.msg import ControllerDebugInfo, VehicleCommand
 from geometry_msgs.msg import PoseStamped
+from matplotlib.animation import FuncAnimation
+from self_racing_car_msgs.msg import ControllerDebugInfo, VehicleCommand
 
 
 class State:
@@ -26,7 +25,7 @@ class State:
 
 
 class Waypoint:
-    def __init__(self, id, x, y, z):
+    def __init__(self, id, x, y, z):  # pylint: disable=redefined-builtin
         self.id = id
         self.x = x
         self.y = y
@@ -106,10 +105,8 @@ class Controller:
             self.waypoints_xs, self.waypoints_ys = self.load_waypoints(wp_file)
 
             self.current_waypoints = []
-            for i in range(len(self.waypoints_xs)):
-                self.current_waypoints.append(
-                    Waypoint(i, self.waypoints_xs[i], self.waypoints_ys[i], 0)
-                )
+            for i, (x, y) in enumerate(zip(self.waypoints_xs, self.waypoints_ys)):
+                self.current_waypoints.append(Waypoint(i, x, y, 0))
 
             # plt.scatter(waypoints_xs, waypoints_ys)
 
@@ -155,9 +152,9 @@ class Controller:
         ]
         (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(orientation_list)
 
-        if yaw <= 0 and yaw >= -math.pi:  # yaw in [-pi, 0]
+        if -math.pi <= yaw <= 0:  # yaw in [-pi, 0]
             self.current_state.angle = yaw
-        elif yaw > 0 and yaw <= math.pi:  # yaw in ]0, pi]
+        elif 0 < yaw <= math.pi:  # yaw in ]0, pi]
             self.current_state.angle = yaw - 2 * math.pi
 
         self.past_n_states.append(self.current_state)
@@ -168,7 +165,7 @@ class Controller:
         #     rospy.logwarn('Waiting for topics ...')
         #     self.rate_init.sleep()
 
-        if True:
+        if True:  # pylint: disable=using-constant-test
             # Find lookahead waypoint = First waypoint further than lookahead distance and in front of vehicle
             self.lookahead_wp, self.lookahead_wp_id = self.getNextWaypoint()
             self.wp_before_lookahead_wp_id = (
@@ -460,8 +457,8 @@ class Controller:
 
         self.controller_debug_info_pub.publish(debug_msg)
 
-    def load_waypoints(self, file):
-        with open(file) as waypoints_file:
+    def load_waypoints(self, filename):
+        with open(filename) as waypoints_file:
             waypoints_xs_ys = [
                 [float(line.split()[0]), float(line.split()[1])]
                 for line in waypoints_file.readlines()
@@ -472,25 +469,24 @@ class Controller:
 
         return waypoints_xs, waypoints_ys
 
-    def load_edges(self, file):
+    def load_edges(self, filename):
         edges_xs_list = []
         edges_ys_list = []
         tmp_xs = []
         tmp_ys = []
 
-        file = open(file, "r")
-
-        for line in file:
-            if line != "\n":
-                tmp_xs.append(float(line.split()[0]))
-                tmp_ys.append(float(line.split()[1]))
-            else:
+        with open(filename, "r") as edges_file:
+            for line in edges_file:
+                if line != "\n":
+                    tmp_xs.append(float(line.split()[0]))
+                    tmp_ys.append(float(line.split()[1]))
+                else:
+                    edges_xs_list.append(tmp_xs)
+                    edges_ys_list.append(tmp_ys)
+                    tmp_xs = []
+                    tmp_ys = []
                 edges_xs_list.append(tmp_xs)
                 edges_ys_list.append(tmp_ys)
-                tmp_xs = []
-                tmp_ys = []
-            edges_xs_list.append(tmp_xs)
-            edges_ys_list.append(tmp_ys)
 
         return edges_xs_list, edges_ys_list
 
@@ -553,15 +549,15 @@ class Controller:
     def prepare_map(self):
         self.ax.scatter(self.waypoints_xs, self.waypoints_ys)
 
-        for id, x, y in zip(
+        for i, x, y in zip(
             list(range(len(self.waypoints_xs))), self.waypoints_xs, self.waypoints_ys
         ):
-            self.ax.annotate(id, (x, y))
+            self.ax.annotate(i, (x, y))
 
         for edges_xs, edges_ys in zip(self.edges_xs_list, self.edges_ys_list):
             self.ax.plot(edges_xs, edges_ys)
 
-    def animate(self, i):
+    def animate(self, i):  # pylint: disable=unused-argument
         if self.current_state.x != 0 and self.current_state.y != 0:
             self.ax.scatter(self.current_state.x, self.current_state.y)
 

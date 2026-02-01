@@ -1,16 +1,15 @@
+from typing import List
+
 import numpy as np
 from geometry_utils_pkg.geometry_utils import State
 from vehicle_models_pkg.vehicle_models_constants import (
-    STEERING_IDLE_PWM,
-    STEERING_DIRECTION_FACTOR,
-    WHEELBASE,
     EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1,
-    PWM_DIFF_AT_MAX_STEER_ANGLE,
     PHYSICAL_MAX_STEERING_ANGLE_RAD,
+    PWM_DIFF_AT_MAX_STEER_ANGLE,
+    STEERING_DIRECTION_FACTOR,
+    STEERING_IDLE_PWM,
+    WHEELBASE,
 )
-
-
-from typing import List
 
 
 class CarModelBase:
@@ -195,13 +194,13 @@ class CarModelBicycleV2(CarModelBicyclePure):
             raise ValueError("Speed cannot be negative!")
         if speed == 0:
             coeff = self.VERY_LARGE_RADIUS
-        elif speed > 0 and speed <= self.UPPER_BOUND_REGION_1:
+        elif 0 < speed <= self.UPPER_BOUND_REGION_1:
             coeff = self.COEFF_REGION_1
-        elif speed > self.UPPER_BOUND_REGION_1 and speed <= self.UPPER_BOUND_REGION_2:
+        elif self.UPPER_BOUND_REGION_1 < speed <= self.UPPER_BOUND_REGION_2:
             coeff = self.COEFF_REGION_1 + (speed - self.UPPER_BOUND_REGION_1) * (
                 self.COEFF_REGION_2 - self.COEFF_REGION_1
             ) / (self.UPPER_BOUND_REGION_2 - self.UPPER_BOUND_REGION_1)
-        elif speed > self.UPPER_BOUND_REGION_2 and speed <= self.UPPER_BOUND_REGION_3:
+        elif self.UPPER_BOUND_REGION_2 < speed <= self.UPPER_BOUND_REGION_3:
             coeff = self.COEFF_REGION_2 + (speed - self.UPPER_BOUND_REGION_2) * (
                 self.COEFF_REGION_3 - self.COEFF_REGION_2
             ) / (self.UPPER_BOUND_REGION_3 - self.UPPER_BOUND_REGION_2)

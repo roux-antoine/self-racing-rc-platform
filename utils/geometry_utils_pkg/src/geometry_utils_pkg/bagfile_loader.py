@@ -1,7 +1,8 @@
-from typing import Dict, List
 import argparse
-import plotly.graph_objs as go
+from typing import Dict, List
+
 import matplotlib.pyplot as plt
+import plotly.graph_objs as go
 import rosbag
 from geometry_utils_pkg.geometry_utils import State
 
@@ -79,7 +80,11 @@ class BagfileLoader:
                             orientation_as_vec
                         )
                     else:
-                        (roll, pitch, yaw) = ros_geometry_utils.euler_from_quaternion(
+                        (
+                            roll,
+                            pitch,
+                            yaw,
+                        ) = ros_geometry_utils.euler_from_quaternion(  # pylint: disable=used-before-assignment
                             orientation_as_vec
                         )
                     position = msg.pose.position

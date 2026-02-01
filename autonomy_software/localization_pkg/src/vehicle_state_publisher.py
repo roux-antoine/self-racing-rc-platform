@@ -8,19 +8,14 @@ In this case, the best is probably to not publish
 """
 
 import math
+
 import rospy
 import tf
 import utm
-
+from dynamic_reconfigure.server import Server
+from dynamic_reconfigure_pkg.cfg import vehicle_state_publisherConfig
 from geometry_msgs.msg import PoseStamped, TwistStamped
 from nmea_msgs.msg import Gprmc
-
-
-from dynamic_reconfigure.server import Server
-
-from dynamic_reconfigure_pkg.cfg import (
-    vehicle_state_publisherConfig,
-)
 
 
 class VehicleStatePublisher:
@@ -42,7 +37,7 @@ class VehicleStatePublisher:
 
         self.last_msg_seq = None
 
-        """ Dynamic reconfigure setup """
+        # Dynamic reconfigure setup
         self.dynamic_reconfigure_server = Server(
             vehicle_state_publisherConfig,
             self.dynamic_reconfigure_callback,
@@ -50,7 +45,9 @@ class VehicleStatePublisher:
 
         rospy.logwarn("Finished init")
 
-    def dynamic_reconfigure_callback(self, config, level):
+    def dynamic_reconfigure_callback(
+        self, config, level
+    ):  # pylint: disable=unused-argument
         self.jumping_message_nbr = config["jumping_message_nbr"]
         return config
 

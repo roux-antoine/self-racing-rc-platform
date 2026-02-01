@@ -6,9 +6,9 @@ Notes:
 """
 
 import os
-import rospy
 from typing import List
 
+import rospy
 from geometry_msgs.msg import Point
 from self_racing_car_msgs.msg import Waypoint, WaypointArray
 from visualization_msgs.msg import Marker
@@ -61,7 +61,7 @@ class WaypointsPublisher:
         with open(wp_file) as waypoints_file:
 
             nb_fields = len(waypoints_file.readline().split())
-            has_speed = True if nb_fields > 2 else False
+            has_speed = nb_fields > 2
 
             for line in waypoints_file.readlines():
 

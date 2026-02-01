@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 
 import datetime as dt
+
 import rospy
 import serial
+from nmea_msgs.msg import Gprmc
 from pynmeagps import NMEAReader
 
-from nmea_msgs.msg import Gprmc
 
 SERIAL_PORT = "/dev/ttyACM0"
 BAUD_RATE = 9600

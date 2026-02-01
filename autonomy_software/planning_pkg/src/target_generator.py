@@ -1,26 +1,21 @@
 #!/usr/bin/python3
 
-import rospy
-from geometry_msgs.msg import PoseStamped, TwistStamped
-from self_racing_car_msgs.msg import WaypointArray
-from visualization_msgs.msg import Marker
+from enum import Enum
 
+import rospy
+import tf
+from dynamic_reconfigure.server import Server
+from dynamic_reconfigure_pkg.cfg import target_generatorConfig
+from geometry_msgs.msg import PoseStamped, TwistStamped
 from geometry_utils_pkg.geometry_utils import (
     State,
-    plane_distance,
     circle_line_segment_intersection,
     compute_curvature,
+    plane_distance,
 )
+from self_racing_car_msgs.msg import WaypointArray
 from std_msgs.msg import Float64
-import tf
-
-
-from dynamic_reconfigure.server import Server
-
-from dynamic_reconfigure_pkg.cfg import (
-    target_generatorConfig,
-)
-from enum import Enum
+from visualization_msgs.msg import Marker
 
 
 """
@@ -94,7 +89,9 @@ class TargetGenerator:
             self.dynamic_reconfigure_callback,
         )
 
-    def dynamic_reconfigure_callback(self, config, level):
+    def dynamic_reconfigure_callback(
+        self, config, level
+    ):  # pylint: disable=unused-argument
         self.lookahead_distance = config["lookahead_distance"]
         self.curvature_min = config["curvature_min"]
         self.speed_scale_factor = config["speed_scale_factor"]
@@ -215,7 +212,7 @@ class TargetGenerator:
             self.publish_target_speed(target_speed)
 
     def callback_current_velocity(self, twist_msg: TwistStamped):
-        """ """
+        """Callback for current velocity, for now don't do anything."""
         pass
 
     def callback_manual_input_speed(self, twist_msg: TwistStamped):

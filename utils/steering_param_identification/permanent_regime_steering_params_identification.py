@@ -1,11 +1,11 @@
-import pandas as pd
-import plotly.graph_objects as go
-import numpy as np
-from scipy.optimize import curve_fit
-from plotly.subplots import make_subplots
-import matplotlib.pyplot as plt
 import argparse
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from scipy.optimize import curve_fit
 from vehicle_models_pkg.vehicle_models_constants import (
     STEERING_FBK_IDLE,
     STEERING_IDLE_PWM,
@@ -157,14 +157,14 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
             x=steering_angle_diff_df,
             y=radius_df,
             mode="markers",
-            marker=dict(
-                color=speed_df,
-                colorscale="Viridis",
-                cmin=2.5,
-                cmax=8,
-                colorbar=dict(title="Speed (m/s)"),
-                opacity=0.8,
-            ),
+            marker={
+                "color": speed_df,
+                "colorscale": "Viridis",
+                "cmin": 2.5,
+                "cmax": 8,
+                "colorbar": {"title": "Speed (m/s)"},
+                "opacity": 0.8,
+            },
             name="Actual Data",
         )
     )
@@ -174,14 +174,14 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
             x=steering_angle_diff_df,
             y=y_fit_real_data,
             mode="markers",
-            marker=dict(
-                color=speed_df,
-                colorscale="Viridis",
-                cmin=2.5,
-                cmax=8,
-                symbol="x",
-                opacity=0.8,
-            ),
+            marker={
+                "color": speed_df,
+                "colorscale": "Viridis",
+                "cmin": 2.5,
+                "cmax": 8,
+                "symbol": "x",
+                "opacity": 0.8,
+            },
             name="Fitted Data",
         )
     )
@@ -245,13 +245,13 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
                     x=steering_angle_diff_df,
                     y=radius_df,
                     mode="markers",
-                    marker=dict(
-                        color="gray",
-                        cmin=2.5,
-                        cmax=8,
-                        colorbar=dict(title="Speed (m/s)"),
-                        opacity=0.3,
-                    ),
+                    marker={
+                        "color": "gray",
+                        "cmin": 2.5,
+                        "cmax": 8,
+                        "colorbar": {"title": "Speed (m/s)"},
+                        "opacity": 0.3,
+                    },
                     name="Actual Data",
                 )
             )
@@ -260,14 +260,14 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
                     x=steering_angle_diff_df_at_speed,
                     y=radius_df_at_speed,
                     mode="markers",
-                    marker=dict(
-                        color=speed_df_at_speed,
-                        colorscale="Viridis",
-                        cmin=2.5,
-                        cmax=8,
-                        colorbar=dict(title="Speed (m/s)"),
-                        opacity=1,
-                    ),
+                    marker={
+                        "color": speed_df_at_speed,
+                        "colorscale": "Viridis",
+                        "cmin": 2.5,
+                        "cmax": 8,
+                        "colorbar": {"title": "Speed (m/s)"},
+                        "opacity": 1,
+                    },
                     name="Actual Data",
                 )
             )
@@ -278,7 +278,7 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
                     x=steering_diff_linspace,
                     y=y_fit_at_N_m_per_s,
                     mode="markers",
-                    marker=dict(color="red", symbol="x", opacity=0.8),
+                    marker={"color": "red", "symbol": "x", "opacity": 0.8},
                     name="Model at N m/s",
                 )
             )
@@ -304,7 +304,7 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
             y=residuals_model_on_all_data,
             mode="markers",
             name="Errors vs Radius",
-            marker=dict(color="blue", opacity=0.7),
+            marker={"color": "blue", "opacity": 0.7},
         ),
         row=1,
         col=1,
@@ -316,7 +316,7 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
             y=residuals_model_on_all_data / radius_df,
             mode="markers",
             name="Errors (relative) vs Radius",
-            marker=dict(color="blue", opacity=0.7),
+            marker={"color": "blue", "opacity": 0.7},
         ),
         row=2,
         col=1,
@@ -328,7 +328,7 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
             y=residuals_model_on_all_data,
             mode="markers",
             name="Errors vs Speed",
-            marker=dict(color="black", opacity=0.7),
+            marker={"color": "black", "opacity": 0.7},
         ),
         row=3,
         col=1,
@@ -348,7 +348,7 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
                 y=residuals,
                 mode="markers",
                 name=f"Errors vs Speed (at {considered_speed} m/s)",
-                marker=dict(color=color, opacity=0.7),
+                marker={"color": color, "opacity": 0.7},
             ),
             row=3,
             col=1,
@@ -360,7 +360,7 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
             y=residuals_model_on_all_data / radius_df,
             mode="markers",
             name="Errors (relative) vs Speed",
-            marker=dict(color="black", opacity=0.7),
+            marker={"color": "black", "opacity": 0.7},
         ),
         row=4,
         col=1,
@@ -380,7 +380,7 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
                 y=residuals / df_at_speed["radius"],
                 mode="markers",
                 name=f"Errors (relative) vs Speed (at {considered_speed} m/s)",
-                marker=dict(color=color, opacity=0.7),
+                marker={"color": color, "opacity": 0.7},
             ),
             row=4,
             col=1,
