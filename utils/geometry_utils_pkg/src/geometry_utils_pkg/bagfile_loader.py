@@ -80,7 +80,11 @@ class BagfileLoader:
                             orientation_as_vec
                         )
                     else:
-                        (roll, pitch, yaw) = ros_geometry_utils.euler_from_quaternion(
+                        (
+                            roll,
+                            pitch,
+                            yaw,
+                        ) = ros_geometry_utils.euler_from_quaternion(  # pylint: disable=used-before-assignment
                             orientation_as_vec
                         )
                     position = msg.pose.position

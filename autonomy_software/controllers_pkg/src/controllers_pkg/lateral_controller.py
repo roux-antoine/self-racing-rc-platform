@@ -75,7 +75,9 @@ class LateralController:
             queue_size=10,
         )
 
-    def dynamic_reconfigure_callback(self, config, level):
+    def dynamic_reconfigure_callback(
+        self, config, level
+    ):  # pylint: disable=unused-argument
         self.STEERING_IDLE_PWM = config["steering_idle_pwm"]
         self.STEERING_MAX_PWM = config["steering_max_pwm"]
         self.STEERING_MIN_PWM = config["steering_min_pwm"]
@@ -107,7 +109,9 @@ class LateralController:
         self.target_curvature = msg.data
 
     def callback_current_velocity(self, twist_msg: TwistStamped):
-        """ """
+        """
+        Return current velocity
+        """
         self.current_velocity = twist_msg.twist.linear.x
 
     def loop(self):

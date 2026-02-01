@@ -77,7 +77,7 @@ class RealTimePlotter:
     def plotting_callback(self, msg):
         self.last_point = [msg.x, msg.y]
 
-    def animate(self, i):
+    def animate(self, i):  # pylint: disable=unused-argument
         if self.last_point not in self.previous_points:
             self.previous_points.append(self.last_point)
             plt.scatter(self.last_point[0], self.last_point[1])

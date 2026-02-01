@@ -21,7 +21,5 @@ while True:
     msg.throttle_angle = 90
     pub.publish(msg)
     print("sent message", msg.steering_angle)
-    foo = last_steering_angle
-    last_steering_angle = next_steering_angle
-    next_steering_angle = foo
+    last_steering_angle, next_steering_angle = next_steering_angle, last_steering_angle
     time.sleep(5)

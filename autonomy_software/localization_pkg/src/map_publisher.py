@@ -24,7 +24,7 @@ class MapComponent:
 
     def __init__(
         self,
-        type: PlacemarkType = PlacemarkType.Contour,
+        type: PlacemarkType = PlacemarkType.Contour,  # pylint: disable=redefined-builtin
         list_coordinates: List[Tuple[float, float]] = [],
     ):
         self.id: int = MapComponent.numInstances
@@ -46,6 +46,7 @@ class MapPublisher:
 
         # Parameters
         self.map_file_name = rospy.get_param("~map_file_name", "MapSanMateoP1.kml")
+        self.loaded_map = []
 
     def load_map(self):
         """
@@ -112,16 +113,16 @@ class MapPublisher:
                 # Add map component to list of map components
                 list_components.append(component)
 
-        return list_components
+        self.loaded_map = list_components
 
-    def publish_map(self, map):
+    def publish_map(self):
         """
         Function to publish a MarkerArray topic, containing Markers each representing a portion of the map
         """
 
         markerArray = MarkerArray()
 
-        for count, component in enumerate(map):
+        for count, component in enumerate(self.loaded_map):
 
             marker = Marker()
             marker.header.frame_id = "world"
@@ -164,7 +165,7 @@ class MapPublisher:
 
         self.map_marker_pub.publish(markerArray)
 
-    def publish_tf_world_map(self, map):
+    def publish_tf_world_map(self):
         """
         Function to publish the tf between world and map on the topic /tf_static
         """
@@ -176,8 +177,12 @@ class MapPublisher:
         static_transform.header.frame_id = "world"
         static_transform.child_frame_id = "map"
 
-        static_transform.transform.translation.x = (map[0].list_coordinates)[0][0]
-        static_transform.transform.translation.y = (map[0].list_coordinates)[0][1]
+        static_transform.transform.translation.x = (
+            self.loaded_map[0].list_coordinates
+        )[0][0]
+        static_transform.transform.translation.y = (
+            self.loaded_map[0].list_coordinates
+        )[0][1]
         static_transform.transform.translation.z = 0
 
         quaternion = tf.transformations.quaternion_from_euler(0, 0, 0)
@@ -195,11 +200,11 @@ if __name__ == "__main__":
         map_pub = MapPublisher()
 
         # Load waypoints
-        map = map_pub.load_map()
+        map_pub.load_map()
 
         # Publish map markers and tf
-        map_pub.publish_map(map)
-        map_pub.publish_tf_world_map(map)
+        map_pub.publish_map()
+        map_pub.publish_tf_world_map()
 
         rospy.spin()
 

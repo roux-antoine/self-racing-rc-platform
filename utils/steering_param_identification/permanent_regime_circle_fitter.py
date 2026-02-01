@@ -166,7 +166,7 @@ def fit_circles(
                                 y=out_y,
                                 mode="markers",
                                 name="Other Points",
-                                marker=dict(color="gray", size=5, opacity=0.5),
+                                marker={"color": "gray", "size": 5, "opacity": 0.5},
                             ),
                             row=1,
                             col=1,
@@ -192,7 +192,7 @@ def fit_circles(
                             y=steering_commands,
                             mode="lines+markers",
                             name="Steering Commands",
-                            line=dict(color="red"),
+                            line={"color": "red"},
                         ),
                         row=2,
                         col=1,
@@ -206,7 +206,7 @@ def fit_circles(
                         y0=STEERING_MIN_PWM,
                         x1=relative_times[-1],
                         y1=STEERING_MIN_PWM,
-                        line=dict(color="black", width=2),
+                        line={"color": "black", "width": 2},
                         row=2,
                         col=1,
                     )
@@ -216,7 +216,7 @@ def fit_circles(
                         y0=STEERING_MAX_PWM,
                         x1=relative_times[-1],
                         y1=STEERING_MAX_PWM,
-                        line=dict(color="black", width=2),
+                        line={"color": "black", "width": 2},
                         row=2,
                         col=1,
                     )
@@ -225,7 +225,7 @@ def fit_circles(
                         y=STEERING_MAX_PWM - 5,
                         showarrow=False,
                         text=f"Relative Variation: {relative_variation_steering_cmd:.0%}",  # noqa: E231
-                        font=dict(size=12, color="black"),
+                        font={"size": 12, "color": "black"},
                         row=2,
                         col=1,
                     )
@@ -237,7 +237,7 @@ def fit_circles(
                             y=steering_feedbacks,
                             mode="lines+markers",
                             name="Steering Feedback",
-                            line=dict(color="blue"),
+                            line={"color": "blue"},
                         ),
                         row=3,
                         col=1,
@@ -253,7 +253,7 @@ def fit_circles(
                         y0=MIN_STEERING_FBK,
                         x1=relative_times[-1],
                         y1=MIN_STEERING_FBK,
-                        line=dict(color="black", width=2),
+                        line={"color": "black", "width": 2},
                         row=3,
                         col=1,
                     )
@@ -263,7 +263,7 @@ def fit_circles(
                         y0=MAX_STEERING_FBK,
                         x1=relative_times[-1],
                         y1=MAX_STEERING_FBK,
-                        line=dict(color="black", width=2),
+                        line={"color": "black", "width": 2},
                         row=3,
                         col=1,
                     )
@@ -272,7 +272,7 @@ def fit_circles(
                         y=MAX_STEERING_FBK - 20,
                         text=f"Relative Variation: {relative_variation_steering_fbk:.0%}",  # noqa: E231
                         showarrow=False,
-                        font=dict(size=12, color="black"),
+                        font={"size": 12, "color": "black"},
                         row=3,
                         col=1,
                     )
@@ -284,7 +284,7 @@ def fit_circles(
                             y=speeds,
                             mode="lines+markers",
                             name="Speed",
-                            line=dict(color="green"),
+                            line={"color": "green"},
                         ),
                         row=4,
                         col=1,

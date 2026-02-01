@@ -89,7 +89,9 @@ class TargetGenerator:
             self.dynamic_reconfigure_callback,
         )
 
-    def dynamic_reconfigure_callback(self, config, level):
+    def dynamic_reconfigure_callback(
+        self, config, level
+    ):  # pylint: disable=unused-argument
         self.lookahead_distance = config["lookahead_distance"]
         self.curvature_min = config["curvature_min"]
         self.speed_scale_factor = config["speed_scale_factor"]
@@ -210,7 +212,7 @@ class TargetGenerator:
             self.publish_target_speed(target_speed)
 
     def callback_current_velocity(self, twist_msg: TwistStamped):
-        """ """
+        """Callback for current velocity, for now don't do anything."""
         pass
 
     def callback_manual_input_speed(self, twist_msg: TwistStamped):

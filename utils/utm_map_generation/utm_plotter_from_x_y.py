@@ -46,8 +46,8 @@ with open(input_name_edges) as edges_file:
 
 # Plotting things
 plt.scatter(waypoints_xs, waypoints_ys)
-for id, x, y in zip(range(len(waypoints_xs)), waypoints_xs, waypoints_ys):
-    plt.annotate(id, (x, y))
+for i, x, y in zip(range(len(waypoints_xs)), waypoints_xs, waypoints_ys):
+    plt.annotate(i, (x, y))
 for edges_xs, edges_ys in zip(edges_xs_list, edges_ys_list):
     plt.plot(edges_xs, edges_ys)
 

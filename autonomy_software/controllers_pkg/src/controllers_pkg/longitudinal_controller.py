@@ -67,7 +67,9 @@ class LongitudinalController:
             self.dynamic_reconfigure_callback,
         )
 
-    def dynamic_reconfigure_callback(self, config, level):
+    def dynamic_reconfigure_callback(
+        self, config, level
+    ):  # pylint: disable=unused-argument
         self.throttle_idle_autonomous_pwm = config["throttle_idle_autonomous_pwm"]
         self.throttle_max_autonomous_pwm = config["throttle_max_autonomous_pwm"]
         self.throttle_min_autonomous_pwm = config["throttle_min_autonomous_pwm"]
@@ -178,10 +180,7 @@ class LongitudinalController:
                         throttle_saturating = False
 
                     # Check if controller is trying to saturate the actuator even more
-                    if np.sign(error) == np.sign(throttle_diff):
-                        controller_saturating = True
-                    else:
-                        controller_saturating = False
+                    controller_saturating = np.sign(error) == np.sign(throttle_diff)
 
                     # If both above are true, then stop integrating.
                     if throttle_saturating and controller_saturating:

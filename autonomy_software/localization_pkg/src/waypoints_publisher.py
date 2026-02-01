@@ -61,7 +61,7 @@ class WaypointsPublisher:
         with open(wp_file) as waypoints_file:
 
             nb_fields = len(waypoints_file.readline().split())
-            has_speed = True if nb_fields > 2 else False
+            has_speed = nb_fields > 2
 
             for line in waypoints_file.readlines():
 

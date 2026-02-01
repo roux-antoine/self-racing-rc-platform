@@ -73,7 +73,7 @@ class Sim:
         self.state_initialized = False
         self.tf_listener = tf.TransformListener()
         self.rate = rospy.Rate(rate)
-        self.steering_pwm_cmd = constants.NEUTRAL_STEERING_PWM_CMD
+        self.steering_pwm_cmd = constants.STEERING_PWM_IDLE
         self.throttle_pwm_cmd = constants.NEUTRAL_THROTTLE_PWM_CMD
 
     def clicked_point_callback(self, msg: PoseStamped):
@@ -116,13 +116,15 @@ class Sim:
         ):
             rospy.logwarn("Error during coordinate transform")
 
-    def dynamic_reconfigure_callback(self, config, level):
+    def dynamic_reconfigure_callback(
+        self, config, level
+    ):  # pylint: disable=unused-argument
         """
         Dynamic reconfigure callback, to change parameters.
 
         Args:
             - config (dict): Dictionary containing current values of all reconfigurable parameters
-            - level (int): Bitmask used to indicate the level of change
+            - _level (int): Bitmask used to indicate the level of change (unused)
         """
         self.set_arduino_log_engage = config["set_arduino_log_engage"]
 
@@ -224,7 +226,7 @@ class Sim:
         # Current time
         now = datetime.now(timezone.utc)
         utc_seconds = now.second + now.microsecond / 1000000
-        date = "%s-%s-%s" % (now.year, now.month, now.day)
+        date = f"{now.year}-{now.month}-{now.day}"
 
         # Track angle
         track_angle_deg = ((math.pi / 2) - current_state.angle) * 180 / np.pi
