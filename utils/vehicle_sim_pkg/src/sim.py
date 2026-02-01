@@ -124,7 +124,7 @@ class Sim:
 
         Args:
             - config (dict): Dictionary containing current values of all reconfigurable parameters
-            - _level (int): Bitmask used to indicate the level of change (unused)
+            - level (int): Bitmask used to indicate the level of change
         """
         self.set_arduino_log_engage = config["set_arduino_log_engage"]
 

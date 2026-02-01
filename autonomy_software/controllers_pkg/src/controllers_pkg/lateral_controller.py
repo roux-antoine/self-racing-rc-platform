@@ -110,7 +110,7 @@ class LateralController:
 
     def callback_current_velocity(self, twist_msg: TwistStamped):
         """
-        Return current velocity
+        Store current velocity
         """
         self.current_velocity = twist_msg.twist.linear.x
 
