@@ -120,6 +120,9 @@ class MapPublisher:
         Function to publish a MarkerArray topic, containing Markers each representing a portion of the map
         """
 
+        if not self.loaded_map:
+            raise ValueError("self.loaded_map is empty")
+
         markerArray = MarkerArray()
 
         for count, component in enumerate(self.loaded_map):
@@ -169,6 +172,9 @@ class MapPublisher:
         """
         Function to publish the tf between world and map on the topic /tf_static
         """
+
+        if not self.loaded_map:
+            raise ValueError("self.loaded_map is empty")
 
         broadcaster = tf2_ros.StaticTransformBroadcaster()
         static_transform = TransformStamped()
