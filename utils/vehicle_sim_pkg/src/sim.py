@@ -9,11 +9,9 @@ import utm
 
 import constants
 from dynamic_reconfigure.server import Server
-from dynamic_reconfigure_pkg.cfg import (
-    vehicle_simConfig,
-)
+from dynamic_reconfigure_pkg.cfg import vehicle_simConfig
 from geometry_msgs.msg import PoseStamped, TwistStamped
-from geometry_utils_pkg.geometry_utils import compute_steering_angle_from_curvature, State, MPS_TO_KNOTS
+from geometry_utils_pkg.geometry_utils import State, MPS_TO_KNOTS
 from nmea_msgs.msg import Gprmc
 from self_racing_car_msgs.msg import ArduinoLogging
 from std_msgs.msg import Float32
@@ -22,10 +20,9 @@ from vehicle_sim import LateralModel, LongitudinalModel, VehicleSim
 
 class Sim:
     def __init__(self):
-
         # Constants
         rate = rospy.get_param("~rate", constants.SIM_FREQUENCY_HZ)
-                
+
         # Subscribers
         rospy.Subscriber(
             "initialpose",
@@ -54,15 +51,9 @@ class Sim:
             TwistStamped,
             queue_size=10,
         )
-        self.rmc_pub = rospy.Publisher(
-            "gps_info",
-            Gprmc,
-            queue_size=10
-        )
+        self.rmc_pub = rospy.Publisher("gps_info", Gprmc, queue_size=10)
         self.arduino_logging_pub = rospy.Publisher(
-            "arduino_logging", 
-            ArduinoLogging, 
-            queue_size=10
+            "arduino_logging", ArduinoLogging, queue_size=10
         )
 
         # Dynamic reconfigure server
@@ -128,7 +119,7 @@ class Sim:
     def dynamic_reconfigure_callback(self, config, level):
         """
         Dynamic reconfigure callback, to change parameters.
-        
+
         Args:
             - config (dict): Dictionary containing current values of all reconfigurable parameters
             - level (int): Bitmask used to indicate the level of change
@@ -155,21 +146,19 @@ class Sim:
         """
 
         while not rospy.is_shutdown():
-
             # If initial state has not been initialized
             if not self.state_initialized:
                 rospy.loginfo("Sim has not started.")
 
             else:
-
                 # Predict next position given steering input
                 self.simulated_vehicle.predict_next_pose_from_steering_pwm_cmd(
-                    self.steering_pwm_cmd, constants.SIM_TIME_STEP_SECS,
+                    self.steering_pwm_cmd, constants.SIM_TIME_STEP_SECS
                 )
 
                 # Predict next velocity based on throttle input
                 self.simulated_vehicle.predict_next_velocity_from_throttle_pwm_cmd(
-                    self.throttle_pwm_cmd, constants.SIM_TIME_STEP_SECS,
+                    self.throttle_pwm_cmd, constants.SIM_TIME_STEP_SECS
                 )
 
                 # Publish current simulated state for debugging

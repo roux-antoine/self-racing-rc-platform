@@ -25,7 +25,8 @@ It is possible to commit without running the commit hooks by running `git commit
 
 ## Building the catkin packages
 
-Run `catkin build` from the top of the repo
+Run `catkin build` from the top of the repo.
+If it fails, running a `catkin clean` and then rebuilding may help.
 
 ## Building the `arduino_pkg` package
 

@@ -177,6 +177,8 @@ class TargetGenerator:
                 """Get target point"""
                 targetPoint = self.getTargetPoint(nextWaypointId)
 
+                # NOTE: it'd be cleaner to have the curvature calculation in the controller instead
+
                 """ Compute target curvature """
                 curvature = compute_curvature(
                     current_state=self.current_state, target_state=targetPoint

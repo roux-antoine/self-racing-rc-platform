@@ -5,9 +5,10 @@ matplotlib
 pandas
 plotly
 pre-commit
+pykml
 pynmeagps
 pyserial
 pyshp
+scikit-learn
 scipy
-#sklearn
 utm
