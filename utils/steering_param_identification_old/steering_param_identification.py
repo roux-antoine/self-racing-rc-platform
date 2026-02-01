@@ -12,6 +12,7 @@ import rosbag
 import scipy
 import utm
 
+
 KNOTS_TO_MPS = 0.514444
 EARTH_RADIUS = 6371000  # approximately 6,371 kilometers
 MAX_RADIUS_THRESHOLD = 30  # m

@@ -4,6 +4,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 flist = glob.glob(os.path.join("x_y_files", "*.txt"))
 print("Available txt: ")
 for path in flist:

@@ -4,6 +4,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 THRESHOLD = 3  # meters
 
 wp_file = str(sys.argv[1])
