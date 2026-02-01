@@ -1,16 +1,15 @@
 #!/usr/bin/python3
 
 import os
+from enum import Enum
+from typing import List, Tuple
+
 import rospy
 import tf
 import tf2_ros
 import utm
-
-from enum import Enum
-from pykml import parser
-from typing import List, Tuple
-
 from geometry_msgs.msg import Point, TransformStamped
+from pykml import parser
 from visualization_msgs.msg import Marker, MarkerArray
 
 

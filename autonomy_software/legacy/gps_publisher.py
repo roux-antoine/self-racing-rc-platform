@@ -6,8 +6,8 @@ import time
 import adafruit_gps
 import rospy
 import serial
-
 from self_racing_car_msgs.msg import RmcNmea
+
 
 PI_PORT = "/dev/ttyUSB0"
 

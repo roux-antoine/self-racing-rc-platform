@@ -1,6 +1,7 @@
 import math
-import numpy as np
 from typing import List
+
+import numpy as np
 
 
 MPS_TO_KNOTS = 1.94384

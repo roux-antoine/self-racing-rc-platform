@@ -1,16 +1,15 @@
+from typing import List
+
 import numpy as np
 from geometry_utils_pkg.geometry_utils import State
 from vehicle_models_pkg.vehicle_models_constants import (
-    STEERING_IDLE_PWM,
-    STEERING_DIRECTION_FACTOR,
-    WHEELBASE,
     EFFECTIVE_MAX_STEERING_ANGLE_RAD_V1,
-    PWM_DIFF_AT_MAX_STEER_ANGLE,
     PHYSICAL_MAX_STEERING_ANGLE_RAD,
+    PWM_DIFF_AT_MAX_STEER_ANGLE,
+    STEERING_DIRECTION_FACTOR,
+    STEERING_IDLE_PWM,
+    WHEELBASE,
 )
-
-
-from typing import List
 
 
 class CarModelBase:

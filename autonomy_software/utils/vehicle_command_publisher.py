@@ -3,8 +3,8 @@
 import time
 
 import rospy
-
 from self_racing_car_msgs.msg import VehicleCommand
+
 
 pub = rospy.Publisher("vehicle_command", VehicleCommand, queue_size=10)
 rospy.init_node("talker", anonymous=True)

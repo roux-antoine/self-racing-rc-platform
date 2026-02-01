@@ -1,6 +1,7 @@
 #!/usr/bin/python3
-import rospy
 from typing import Optional
+
+import rospy
 
 
 class PID:

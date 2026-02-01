@@ -3,10 +3,10 @@ import math
 import circle_fit
 import matplotlib.pyplot as plt
 import numpy as np
+import rosbag
 import utm
 from sklearn.linear_model import LinearRegression
 
-import rosbag
 
 """
 Not very clean script to process the bagfiles that we recorded to characterize the low pass filter on the course-over-ground from the GPS

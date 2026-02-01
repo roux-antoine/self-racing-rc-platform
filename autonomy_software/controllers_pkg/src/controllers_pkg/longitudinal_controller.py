@@ -1,20 +1,16 @@
 #!/usr/bin/python3
 
+import time
 from enum import Enum
+
 import numpy as np
 import rospy
-import time
-
 from controllers_pkg.pid import PID
+from dynamic_reconfigure.server import Server
+from dynamic_reconfigure_pkg.cfg import longitudinal_controllerConfig
 from geometry_msgs.msg import TwistStamped
 from self_racing_car_msgs.msg import ArduinoLogging, LongitudinalControllerDebugInfo
 from std_msgs.msg import Float32
-
-from dynamic_reconfigure.server import Server
-
-from dynamic_reconfigure_pkg.cfg import (
-    longitudinal_controllerConfig,
-)
 
 
 class LongitudinalControlMode(Enum):
@@ -198,7 +194,13 @@ class LongitudinalController:
                     #  Publish result
                     self.publish_throttle_cmd(throttle_value)
                     self.publish_debug_pid(
-                        throttle_saturating, controller_saturating, p, i, d, feedforward, error,
+                        throttle_saturating,
+                        controller_saturating,
+                        p,
+                        i,
+                        d,
+                        feedforward,
+                        error,
                     )
 
                 else:
@@ -238,7 +240,9 @@ class LongitudinalController:
         if self.use_constant_feedforward:
             ff = self.constant_feedforward_term
         else:
-            ff = self.feedforward_velocity_gain * desired_velocity + self.feedfoward_bias
+            ff = (
+                self.feedforward_velocity_gain * desired_velocity + self.feedfoward_bias
+            )
 
         return ff
 
@@ -252,7 +256,9 @@ class LongitudinalController:
 
         self.throttle_cmd_pub.publish(throttle_msg)
 
-    def publish_debug_pid(self, throttle_saturating, controller_saturating, p, i, d, feedforward, error):
+    def publish_debug_pid(
+        self, throttle_saturating, controller_saturating, p, i, d, feedforward, error
+    ):
         """
         Function to publish debug info regarding speed controller
         """

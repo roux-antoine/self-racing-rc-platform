@@ -4,8 +4,8 @@ import numpy as np
 import rospy
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
-
 from self_racing_car_msgs.msg import VehicleState
+
 
 # WAYPOINTS_FILEPATH = "/home/antoine/workspace/catkin_ws/src/utils/utm_map_generation/x_y_files/rex_manor_parking_lot_waypoints.txt"
 WAYPOINTS_FILEPATH = "/home/antoine/workspace/catkin_ws/src/utils/utm_map_generation/x_y_files/laguna_seca_track_waypoints_detail_3m.txt"

@@ -1,17 +1,17 @@
 #!/usr/bin/python3
 
-from datetime import datetime, timezone
 import math
+from datetime import datetime, timezone
+
+import constants
 import numpy as np
 import rospy
 import tf
 import utm
-
-import constants
 from dynamic_reconfigure.server import Server
 from dynamic_reconfigure_pkg.cfg import vehicle_simConfig
 from geometry_msgs.msg import PoseStamped, TwistStamped
-from geometry_utils_pkg.geometry_utils import State, MPS_TO_KNOTS
+from geometry_utils_pkg.geometry_utils import MPS_TO_KNOTS, State
 from nmea_msgs.msg import Gprmc
 from self_racing_car_msgs.msg import ArduinoLogging
 from std_msgs.msg import Float32

@@ -1,7 +1,8 @@
 #!/usr/bin/python3
+from enum import Enum
+
 import constants
 import numpy as np
-from enum import Enum
 from geometry_utils_pkg.geometry_utils import State
 
 

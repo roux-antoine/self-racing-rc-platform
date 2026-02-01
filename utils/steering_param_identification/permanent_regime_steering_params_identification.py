@@ -1,11 +1,11 @@
-import pandas as pd
-import plotly.graph_objects as go
-import numpy as np
-from scipy.optimize import curve_fit
-from plotly.subplots import make_subplots
-import matplotlib.pyplot as plt
 import argparse
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from scipy.optimize import curve_fit
 from vehicle_models_pkg.vehicle_models_constants import (
     STEERING_FBK_IDLE,
     STEERING_IDLE_PWM,

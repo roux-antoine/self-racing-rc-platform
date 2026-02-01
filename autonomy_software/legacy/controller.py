@@ -1,17 +1,16 @@
 #!/usr/bin/python3
 
 import math
+import os
 import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import rospy
 import tf
-from matplotlib.animation import FuncAnimation
-
-from self_racing_car_msgs.msg import ControllerDebugInfo, VehicleCommand
 from geometry_msgs.msg import PoseStamped
+from matplotlib.animation import FuncAnimation
+from self_racing_car_msgs.msg import ControllerDebugInfo, VehicleCommand
 
 
 class State:

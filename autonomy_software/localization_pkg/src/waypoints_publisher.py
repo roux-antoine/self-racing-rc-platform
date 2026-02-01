@@ -6,9 +6,9 @@ Notes:
 """
 
 import os
-import rospy
 from typing import List
 
+import rospy
 from geometry_msgs.msg import Point
 from self_racing_car_msgs.msg import Waypoint, WaypointArray
 from visualization_msgs.msg import Marker
