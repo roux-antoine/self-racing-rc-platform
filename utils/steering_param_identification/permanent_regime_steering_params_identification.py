@@ -53,7 +53,7 @@ def main(csv_path: str, plot_basics: bool, plot_individual_fits: bool):
 
     # Extract the relevant columns
     radius_df = df["radius"]
-    steering_angle_df = df["mean_steering_cmd"]  # noqa: F841
+    _ = df["mean_steering_cmd"]
     steering_angle_diff_df = abs(df["mean_steering_cmd"] - STEERING_IDLE_PWM)
     speed_df = df["mean_speed"]
     steering_fbk_df = df["mean_steering_fbk"]
