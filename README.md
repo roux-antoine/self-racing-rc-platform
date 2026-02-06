@@ -1,6 +1,12 @@
 # self-racing-rc-platform
 
-WIP
+Repo implementing a "full" basic self-driving stack, that we run on a 1/7th scale RC car equiped with an onboard laptop (Framework Laptop motherboard) and an Arduino Mega.
+
+Good starting points:
+- Vehicle models: https://github.com/roux-antoine/self-racing-rc-platform/tree/master/autonomy_software/vehicle_models_pkg
+- Controllers: https://github.com/roux-antoine/self-racing-rc-platform/tree/master/autonomy_software/controllers_pkg
+- Simulator: https://github.com/roux-antoine/self-racing-rc-platform/tree/master/utils/vehicle_sim_pkg
+
 
 ## Setup
 
