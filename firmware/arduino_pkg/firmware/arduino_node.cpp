@@ -3,6 +3,12 @@
 #include <ros.h>
 #include <self_racing_car_msgs/ArduinoLogging.h>
 #include <std_msgs/Float32.h>
+#include <self_racing_car_msgs/ImuSensing.h>
+
+// Imports for IMU
+#include <Wire.h>
+#include <Adafruit_BNO055.h>
+#include <Adafruit_Sensor.h>
 
 // ------ CONSTANTS ------
 
@@ -44,6 +50,7 @@ const unsigned long CHANNEL_3_MAX = 1712 - 20;
 const unsigned long CHANNEL_3_MIN = 1128 + 20;
 const unsigned long CHANNEL_3_OVERRIDE_MIN = 1372 - 50;
 const unsigned long CHANNEL_3_OVERRIDE_MAX = 1396 + 50;
+const unsigned long THROTTLE_OUTLIER_THRESHOLD = 50;
 
 const unsigned long CHANNEL_5_THRESHOLD = 1700;
 
@@ -94,6 +101,9 @@ int steering_fbk;
 Servo throttle_servo;
 Servo steering_servo;
 
+// IMU object
+Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire);
+
 // ROS stuff
 ros::NodeHandle nh;
 
@@ -122,11 +132,21 @@ ros::Subscriber<std_msgs::Float32> throttle_pwm_cmd_sub("throttle_pwm_cmd", thro
 self_racing_car_msgs::ArduinoLogging arduino_logging_msg;
 ros::Publisher arduino_logging_pub("arduino_logging", &arduino_logging_msg);
 
+// IMU
+self_racing_car_msgs::ImuSensing imu_msg;
+ros::Publisher imu_pub("imu", &imu_msg);
+
+// Circular buffer for temporal outlier detection
+const unsigned long THROTTLE_CHANNEL_IDLE_AVG = (CHANNEL_3_IDLE_MIN + CHANNEL_3_IDLE_MAX) / 2;
+volatile unsigned long throttle_buffer[3] = {THROTTLE_CHANNEL_IDLE_AVG, THROTTLE_CHANNEL_IDLE_AVG, THROTTLE_CHANNEL_IDLE_AVG};
+volatile bool throttle_new_data = false;
+
 // ------ FUNCTIONS ------
 
 void steering_callback() {
-  tmp_pulse_width_steering = micros() - prev_time_steering;
-  prev_time_steering = micros();
+  unsigned long current_time_us = micros();
+  tmp_pulse_width_steering = current_time_us - prev_time_steering;
+  prev_time_steering = current_time_us;
 
   if (tmp_pulse_width_steering < PULSE_WIDTH_THRESHOLD) {
     pulse_width_steering = tmp_pulse_width_steering;
@@ -134,17 +154,23 @@ void steering_callback() {
 }
 
 void throttle_callback() {
-  tmp_pulse_width_throttle = micros() - prev_time_throttle;
-  prev_time_throttle = micros();
+  unsigned long current_time_us = micros();
+  tmp_pulse_width_throttle = current_time_us - prev_time_throttle;
+  prev_time_throttle = current_time_us;
 
   if (tmp_pulse_width_throttle < PULSE_WIDTH_THRESHOLD) {
-    pulse_width_throttle = tmp_pulse_width_throttle;
+    // Here we simply add the new data to the buffer. The outlier detection will be done in the loop.
+    throttle_buffer[0] = throttle_buffer[1];
+    throttle_buffer[1] = throttle_buffer[2];
+    throttle_buffer[2] = tmp_pulse_width_throttle;
+    throttle_new_data = true;
   }
 }
 
 void engaged_mode_callback() {
-  tmp_pulse_width_engaged = micros() - prev_time_engaged;
-  prev_time_engaged = micros();
+  unsigned long current_time_us = micros();
+  tmp_pulse_width_engaged = current_time_us - prev_time_engaged;
+  prev_time_engaged = current_time_us;
 
   // NOTE: logic without hysteresis
   // if (tmp_pulse_width_engaged < PULSE_WIDTH_THRESHOLD) {
@@ -197,6 +223,18 @@ void setup() {
     nh.subscribe(steering_pwm_cmd_sub);
     nh.subscribe(throttle_pwm_cmd_sub);
     nh.advertise(arduino_logging_pub);
+    nh.advertise(imu_pub);
+
+    if (!bno.begin()) {
+      /* There was a problem detecting the BNO055 ... check your connections */
+      // Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+      while (1);
+    }
+    delay(1000);
+    // Tells sensor to use external oscillator instead of external one
+    bno.setExtCrystalUse(true);
+    bno.setMode(OPERATION_MODE_ACCGYRO); // Fast 6-DOF mode
+
     nh.loginfo("In the setup");
   } else {
     Serial.begin(57600);
@@ -233,6 +271,8 @@ void setup() {
 
 // ------ LOOP ------
 
+unsigned long last_time = 0;
+const unsigned long interval = 25; // ms (40Hz)
 void loop() {
 
   // Compute steering from the Rx
@@ -243,6 +283,26 @@ void loop() {
   } else if (pulse_width_steering <= CHANNEL_2_IDLE_MIN) {
     steering_cmd_rx = int(STEERING_IDLE_PWM - (CHANNEL_2_IDLE_MIN - pulse_width_steering) * ((STEERING_IDLE_PWM - STEERING_MIN_PWM) / (CHANNEL_2_IDLE_MIN - CHANNEL_2_MIN)));
   } else {
+  }
+
+  // Throttle outlier detection
+  if(throttle_new_data) {
+    throttle_new_data = false;
+
+    // Get N-1, N and N+1 from the buffer
+    unsigned long N_minus_1 = throttle_buffer[0];
+    unsigned long N = throttle_buffer[1];
+    unsigned long N_plus_1 = throttle_buffer[2];
+
+    // Compute the average of the 3 values
+    unsigned long N_is_outlier = (abs((long)N - (long)N_minus_1) > THROTTLE_OUTLIER_THRESHOLD) && 
+                                 (abs((long)N_plus_1 - (long)N_minus_1) < THROTTLE_OUTLIER_THRESHOLD);
+
+    if(N_is_outlier) {
+      pulse_width_throttle = N_minus_1;
+    } else {
+      pulse_width_throttle = N;
+    }
   }
 
   // Compute throttle from the Rx
@@ -322,6 +382,21 @@ void loop() {
 
   // Publishing the logging info
   if (ROS_MODE) {
+
+    imu::Vector<3> acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER); // Acceleration
+    // imu::Quaternion quat = bno.getQuat();   // orientation
+    imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);  // angular velocity
+
+    imu_msg.ax = acc.x();
+    imu_msg.ay = acc.y();
+    imu_msg.az = acc.z();
+
+    imu_msg.gx = gyro.x();
+    imu_msg.gy = gyro.y();
+    imu_msg.gz = gyro.z();
+
+    imu_pub.publish(&imu_msg);
+
     arduino_logging_msg.steering_cmd_rx = steering_cmd_rx;
     arduino_logging_msg.throttle_cmd_rx = throttle_cmd_rx;
     arduino_logging_msg.steering_cmd_autonomous = steering_cmd_autonomous;
@@ -337,6 +412,7 @@ void loop() {
     arduino_logging_msg.steering_fbk = steering_fbk;
 
     arduino_logging_pub.publish(&arduino_logging_msg);
+
   }
 
   if (ROS_MODE) {
