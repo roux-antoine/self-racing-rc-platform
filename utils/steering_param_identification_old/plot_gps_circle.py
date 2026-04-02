@@ -12,10 +12,15 @@ from sklearn.linear_model import LinearRegression
 Not very clean script to process the bagfiles that we recorded to characterize the low pass filter on the course-over-ground from the GPS
 """
 
-MAGIC_FACTOR = 1  # to account for rotation direction, 1 for trigo, -1 for anti-trigo
+MAGIC_FACTOR = -1  # to account for rotation direction, 1 for trigo, -1 for anti-trigo
 SPEED_THRESHOLD = 0.5  # m/s
 DEBUG = True
-PARENT_FOLDER_BAGS = "TODO"
+
+# Estimated GPS CoG filter time constant (seconds), derived from the slope of
+# the linear regression: offset ≈ ω · τ.  Use the "vehicle - no low pass"
+# regression slope as the default (≈ 0.06 s).
+GPS_COG_FILTER_TAU = 0.03
+PARENT_FOLDER_BAGS = "/Users/antoineroux/Downloads/bags_gps_2024-05-12"
 
 path = f"{PARENT_FOLDER_BAGS}/baseline_slow_2024-05-12-22-30-37.bag"
 # path = f"{PARENT_FOLDER_BAGS}/baseline_slow_2024-05-12-22-32-22.bag"
@@ -46,6 +51,31 @@ path = f"{PARENT_FOLDER_BAGS}/baseline_slow_2024-05-12-22-30-37.bag"
 bag = rosbag.Bag(path)
 
 
+def inverse_first_order_lpf(filtered_signal, timestamps, tau):
+    """Reverse a first-order low-pass filter applied to an angle signal.
+
+    Given the filtered output and the filter time constant τ, recovers an
+    estimate of the original (unfiltered) signal.
+
+    For a first-order LPF:  y[n] = α·x[n] + (1-α)·y[n-1]
+    Inverting:               x[n] = (y[n] - (1-α)·y[n-1]) / α
+    where α = dt / (τ + dt).
+    """
+    recovered = [filtered_signal[0]]
+    for i in range(1, len(filtered_signal)):
+        dt = timestamps[i] - timestamps[i - 1]
+        alpha = dt / (tau + dt)
+        prev = filtered_signal[i - 1]
+        diff = filtered_signal[i] - prev
+        if diff > np.pi:
+            prev += 2 * np.pi
+        elif diff < -np.pi:
+            prev -= 2 * np.pi
+        raw = (filtered_signal[i] - (1 - alpha) * prev) / alpha
+        recovered.append(raw)
+    return recovered
+
+
 def compute_angle_difference():
 
     # extracting the data from the bag
@@ -53,7 +83,13 @@ def compute_angle_difference():
     gps_yaw_rads = []
     gps_speeds = []
     gps_times = []
+
+    counter = 0
     for topic, msg, t in bag.read_messages(topics=["/gps_info"]):
+
+        if counter > 100000:
+            continue
+        counter += 1
 
         gps_position = utm.from_latlon(msg.lat, msg.lon)
         yaw_rad = ((math.pi / 2) - msg.track * math.pi / 180) % (2 * np.pi)
@@ -101,6 +137,10 @@ def compute_angle_difference():
     angle_reals_filtered = []
     angle_diffs_filtered = []
     angles_gps_filtered = []
+    corrected_angle_diffs_filtered = []
+    corrected_cog_inline = []
+    prev_gps_yaw_rad = None
+    prev_gps_time = None
     times = []
     for gps_position, gps_yaw_rad, gps_speed, gps_time in zip(
         gps_positions, gps_yaw_rads, gps_speeds, gps_times
@@ -129,10 +169,33 @@ def compute_angle_difference():
             angles_gps_filtered.append(gps_yaw_rad)
             times.append(gps_time)
 
+            # Inverse-filter the GPS CoG inline
+            if prev_gps_yaw_rad is None:
+                corrected_yaw = gps_yaw_rad
+            else:
+                dt = gps_time - prev_gps_time
+                alpha = dt / (GPS_COG_FILTER_TAU + dt)
+                # Unwrap prev relative to current to avoid 0/2π boundary jump
+                prev_unwrapped = prev_gps_yaw_rad
+                diff = gps_yaw_rad - prev_unwrapped
+                if diff > np.pi:
+                    prev_unwrapped += 2 * np.pi
+                elif diff < -np.pi:
+                    prev_unwrapped -= 2 * np.pi
+                corrected_yaw = (gps_yaw_rad - (1 - alpha) * prev_unwrapped) / alpha
+            corrected_cog_inline.append(corrected_yaw)
+            prev_gps_yaw_rad = gps_yaw_rad
+            prev_gps_time = gps_time
+
             angle_diff = gps_yaw_rad - angle_real
             if abs(angle_diff) > 3:  # HACK HACK to account for going over 2pi
                 angle_diff = 0
             angle_diffs_filtered.append(angle_diff)
+
+            corrected_angle_diff = corrected_yaw - angle_real
+            if abs(corrected_angle_diff) > 3:  # HACK HACK to account for going over 2pi
+                corrected_angle_diff = 0
+            corrected_angle_diffs_filtered.append(corrected_angle_diff)
 
             if DEBUG:
                 plt.scatter(gps_position[0], gps_position[1])
@@ -146,6 +209,13 @@ def compute_angle_difference():
                     [gps_position[1], gps_position[1] + 0.5 * np.sin(angle_real)],
                     color="green",
                 )
+                plt.plot(
+                    [gps_position[0], gps_position[0] + 0.5 * np.cos(corrected_yaw)],
+                    [gps_position[1], gps_position[1] + 0.5 * np.sin(corrected_yaw)],
+                    color="blue",
+                )
+
+            
     if DEBUG:
         plt.scatter(fitted_center[0], fitted_center[1])
         plt.xlabel("utm x (m)")
@@ -155,18 +225,38 @@ def compute_angle_difference():
         plt.show()
 
     if DEBUG:
-        plt.plot(times, angle_reals_filtered)
-        plt.plot(times, angles_gps_filtered)
+        plt.plot(times, angle_reals_filtered, label="ground truth")
+        plt.plot(times, angles_gps_filtered, label="GPS CoG (raw)")
+        plt.plot(times, corrected_cog_inline, label="GPS CoG (corrected)")
+        plt.xlabel("time (s)")
+        plt.ylabel("angle (rad)")
+        plt.legend()
         plt.show()
 
     if DEBUG:
-        print(np.mean(angle_diffs_filtered))
-        plt.hist(angle_diffs_filtered)
-        plt.xlabel("angle offset")
+        plt.hist(angle_diffs_filtered, alpha=0.5, label="raw GPS offset")
+        plt.hist(corrected_angle_diffs_filtered, alpha=0.5, label="corrected GPS offset")
+        plt.xlabel("angle offset (rad)")
         plt.ylabel("count")
-        plt.title("TODO")
+        plt.legend()
+        plt.title("Offset distribution: raw vs corrected")
         plt.show()
 
+    if DEBUG:
+        raw_mean = np.mean(np.abs(angle_diffs_filtered))
+        corrected_mean = np.mean(np.abs(corrected_angle_diffs_filtered))
+        plt.hist(np.abs(angle_diffs_filtered), bins=20, alpha=0.5, label="raw GPS offset")
+        plt.hist(np.abs(corrected_angle_diffs_filtered), bins=20, alpha=0.5, label="corrected GPS offset")
+        plt.axvline(raw_mean, color="tab:blue", linestyle="--", label=f"raw mean ({raw_mean:.3f})")
+        plt.axvline(corrected_mean, color="tab:orange", linestyle="--", label=f"corrected mean ({corrected_mean:.3f})")
+        plt.xlabel("angle offset (rad)")
+        plt.ylabel("count")
+        plt.legend()
+        plt.title("Offset distribution: raw vs corrected (abs)")
+        plt.show()
+
+    print(f"Raw GPS mean offset: {np.mean(np.abs(angle_diffs_filtered)):.4f} rad = {np.mean(np.abs(angle_diffs_filtered)) * 180 / np.pi:.2f} deg")
+    print(f"Corrected mean offset: {np.mean(np.abs(corrected_angle_diffs_filtered)):.4f} rad = {np.mean(np.abs(corrected_angle_diffs_filtered)) * 180 / np.pi:.2f} deg)")
 
 def plot_stats_and_do_regression():
 
@@ -209,6 +299,19 @@ def plot_stats_and_do_regression():
         np.asarray(w_vehicle_strong_pass).reshape(-1, 1),
         np.asarray(theta_diff_vehicle_strong_pass).reshape(-1, 1),
     )
+
+    # The slope of offset vs ω gives τ (the first-order LPF time constant)
+    tau_baseline = reg_baseline.coef_[0][0]
+    tau_vehicle_no_pass = reg_vehicle_no_pass.coef_[0][0]
+    tau_vehicle_weak_pass = reg_vehicle_weak_pass.coef_[0][0]
+    tau_vehicle_med_pass = reg_vehicle_med_pass.coef_[0][0]
+    tau_vehicle_strong_pass = reg_vehicle_strong_pass.coef_[0][0]
+
+    print(f"Estimated tau (baseline):          {tau_baseline:.4f} s")
+    print(f"Estimated tau (vehicle, no pass):   {tau_vehicle_no_pass:.4f} s")
+    print(f"Estimated tau (vehicle, weak pass): {tau_vehicle_weak_pass:.4f} s")
+    print(f"Estimated tau (vehicle, med pass):  {tau_vehicle_med_pass:.4f} s")
+    print(f"Estimated tau (vehicle, strong pass): {tau_vehicle_strong_pass:.4f} s")
 
     plt.scatter(w_baseline, theta_diff_baseline, label="baseline - no low pass")
     plt.plot(
@@ -269,6 +372,21 @@ def plot_stats_and_do_regression():
     plt.xlabel("rotation rate (rad/s)")
     plt.ylabel("average offset between real and GPS CoG (rad)")
     plt.legend()
+    plt.show()
+
+    # Plot estimated tau for each filter setting
+    filter_labels = ["baseline", "no pass", "weak", "medium", "strong"]
+    tau_values = [
+        tau_baseline,
+        tau_vehicle_no_pass,
+        tau_vehicle_weak_pass,
+        tau_vehicle_med_pass,
+        tau_vehicle_strong_pass,
+    ]
+    plt.bar(filter_labels, tau_values)
+    plt.xlabel("filter setting")
+    plt.ylabel("estimated tau (s)")
+    plt.title("Estimated first-order LPF time constant per setting")
     plt.show()
 
 
