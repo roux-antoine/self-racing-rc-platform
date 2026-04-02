@@ -127,7 +127,7 @@ class LateralController:
         while not rospy.is_shutdown():
 
             if self.target_point_state is None:
-                print("No target point received yet, waiting...")
+                rospy.logwarn_once("No target point received yet, waiting...")
                 self.rate.sleep()
                 continue
 
