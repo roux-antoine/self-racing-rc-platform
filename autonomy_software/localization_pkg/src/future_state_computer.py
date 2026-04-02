@@ -171,7 +171,7 @@ for topic, msg, t in bag.read_messages(topics=topics):
             
             steering_diff = last_steering_cmd - 98
 
-            if speed_mps == 0:
+            if speed_mps == 0 or steering_diff == 0:
                 R = 10000  # big number 
             else:
                 if speed_mps > 0 and speed_mps <= UPPER_BOUND_REGION_1:
@@ -203,7 +203,7 @@ for topic, msg, t in bag.read_messages(topics=topics):
             future_poses_v4.append([future_pose_x, future_pose_y, angle])
 
 
-            # ########### V4 ###########
+            # ########### V5 ###########
             # with the model using different regions, with updated params
 
             STEERING_IDLE_PWM = 98  # unitless
@@ -220,10 +220,10 @@ for topic, msg, t in bag.read_messages(topics=topics):
             
             steering_diff = last_steering_cmd - 98
 
-            if speed_mps == 0:
+            if speed_mps == 0 or steering_diff == 0:
                 R = 10000  # big number 
             else:
-                if speed_mps > 0 and speed_mps <= UPPER_BOUND_REGION_1:
+                if speed_mps > 0 and speed_mps <= UPPER_BOUND_REGION_1_NEW:
                     coeff = COEFF_REGION_1
                     
                 elif speed_mps > UPPER_BOUND_REGION_1_NEW and speed_mps <= UPPER_BOUND_REGION_2_NEW:
@@ -297,7 +297,8 @@ errors_angle_v5 = []
 # Plotting the predicted positions and computing metrics
 fig = go.Figure()
 
-for i in tqdm(range(len(current_poses) - 1)):
+for i in tqdm(range(100, 300)):
+# for i in tqdm(range(len(current_poses) - 1)):
     # Current positions (green)
     fig.add_trace(go.Scatter(x=[current_poses[i][0]], y=[current_poses[i][1]], 
                             mode='markers', marker=dict(color='green', size=6),
@@ -365,7 +366,7 @@ for i in tqdm(range(len(current_poses) - 1)):
         ]
     )
     errors_xy_v1.append(error_xy_v1)
-    error_angle_v1 = np.abs(current_poses[i + 1][2] - future_poses_v1[i][2]) % 2 * np.pi
+    error_angle_v1 = (current_poses[i + 1][2] - future_poses_v1[i][2] + np.pi) % (2 * np.pi) - np.pi
     errors_angle_v1.append(error_angle_v1)
     
     error_xy_v2 = np.linalg.norm(
@@ -376,7 +377,7 @@ for i in tqdm(range(len(current_poses) - 1)):
     )
     
     errors_xy_v2.append(error_xy_v2)
-    error_angle_v2 = np.abs(current_poses[i + 1][2] - future_poses_v2[i][2]) % 2 * np.pi
+    error_angle_v2 = (current_poses[i + 1][2] - future_poses_v2[i][2] + np.pi) % (2 * np.pi) - np.pi
     errors_angle_v2.append(error_angle_v2)
     error_xy_v3 = np.linalg.norm(
         [
@@ -385,7 +386,7 @@ for i in tqdm(range(len(current_poses) - 1)):
         ]
     )
     errors_xy_v3.append(error_xy_v3)
-    error_angle_v3 = np.abs(current_poses[i + 1][2] - future_poses_v3[i][2]) % 2 * np.pi
+    error_angle_v3 = (current_poses[i + 1][2] - future_poses_v3[i][2] + np.pi) % (2 * np.pi) - np.pi
     errors_angle_v3.append(error_angle_v3)
 
     error_xy_v4 = np.linalg.norm(
@@ -395,7 +396,7 @@ for i in tqdm(range(len(current_poses) - 1)):
         ]
     )
     errors_xy_v4.append(error_xy_v4)
-    error_angle_v4 = np.abs(current_poses[i + 1][2] - future_poses_v4[i][2]) % 2 * np.pi
+    error_angle_v4 = (current_poses[i + 1][2] - future_poses_v4[i][2] + np.pi) % (2 * np.pi) - np.pi
     errors_angle_v4.append(error_angle_v4)
 
     error_xy_v5 = np.linalg.norm(
@@ -405,7 +406,7 @@ for i in tqdm(range(len(current_poses) - 1)):
         ]
     )
     errors_xy_v5.append(error_xy_v5)
-    error_angle_v5 = np.abs(current_poses[i + 1][2] - future_poses_v5[i][2]) % 2 * np.pi
+    error_angle_v5 = (current_poses[i + 1][2] - future_poses_v5[i][2] + np.pi) % (2 * np.pi) - np.pi
     errors_angle_v5.append(error_angle_v5)
 
 fig.update_layout(title="Future State Prediction Comparison", 
@@ -419,11 +420,11 @@ print(f"errors_xy_v3: {np.mean(errors_xy_v3)}")
 print(f"errors_xy_v4: {np.mean(errors_xy_v4)}")
 print(f"errors_xy_v5: {np.mean(errors_xy_v5)}")
 
-print(f"errors_angle_v1: {np.mean(errors_angle_v1)}")
-print(f"errors_angle_v2: {np.mean(errors_angle_v2)}")
-print(f"errors_angle_v3: {np.mean(errors_angle_v3)}")
-print(f"errors_angle_v4: {np.mean(errors_angle_v4)}")
-print(f"errors_angle_v5: {np.mean(errors_angle_v5)}")
+print(f"errors_angle_v1 (abs): {np.mean(np.abs(errors_angle_v1))}")
+print(f"errors_angle_v2 (abs): {np.mean(np.abs(errors_angle_v2))}")
+print(f"errors_angle_v3 (abs): {np.mean(np.abs(errors_angle_v3))}")
+print(f"errors_angle_v4 (abs): {np.mean(np.abs(errors_angle_v4))}")
+print(f"errors_angle_v5 (abs): {np.mean(np.abs(errors_angle_v5))}")
 
 plt.hist(errors_xy_v1, bins=50, alpha=0.5, label="errors_xy_v1")
 plt.hist(errors_xy_v2, bins=50, alpha=0.5, label="errors_xy_v2")
