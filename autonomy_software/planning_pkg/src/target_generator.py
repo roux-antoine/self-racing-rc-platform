@@ -64,8 +64,13 @@ class TargetGenerator:
         )
 
         """ Publishers """
+
+        target_point_topic_name = rospy.get_param(
+            "~target_point_topic_name", "target_point"
+        )
+
         self.target_point_pub = rospy.Publisher(
-            "target_point",
+            target_point_topic_name,
             PointStamped,
             queue_size=10,
         )
@@ -74,7 +79,6 @@ class TargetGenerator:
             TwistStamped,
             queue_size=10,
         )
-        # self.target_gen_debug_pub = rospy.Publisher("target_generator_debug", TBD, queue_size=10)
         self.target_point_marker_pub = rospy.Publisher(
             "target_point_marker",
             Marker,
