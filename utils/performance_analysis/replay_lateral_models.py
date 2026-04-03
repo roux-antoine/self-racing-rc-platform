@@ -18,16 +18,15 @@ Usage:
 """
 
 import argparse
-import math
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 
-from analyze_bagfile import Record, load_bag, load_waypoints
-
+from analyze_bagfile import load_waypoints
+from geometry_utils_pkg.bagfile_loader import BagfileLoader, BagfileRecord
 from vehicle_models_pkg.vehicle_models import (
     CarModelBicyclePure,
     CarModelBicycleV0,
@@ -61,7 +60,7 @@ MODEL_COLORS = {
 # Steering command recomputation
 # ---------------------------------------------------------------------------
 def recompute_steering_commands(
-    records: List[Record], model: CarModelBicyclePure
+    sorted_records: List[BagfileRecord], model: CarModelBicyclePure
 ) -> np.ndarray:
     """
     For each record, recompute the steering PWM command that `model` would
@@ -69,8 +68,8 @@ def recompute_steering_commands(
 
     Mirrors the logic in lateral_controller.py:loop().
     """
-    cmds = np.full(len(records), float("nan"))
-    for i, r in enumerate(records):
+    cmds = np.full(len(sorted_records), float("nan"))
+    for i, r in enumerate(sorted_records):
         if r.target_curvature is None:
             continue
         if abs(r.target_curvature) < 1e-3:
@@ -78,7 +77,7 @@ def recompute_steering_commands(
         else:
             cmd = model.compute_steering_command_from_radius(
                 radius=1.0 / r.target_curvature,
-                speed=r.speed,
+                speed=r.state.vx,
             )
         # Clamp to PWM bounds (same as the real controller)
         cmd = max(STEERING_MIN_PWM, min(STEERING_MAX_PWM, cmd))
@@ -90,7 +89,7 @@ def recompute_steering_commands(
 # Forward simulation
 # ---------------------------------------------------------------------------
 def forward_simulate(
-    records: List[Record], model: CarModelBicyclePure
+    sorted_records: List[BagfileRecord], model: CarModelBicyclePure
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Starting from the first record's pose, integrate the bicycle model forward
@@ -102,20 +101,19 @@ def forward_simulate(
     Returns (xs, ys) arrays of simulated positions.
     """
     model.states.clear()
-    r0 = records[0]
-    model.init(x=r0.x, y=r0.y, vx=r0.speed, angle=r0.yaw)
+    r0 = sorted_records[0]
+    model.init(x=r0.state.x, y=r0.state.y, vx=r0.state.vx, angle=r0.state.angle)
 
-    for i in range(1, len(records)):
-        dt = records[i].t - records[i - 1].t
+    for i in range(1, len(sorted_records)):
+        dt = sorted_records[i].gps_msg_time - sorted_records[i - 1].gps_msg_time
         if dt <= 0:
-            # Duplicate timestamp — just copy the last state
             model.states.append(model.states[-1])
             continue
 
         # Update the model's speed to match the actual recorded speed
-        model.states[-1].vx = records[i - 1].speed
+        model.states[-1].vx = sorted_records[i - 1].state.vx
 
-        model.step(dt=dt, cmd_steering=records[i - 1].steering_cmd)
+        model.step(dt=dt, cmd_steering=sorted_records[i - 1].steering_cmd)
 
     xs = np.array([s.x for s in model.states])
     ys = np.array([s.y for s in model.states])
@@ -126,15 +124,16 @@ def forward_simulate(
 # Summary statistics
 # ---------------------------------------------------------------------------
 def print_summary(
-    records: List[Record],
+    sorted_records: List[BagfileRecord],
     model_names: List[str],
     model_cmds: Dict[str, np.ndarray],
 ) -> None:
-    actual = np.array([r.steering_cmd for r in records])
+    actual = np.array([r.steering_cmd for r in sorted_records])
 
     print("\n===== LATERAL MODEL COMPARISON SUMMARY =====")
-    print(f"  Records:  {len(records)}")
-    print(f"  Duration: {records[-1].t - records[0].t:.1f} s")
+    print(f"  Records:  {len(sorted_records)}")
+    duration = sorted_records[-1].gps_msg_time - sorted_records[0].gps_msg_time
+    print(f"  Duration: {duration:.1f} s")
 
     for name in model_names:
         cmds = model_cmds[name]
@@ -147,7 +146,6 @@ def print_summary(
         print(f"    Steering cmd error (mean):  {np.mean(diff):+.2f} PWM")
         print(f"    Steering cmd error (RMS):   {np.sqrt(np.mean(diff**2)):.2f} PWM")
         print(f"    Steering cmd error (max):   {np.max(np.abs(diff)):.2f} PWM")
-        # Correlation
         corr = np.corrcoef(actual[valid], cmds[valid])[0, 1]
         print(f"    Correlation with actual:    {corr:.4f}")
 
@@ -158,8 +156,8 @@ def print_summary(
 # Plotly figure
 # ---------------------------------------------------------------------------
 def build_figure(
-    records: List[Record],
-    waypoints: Optional[np.ndarray],
+    sorted_records: List[BagfileRecord],
+    waypoints,
     model_names: List[str],
     model_cmds: Dict[str, np.ndarray],
     model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray]],
@@ -184,9 +182,9 @@ def build_figure(
         vertical_spacing=0.05,
     )
 
-    times = np.array([r.t for r in records])
+    times = np.array([r.gps_msg_time for r in sorted_records])
     t_rel = times - times[0]
-    actual_cmds = np.array([r.steering_cmd for r in records])
+    actual_cmds = np.array([r.steering_cmd for r in sorted_records])
 
     # --- Row 1: Steering commands ---
     fig.add_trace(
@@ -212,7 +210,6 @@ def build_figure(
             row=1,
             col=1,
         )
-    # Saturation lines
     fig.add_hline(
         y=STEERING_MIN_PWM, line_dash="dot", line_color="gray", row=1, col=1,
         annotation_text="min", annotation_position="bottom left",
@@ -244,9 +241,9 @@ def build_figure(
     # --- Row 3: Context (curvature and speed) ---
     curvatures = [
         r.target_curvature if r.target_curvature is not None else float("nan")
-        for r in records
+        for r in sorted_records
     ]
-    speeds = [r.speed for r in records]
+    speeds = [r.state.vx for r in sorted_records]
     fig.add_trace(
         go.Scatter(
             x=t_rel,
@@ -265,7 +262,6 @@ def build_figure(
             mode="lines",
             name="Speed",
             line={"color": "steelblue", "width": 1},
-            yaxis="y2",
         ),
         row=3,
         col=1,
@@ -274,7 +270,6 @@ def build_figure(
 
     # --- Row 4: Trajectories (if simulated) ---
     if has_trajectories:
-        # Waypoints background
         if waypoints is not None:
             fig.add_trace(
                 go.Scatter(
@@ -288,9 +283,8 @@ def build_figure(
                 row=4,
                 col=1,
             )
-        # Actual path
-        actual_x = [r.x for r in records]
-        actual_y = [r.y for r in records]
+        actual_x = [r.state.x for r in sorted_records]
+        actual_y = [r.state.y for r in sorted_records]
         fig.add_trace(
             go.Scatter(
                 x=actual_x,
@@ -302,7 +296,6 @@ def build_figure(
             row=4,
             col=1,
         )
-        # Simulated paths
         for name in model_names:
             if name in model_trajectories:
                 xs, ys = model_trajectories[name]
@@ -327,10 +320,9 @@ def build_figure(
         )
 
     # Shared time axis label
-    time_row = 3 if not has_trajectories else 3
     for row in range(1, n_rows + 1):
         fig.update_xaxes(title_text="", row=row, col=1)
-    fig.update_xaxes(title_text="Time (s)", row=time_row, col=1)
+    fig.update_xaxes(title_text="Time (s)", row=3, col=1)
     if has_trajectories:
         fig.update_xaxes(title_text="X (m)", row=4, col=1)
 
@@ -385,13 +377,16 @@ def main():
     )
     args = parser.parse_args()
 
-    # Load data
-    records = load_bag(args.bag_path)
+    # Load data using shared BagfileLoader
+    loader = BagfileLoader(args.bag_path)
+    records = loader.bagfile_records_dicts
     if len(records) < 2:
         print("Error: not enough aligned records.")
         return
 
-    n_with_curv = sum(1 for r in records if r.target_curvature is not None)
+    sorted_records = sorted(records.values(), key=lambda r: r.gps_msg_time)
+
+    n_with_curv = sum(1 for r in sorted_records if r.target_curvature is not None)
     if n_with_curv == 0:
         print("Error: no /target_curvature data found in bag. Cannot recompute steering commands.")
         return
@@ -404,21 +399,21 @@ def main():
     model_cmds: Dict[str, np.ndarray] = {}
     for name in args.models:
         model = MODEL_REGISTRY[name]()
-        model_cmds[name] = recompute_steering_commands(records, model)
+        model_cmds[name] = recompute_steering_commands(sorted_records, model)
 
     # Optionally forward-simulate trajectories
     model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
     if args.simulate:
         for name in args.models:
             model = MODEL_REGISTRY[name]()
-            xs, ys = forward_simulate(records, model)
+            xs, ys = forward_simulate(sorted_records, model)
             model_trajectories[name] = (xs, ys)
 
     # Print summary
-    print_summary(records, args.models, model_cmds)
+    print_summary(sorted_records, args.models, model_cmds)
 
     # Build and save figure
-    fig = build_figure(records, waypoints, args.models, model_cmds, model_trajectories)
+    fig = build_figure(sorted_records, waypoints, args.models, model_cmds, model_trajectories)
 
     if args.output:
         out_path = args.output

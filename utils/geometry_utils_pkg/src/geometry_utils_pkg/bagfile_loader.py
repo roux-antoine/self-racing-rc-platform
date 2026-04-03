@@ -1,5 +1,5 @@
 import argparse
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
@@ -25,18 +25,24 @@ class BagfileRecord:
         state: State,
         steering_cmd: float,
         steering_fbk: float,
+        throttle_cmd: float,
         fix_type: str,
         gps_msg_time: float,
         state_msg_time: float,
         arduino_msg_time: float,
+        target_curvature: Optional[float] = None,
+        target_speed: Optional[float] = None,
     ) -> None:
         self.state: State = state
         self.steering_cmd: float = steering_cmd
         self.steering_fbk: float = steering_fbk
+        self.throttle_cmd: float = throttle_cmd
         self.fix_type: str = fix_type
         self.gps_msg_time: float = gps_msg_time
         self.state_msg_time: float = state_msg_time
         self.arduino_msg_time: float = arduino_msg_time
+        self.target_curvature: Optional[float] = target_curvature
+        self.target_speed: Optional[float] = target_speed
 
 
 class BagfileLoader:
@@ -54,11 +60,16 @@ class BagfileLoader:
             velocities = []
             servo_cmds = []
             steering_fbks = []
+            throttle_cmds = []
             fix_types = []
             pose_timestamps = []
             velocity_timestamps = []
             arduino_timestamps = []
             gps_timestamps = []
+            target_curvature_timestamps = []
+            target_curvatures = []
+            target_speed_timestamps = []
+            target_speeds = []
 
             for topic, msg, t in bag.read_messages(
                 topics=[
@@ -66,6 +77,8 @@ class BagfileLoader:
                     "/current_velocity",
                     "/arduino_logging",
                     "/gps_info",
+                    "/target_curvature",
+                    "/target_velocity",
                 ]
             ):
                 if topic == "/current_pose":
@@ -102,10 +115,22 @@ class BagfileLoader:
                     arduino_timestamps.append(t.to_sec())
                     servo_cmds.append(msg.steering_cmd_final)
                     steering_fbks.append(msg.steering_fbk)
+                    throttle_cmds.append(msg.throttle_cmd_final)
 
                 elif topic == "/gps_info":
                     gps_timestamps.append(t.to_sec())
                     fix_types.append(msg.mode_indicator)
+
+                elif topic == "/target_curvature":
+                    target_curvature_timestamps.append(t.to_sec())
+                    target_curvatures.append(msg.data)
+
+                elif topic == "/target_velocity":
+                    target_speed_timestamps.append(t.to_sec())
+                    target_speeds.append(msg.twist.linear.x)
+
+        self._has_target_curvature = len(target_curvature_timestamps) > 0
+        self._has_target_speed = len(target_speed_timestamps) > 0
 
         # Align all msgs to the GPS timestamps
         for gps_msg_time in gps_timestamps:
@@ -142,17 +167,37 @@ class BagfileLoader:
                 angle=yaws[pose_timestamps.index(closest_pose_time)],
             )
 
+            arduino_idx = arduino_timestamps.index(closest_arduino_time)
+
+            # Align optional topics (target_curvature, target_velocity)
+            aligned_target_curvature = None
+            if self._has_target_curvature:
+                closest_tc = [ts for ts in target_curvature_timestamps if ts >= gps_msg_time]
+                if closest_tc and (closest_tc[0] - gps_msg_time) <= 0.25:
+                    aligned_target_curvature = target_curvatures[
+                        target_curvature_timestamps.index(closest_tc[0])
+                    ]
+
+            aligned_target_speed = None
+            if self._has_target_speed:
+                closest_tv = [ts for ts in target_speed_timestamps if ts >= gps_msg_time]
+                if closest_tv and (closest_tv[0] - gps_msg_time) <= 0.25:
+                    aligned_target_speed = target_speeds[
+                        target_speed_timestamps.index(closest_tv[0])
+                    ]
+
             # Create a new BagfileRecord with the aligned timestamps
             bagfile_record = BagfileRecord(
                 state=state,
-                steering_cmd=servo_cmds[arduino_timestamps.index(closest_arduino_time)],
-                steering_fbk=steering_fbks[
-                    arduino_timestamps.index(closest_arduino_time)
-                ],
+                steering_cmd=servo_cmds[arduino_idx],
+                steering_fbk=steering_fbks[arduino_idx],
+                throttle_cmd=throttle_cmds[arduino_idx],
                 fix_type=fix_types[gps_timestamps.index(gps_msg_time)],
                 gps_msg_time=gps_msg_time,
                 state_msg_time=closest_pose_time,
                 arduino_msg_time=closest_arduino_time,
+                target_curvature=aligned_target_curvature,
+                target_speed=aligned_target_speed,
             )
             self.bagfile_records_dicts[gps_msg_time] = bagfile_record
 

@@ -15,190 +15,20 @@ Usage:
 import argparse
 import math
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
-import rosbag
 
-try:
-    import tf
-
-    TF_AVAILABLE = True
-except ImportError:
-    from geometry_utils_pkg import ros_geometry_utils
-
-    TF_AVAILABLE = False
+from geometry_utils_pkg.bagfile_loader import BagfileLoader, BagfileRecord
+from vehicle_models_pkg.vehicle_models_constants import (
+    STEERING_MAX_PWM,
+    STEERING_MIN_PWM,
+)
 
 
-# ---------------------------------------------------------------------------
-# Constants (mirror vehicle_models_constants.py)
-# ---------------------------------------------------------------------------
-STEERING_IDLE_PWM = 90
-STEERING_MIN_PWM = 64
-STEERING_MAX_PWM = 116
 SATURATION_MARGIN = 2  # PWM units from limit to count as "saturated"
-
-
-# ---------------------------------------------------------------------------
-# Data container
-# ---------------------------------------------------------------------------
-class Record:
-    """One time-aligned snapshot of all relevant topics."""
-
-    __slots__ = [
-        "t",
-        "x",
-        "y",
-        "yaw",
-        "speed",
-        "steering_cmd",
-        "steering_fbk",
-        "throttle_cmd",
-        "fix_type",
-        "target_curvature",
-        "target_speed",
-    ]
-
-    def __init__(self) -> None:
-        self.t: float = 0.0
-        self.x: float = 0.0
-        self.y: float = 0.0
-        self.yaw: float = 0.0
-        self.speed: float = 0.0
-        self.steering_cmd: float = 0.0
-        self.steering_fbk: float = 0.0
-        self.throttle_cmd: float = 0.0
-        self.fix_type: str = ""
-        self.target_curvature: Optional[float] = None
-        self.target_speed: Optional[float] = None
-
-
-# ---------------------------------------------------------------------------
-# Bag file reading
-# ---------------------------------------------------------------------------
-TOPICS = [
-    "/current_pose",
-    "/current_velocity",
-    "/arduino_logging",
-    "/gps_info",
-    "/target_curvature",
-    "/target_velocity",
-]
-
-ALIGN_TOLERANCE = 0.25  # seconds
-
-
-def _find_closest(timestamps: List[float], target: float) -> Optional[int]:
-    """Return index of closest timestamp >= target, or None if too far."""
-    for i, ts in enumerate(timestamps):
-        if ts >= target:
-            if (ts - target) <= ALIGN_TOLERANCE:
-                return i
-            return None
-    return None
-
-
-def load_bag(bag_path: str) -> List[Record]:
-    """Read a bag file and return time-aligned Records."""
-
-    # Accumulate per-topic
-    pose_ts, xs, ys, yaws = [], [], [], []
-    vel_ts, speeds = [], []
-    ard_ts, steer_cmds, steer_fbks, throttle_cmds = [], [], [], []
-    gps_ts, fix_types = [], []
-    tc_ts, target_curvatures = [], []
-    tv_ts, target_speeds = [], []
-
-    with rosbag.Bag(bag_path) as bag:
-        for topic, msg, t in bag.read_messages(topics=TOPICS):
-            if topic == "/current_pose":
-                quat = [
-                    msg.pose.orientation.x,
-                    msg.pose.orientation.y,
-                    msg.pose.orientation.z,
-                    msg.pose.orientation.w,
-                ]
-                if TF_AVAILABLE:
-                    _, _, yaw = tf.transformations.euler_from_quaternion(quat)
-                else:
-                    _, _, yaw = ros_geometry_utils.euler_from_quaternion(quat)
-                pose_ts.append(t.to_sec())
-                xs.append(msg.pose.position.x)
-                ys.append(msg.pose.position.y)
-                yaws.append(yaw)
-
-            elif topic == "/current_velocity":
-                vel_ts.append(t.to_sec())
-                speeds.append(msg.twist.linear.x)
-
-            elif topic == "/arduino_logging":
-                ard_ts.append(t.to_sec())
-                steer_cmds.append(msg.steering_cmd_final)
-                steer_fbks.append(msg.steering_fbk)
-                throttle_cmds.append(msg.throttle_cmd_final)
-
-            elif topic == "/gps_info":
-                gps_ts.append(t.to_sec())
-                fix_types.append(msg.mode_indicator)
-
-            elif topic == "/target_curvature":
-                tc_ts.append(t.to_sec())
-                target_curvatures.append(msg.data)
-
-            elif topic == "/target_velocity":
-                tv_ts.append(t.to_sec())
-                target_speeds.append(msg.twist.linear.x)
-
-    has_target_curvature = len(tc_ts) > 0
-    has_target_speed = len(tv_ts) > 0
-
-    # Align everything to GPS timestamps
-    records: List[Record] = []
-    for gi, gps_time in enumerate(gps_ts):
-        pi = _find_closest(pose_ts, gps_time)
-        vi = _find_closest(vel_ts, gps_time)
-        ai = _find_closest(ard_ts, gps_time)
-        if pi is None or vi is None or ai is None:
-            continue
-
-        r = Record()
-        r.t = gps_time
-        r.x = xs[pi]
-        r.y = ys[pi]
-        r.yaw = yaws[pi]
-        r.speed = speeds[vi]
-        r.steering_cmd = steer_cmds[ai]
-        r.steering_fbk = steer_fbks[ai]
-        r.throttle_cmd = throttle_cmds[ai]
-        r.fix_type = fix_types[gi]
-
-        if has_target_curvature:
-            tci = _find_closest(tc_ts, gps_time)
-            if tci is not None:
-                r.target_curvature = target_curvatures[tci]
-
-        if has_target_speed:
-            tvi = _find_closest(tv_ts, gps_time)
-            if tvi is not None:
-                r.target_speed = target_speeds[tvi]
-
-        records.append(r)
-
-    print(f"Loaded {len(records)} aligned records from {os.path.basename(bag_path)}")
-    if has_target_curvature:
-        n = sum(1 for r in records if r.target_curvature is not None)
-        print(f"  /target_curvature present in {n}/{len(records)} records")
-    else:
-        print("  /target_curvature not found in bag")
-    if has_target_speed:
-        n = sum(1 for r in records if r.target_speed is not None)
-        print(f"  /target_velocity present in {n}/{len(records)} records")
-    else:
-        print("  /target_velocity not found in bag")
-
-    return records
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +56,7 @@ def _wrap_angle(a: float) -> float:
 
 
 def compute_path_metrics(
-    records: List[Record], waypoints: np.ndarray
+    records: Dict[float, BagfileRecord], waypoints: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     For each record, compute:
@@ -236,7 +66,6 @@ def compute_path_metrics(
 
     Returns (cte_array, heading_err_array, seg_idx_array).
     """
-    n_segs = len(waypoints) - 1
     # Precompute segment vectors and lengths
     seg_starts = waypoints[:-1]  # (N-1, 2)
     seg_ends = waypoints[1:]
@@ -245,12 +74,14 @@ def compute_path_metrics(
     seg_lens_sq[seg_lens_sq == 0] = 1e-12  # avoid div-by-zero for degenerate segments
     seg_angles = np.arctan2(seg_vecs[:, 1], seg_vecs[:, 0])  # tangent angle per segment
 
-    cte = np.zeros(len(records))
-    heading_err = np.zeros(len(records))
-    seg_idx = np.zeros(len(records), dtype=int)
+    sorted_records = sorted(records.values(), key=lambda r: r.gps_msg_time)
+    n = len(sorted_records)
+    cte = np.zeros(n)
+    heading_err = np.zeros(n)
+    seg_idx = np.zeros(n, dtype=int)
 
-    for i, r in enumerate(records):
-        pt = np.array([r.x, r.y])
+    for i, r in enumerate(sorted_records):
+        pt = np.array([r.state.x, r.state.y])
 
         # Project onto each segment: t = dot(pt - start, seg_vec) / |seg_vec|^2
         diffs = pt - seg_starts  # (N-1, 2)
@@ -266,20 +97,20 @@ def compute_path_metrics(
 
         # Signed CTE: cross product of segment direction with (pt - closest_on_seg)
         # Positive = point is to the left of the path direction
-        dx = r.x - closest[best, 0]
-        dy = r.y - closest[best, 1]
+        dx = r.state.x - closest[best, 0]
+        dy = r.state.y - closest[best, 1]
         seg_dir = seg_vecs[best]
         cross = seg_dir[0] * dy - seg_dir[1] * dx
         cte[i] = math.copysign(math.sqrt(dists_sq[best]), cross)
 
         # Heading error
-        heading_err[i] = _wrap_angle(r.yaw - seg_angles[best])
+        heading_err[i] = _wrap_angle(r.state.angle - seg_angles[best])
 
     return cte, heading_err, seg_idx
 
 
 def compute_steering_metrics(
-    records: List[Record],
+    records: Dict[float, BagfileRecord],
 ) -> Tuple[np.ndarray, np.ndarray, float, float, float]:
     """
     Compute steering-related metrics.
@@ -291,9 +122,10 @@ def compute_steering_metrics(
       - sat_right_pct (% time near STEERING_MAX_PWM)
       - sat_total_pct
     """
-    times = np.array([r.t for r in records])
+    sorted_records = sorted(records.values(), key=lambda r: r.gps_msg_time)
+    times = np.array([r.gps_msg_time for r in sorted_records])
     times = times - times[0]  # relative
-    cmds = np.array([r.steering_cmd for r in records])
+    cmds = np.array([r.steering_cmd for r in sorted_records])
 
     # Rate of change
     dt = np.diff(times)
@@ -313,7 +145,7 @@ def compute_steering_metrics(
 # Summary statistics (printed to console)
 # ---------------------------------------------------------------------------
 def print_summary(
-    records: List[Record],
+    records: Dict[float, BagfileRecord],
     cte: np.ndarray,
     heading_err: np.ndarray,
     sat_left: float,
@@ -321,13 +153,15 @@ def print_summary(
     sat_total: float,
     steering_rate: np.ndarray,
 ) -> None:
+    sorted_records = sorted(records.values(), key=lambda r: r.gps_msg_time)
     abs_cte = np.abs(cte)
     rms_cte = np.sqrt(np.mean(cte**2))
     he_deg = np.degrees(heading_err)
 
     print("\n===== PERFORMANCE SUMMARY =====")
-    print(f"  Records analysed:       {len(records)}")
-    print(f"  Duration:               {records[-1].t - records[0].t:.1f} s")
+    print(f"  Records analysed:       {len(sorted_records)}")
+    duration = sorted_records[-1].gps_msg_time - sorted_records[0].gps_msg_time
+    print(f"  Duration:               {duration:.1f} s")
 
     print("\n-- Path Tracking --")
     print(f"  Cross-track error (mean):  {np.mean(abs_cte):.3f} m")
@@ -339,10 +173,11 @@ def print_summary(
     print(f"  Heading error (max):       {np.max(np.abs(he_deg)):.1f} deg")
 
     # Speed tracking
-    target_speeds = [r.target_speed for r in records if r.target_speed is not None]
-    if target_speeds:
-        actual = [r.speed for r in records if r.target_speed is not None]
-        errs = np.array(actual) - np.array(target_speeds)
+    records_with_target = [r for r in sorted_records if r.target_speed is not None]
+    if records_with_target:
+        actual = np.array([r.state.vx for r in records_with_target])
+        target = np.array([r.target_speed for r in records_with_target])
+        errs = actual - target
         print(f"\n-- Speed Tracking --")
         print(f"  Speed error (mean):        {np.mean(errs):.3f} m/s")
         print(f"  Speed error (RMS):         {np.sqrt(np.mean(errs**2)):.3f} m/s")
@@ -356,12 +191,12 @@ def print_summary(
 
     # GPS quality breakdown
     fix_counts: Dict[str, int] = {}
-    for r in records:
+    for r in sorted_records:
         fix_counts[r.fix_type] = fix_counts.get(r.fix_type, 0) + 1
     print(f"\n-- GPS Fix Quality --")
     for ft, count in sorted(fix_counts.items(), key=lambda x: -x[1]):
         label = {"F": "RTK Fixed", "R": "RTK Float", "D": "Differential", "A": "Autonomous"}.get(ft, ft)
-        print(f"  {label} ({ft}): {count / len(records) * 100:.1f}%")
+        print(f"  {label} ({ft}): {count / len(sorted_records) * 100:.1f}%")
 
     print("================================\n")
 
@@ -379,16 +214,16 @@ FIX_TYPE_COLORS = {
 
 
 def build_figure(
-    records: List[Record],
+    records: Dict[float, BagfileRecord],
     waypoints: np.ndarray,
     cte: np.ndarray,
     heading_err: np.ndarray,
     steering_rate: np.ndarray,
 ) -> go.Figure:
     """Build the multi-panel Plotly figure."""
+    sorted_records = sorted(records.values(), key=lambda r: r.gps_msg_time)
 
-    has_target_speed = any(r.target_speed is not None for r in records)
-    has_target_curv = any(r.target_curvature is not None for r in records)
+    has_target_speed = any(r.target_speed is not None for r in sorted_records)
 
     # Number of rows: trajectory, CTE, heading, speed, steering cmd/fbk, steering rate, GPS fix
     n_rows = 7
@@ -412,12 +247,11 @@ def build_figure(
         specs=[[{"secondary_y": False}]] * n_rows,
     )
 
-    times = np.array([r.t for r in records])
+    times = np.array([r.gps_msg_time for r in sorted_records])
     t0 = times[0]
     t_rel = times - t0
 
     # --- Row 1: Trajectory ---
-    # Waypoints as background
     fig.add_trace(
         go.Scatter(
             x=waypoints[:, 0],
@@ -430,9 +264,8 @@ def build_figure(
         row=1,
         col=1,
     )
-    # Actual path colored by CTE
-    xs = [r.x for r in records]
-    ys = [r.y for r in records]
+    xs = [r.state.x for r in sorted_records]
+    ys = [r.state.y for r in sorted_records]
     abs_cte = np.abs(cte)
     fig.add_trace(
         go.Scatter(
@@ -464,7 +297,6 @@ def build_figure(
         row=2,
         col=1,
     )
-    # Threshold bands
     for val in [0.5, -0.5]:
         fig.add_hline(y=val, line_dash="dash", line_color="salmon", line_width=1, row=2, col=1)
     fig.add_hline(y=0, line_color="gray", line_width=0.5, row=2, col=1)
@@ -486,7 +318,7 @@ def build_figure(
     fig.update_yaxes(title_text="Heading err (deg)", row=3, col=1)
 
     # --- Row 4: Speed ---
-    actual_speeds = [r.speed for r in records]
+    actual_speeds = [r.state.vx for r in sorted_records]
     fig.add_trace(
         go.Scatter(
             x=t_rel,
@@ -499,7 +331,10 @@ def build_figure(
         col=1,
     )
     if has_target_speed:
-        target_sp = [r.target_speed if r.target_speed is not None else float("nan") for r in records]
+        target_sp = [
+            r.target_speed if r.target_speed is not None else float("nan")
+            for r in sorted_records
+        ]
         fig.add_trace(
             go.Scatter(
                 x=t_rel,
@@ -514,8 +349,8 @@ def build_figure(
     fig.update_yaxes(title_text="Speed (m/s)", row=4, col=1)
 
     # --- Row 5: Steering cmd vs feedback ---
-    steer_cmds = [r.steering_cmd for r in records]
-    steer_fbks = [r.steering_fbk for r in records]
+    steer_cmds = [r.steering_cmd for r in sorted_records]
+    steer_fbks = [r.steering_fbk for r in sorted_records]
     fig.add_trace(
         go.Scatter(
             x=t_rel,
@@ -534,12 +369,10 @@ def build_figure(
             mode="lines",
             name="Steering fbk",
             line={"color": "dodgerblue", "width": 1},
-            yaxis="y5",
         ),
         row=5,
         col=1,
     )
-    # Saturation limit lines (on cmd axis)
     fig.add_hline(
         y=STEERING_MIN_PWM,
         line_dash="dot",
@@ -579,23 +412,21 @@ def build_figure(
     fig.update_yaxes(title_text="dCmd/dt (PWM/s)", row=6, col=1)
 
     # --- Row 7: GPS fix type timeline ---
-    # Render as colored markers along a single horizontal line
-    gps_colors = [FIX_TYPE_COLORS.get(r.fix_type, "gray") for r in records]
+    gps_colors = [FIX_TYPE_COLORS.get(r.fix_type, "gray") for r in sorted_records]
     fig.add_trace(
         go.Scatter(
             x=t_rel,
-            y=[0] * len(records),
+            y=[0] * len(sorted_records),
             mode="markers",
             marker={"color": gps_colors, "size": 6, "symbol": "square"},
             name="GPS fix",
-            hovertext=[r.fix_type for r in records],
+            hovertext=[r.fix_type for r in sorted_records],
             showlegend=False,
         ),
         row=7,
         col=1,
     )
     fig.update_yaxes(visible=False, row=7, col=1)
-    fig.update_xaxes(title_text="Time (s)", row=7, col=1)
 
     # Shared x-axis label only on bottom
     for row in range(2, n_rows):
@@ -634,8 +465,9 @@ def main():
     )
     args = parser.parse_args()
 
-    # Load data
-    records = load_bag(args.bag_path)
+    # Load data using shared BagfileLoader
+    loader = BagfileLoader(args.bag_path)
+    records = loader.bagfile_records_dicts
     if len(records) < 2:
         print("Error: not enough aligned records to analyze.")
         return
