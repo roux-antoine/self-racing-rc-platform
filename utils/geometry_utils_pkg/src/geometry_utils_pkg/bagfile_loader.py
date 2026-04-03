@@ -173,7 +173,11 @@ class BagfileLoader:
             aligned_target_curvature = None
             if self._has_target_curvature:
                 closest_tc = [ts for ts in target_curvature_timestamps if ts >= gps_msg_time]
-                if closest_tc and (closest_tc[0] - gps_msg_time) <= 0.25:
+                if closest_tc:
+                    if (closest_tc[0] - gps_msg_time) > 0.25:
+                        raise ValueError(
+                            f"Target curvature and GPS timestamps are too far apart: {closest_tc[0] - gps_msg_time}"
+                        )
                     aligned_target_curvature = target_curvatures[
                         target_curvature_timestamps.index(closest_tc[0])
                     ]
@@ -181,7 +185,11 @@ class BagfileLoader:
             aligned_target_speed = None
             if self._has_target_speed:
                 closest_tv = [ts for ts in target_speed_timestamps if ts >= gps_msg_time]
-                if closest_tv and (closest_tv[0] - gps_msg_time) <= 0.25:
+                if closest_tv:
+                    if (closest_tv[0] - gps_msg_time) > 0.25:
+                        raise ValueError(
+                            f"Target velocity and GPS timestamps are too far apart: {closest_tv[0] - gps_msg_time}"
+                        )
                     aligned_target_speed = target_speeds[
                         target_speed_timestamps.index(closest_tv[0])
                     ]
