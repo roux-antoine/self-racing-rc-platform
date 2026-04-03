@@ -84,12 +84,7 @@ def compute_angle_difference():
     gps_speeds = []
     gps_times = []
 
-    counter = 0
     for topic, msg, t in bag.read_messages(topics=["/gps_info"]):
-
-        if counter > 100000:
-            continue
-        counter += 1
 
         gps_position = utm.from_latlon(msg.lat, msg.lon)
         yaw_rad = ((math.pi / 2) - msg.track * math.pi / 180) % (2 * np.pi)
@@ -139,8 +134,11 @@ def compute_angle_difference():
     angles_gps_filtered = []
     corrected_angle_diffs_filtered = []
     corrected_cog_inline = []
+    position_based_cog = []
+    position_based_diffs_filtered = []
     prev_gps_yaw_rad = None
     prev_gps_time = None
+    prev_gps_position = None
     times = []
     for gps_position, gps_yaw_rad, gps_speed, gps_time in zip(
         gps_positions, gps_yaw_rads, gps_speeds, gps_times
@@ -187,6 +185,21 @@ def compute_angle_difference():
             prev_gps_yaw_rad = gps_yaw_rad
             prev_gps_time = gps_time
 
+            # Estimate CoG from consecutive GPS positions
+            if prev_gps_position is None:
+                pos_cog = gps_yaw_rad  # no previous position, fall back to GPS CoG
+            else:
+                dx = gps_position[0] - prev_gps_position[0]
+                dy = gps_position[1] - prev_gps_position[1]
+                pos_cog = np.arctan2(dy, dx) % (2 * np.pi)
+            position_based_cog.append(pos_cog)
+            prev_gps_position = gps_position
+
+            pos_diff = pos_cog - angle_real
+            if abs(pos_diff) > 3:  # same wraparound hack
+                pos_diff = 0
+            position_based_diffs_filtered.append(pos_diff)
+
             angle_diff = gps_yaw_rad - angle_real
             if abs(angle_diff) > 3:  # HACK HACK to account for going over 2pi
                 angle_diff = 0
@@ -214,6 +227,11 @@ def compute_angle_difference():
                     [gps_position[1], gps_position[1] + 0.5 * np.sin(corrected_yaw)],
                     color="blue",
                 )
+                plt.plot(
+                    [gps_position[0], gps_position[0] + 0.5 * np.cos(pos_cog)],
+                    [gps_position[1], gps_position[1] + 0.5 * np.sin(pos_cog)],
+                    color="purple",
+                )
 
             
     if DEBUG:
@@ -228,6 +246,7 @@ def compute_angle_difference():
         plt.plot(times, angle_reals_filtered, label="ground truth")
         plt.plot(times, angles_gps_filtered, label="GPS CoG (raw)")
         plt.plot(times, corrected_cog_inline, label="GPS CoG (corrected)")
+        plt.plot(times, position_based_cog, label="position-based CoG")
         plt.xlabel("time (s)")
         plt.ylabel("angle (rad)")
         plt.legend()
@@ -236,19 +255,23 @@ def compute_angle_difference():
     if DEBUG:
         plt.hist(angle_diffs_filtered, alpha=0.5, label="raw GPS offset")
         plt.hist(corrected_angle_diffs_filtered, alpha=0.5, label="corrected GPS offset")
+        plt.hist(position_based_diffs_filtered, alpha=0.5, label="position-based offset")
         plt.xlabel("angle offset (rad)")
         plt.ylabel("count")
         plt.legend()
-        plt.title("Offset distribution: raw vs corrected")
+        plt.title("Offset distribution: raw vs corrected vs position-based")
         plt.show()
 
     if DEBUG:
         raw_mean = np.mean(np.abs(angle_diffs_filtered))
         corrected_mean = np.mean(np.abs(corrected_angle_diffs_filtered))
+        pos_mean = np.mean(np.abs(position_based_diffs_filtered))
         plt.hist(np.abs(angle_diffs_filtered), bins=20, alpha=0.5, label="raw GPS offset")
         plt.hist(np.abs(corrected_angle_diffs_filtered), bins=20, alpha=0.5, label="corrected GPS offset")
+        plt.hist(np.abs(position_based_diffs_filtered), bins=20, alpha=0.5, label="position-based offset")
         plt.axvline(raw_mean, color="tab:blue", linestyle="--", label=f"raw mean ({raw_mean:.3f})")
         plt.axvline(corrected_mean, color="tab:orange", linestyle="--", label=f"corrected mean ({corrected_mean:.3f})")
+        plt.axvline(pos_mean, color="tab:green", linestyle="--", label=f"position mean ({pos_mean:.3f})")
         plt.xlabel("angle offset (rad)")
         plt.ylabel("count")
         plt.legend()
@@ -257,6 +280,7 @@ def compute_angle_difference():
 
     print(f"Raw GPS mean offset: {np.mean(np.abs(angle_diffs_filtered)):.4f} rad = {np.mean(np.abs(angle_diffs_filtered)) * 180 / np.pi:.2f} deg")
     print(f"Corrected mean offset: {np.mean(np.abs(corrected_angle_diffs_filtered)):.4f} rad = {np.mean(np.abs(corrected_angle_diffs_filtered)) * 180 / np.pi:.2f} deg)")
+    print(f"Position-based mean offset: {np.mean(np.abs(position_based_diffs_filtered)):.4f} rad = {np.mean(np.abs(position_based_diffs_filtered)) * 180 / np.pi:.2f} deg")
 
 def plot_stats_and_do_regression():
 
