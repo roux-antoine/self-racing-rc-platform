@@ -31,6 +31,9 @@ class BagfileRecord:
         arduino_msg_time: float,
         steering_fbk: Optional[float] = None,
         throttle_cmd: float = 0.0,
+        engaged_mode: bool = False,
+        override_steering: bool = False,
+        override_throttle: bool = False,
         target_curvature: Optional[float] = None,
         target_speed: Optional[float] = None,
     ) -> None:
@@ -42,6 +45,9 @@ class BagfileRecord:
         self.gps_msg_time: float = gps_msg_time
         self.state_msg_time: float = state_msg_time
         self.arduino_msg_time: float = arduino_msg_time
+        self.engaged_mode: bool = engaged_mode
+        self.override_steering: bool = override_steering
+        self.override_throttle: bool = override_throttle
         self.target_curvature: Optional[float] = target_curvature
         self.target_speed: Optional[float] = target_speed
 
@@ -62,6 +68,9 @@ class BagfileLoader:
             servo_cmds = []
             steering_fbks = []
             throttle_cmds = []
+            engaged_modes = []
+            override_steerings = []
+            override_throttles = []
             fix_types = []
             pose_timestamps = []
             velocity_timestamps = []
@@ -119,6 +128,9 @@ class BagfileLoader:
                     servo_cmds.append(msg.steering_cmd_final)
                     # steering_fbks.append(msg.steering_fbk)  # HACK
                     throttle_cmds.append(msg.throttle_cmd_final)
+                    engaged_modes.append(msg.engaged_mode)
+                    override_steerings.append(msg.override_steering)
+                    override_throttles.append(msg.override_throttle)
 
                 elif topic == "/gps_info":
                     gps_timestamps.append(t.to_sec())
@@ -225,6 +237,9 @@ class BagfileLoader:
                 gps_msg_time=gps_msg_time,
                 state_msg_time=closest_pose_time,
                 arduino_msg_time=closest_arduino_time,
+                engaged_mode=engaged_modes[arduino_idx],
+                override_steering=override_steerings[arduino_idx],
+                override_throttle=override_throttles[arduino_idx],
                 target_curvature=aligned_target_curvature,
                 target_speed=aligned_target_speed,
             )

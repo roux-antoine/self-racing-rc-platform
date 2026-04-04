@@ -213,10 +213,10 @@ def print_summary(
 # Plotly visualizations
 # ---------------------------------------------------------------------------
 FIX_TYPE_COLORS = {
-    "F": "green",
-    "R": "gold",
-    "D": "orange",
-    "A": "red",
+    "R": "green",
+    "F": "gold",
+    "D": "red",
+    "A": "gray",
     "N": "gray",
 }
 
@@ -241,9 +241,9 @@ def build_figure(
 
     has_target_speed = any(r.target_speed is not None for r in sorted_all)
 
-    # Number of rows: trajectory, CTE, heading, speed, steering cmd/fbk, steering rate, GPS fix
-    n_rows = 7
-    row_heights = [0.30, 0.12, 0.10, 0.12, 0.14, 0.12, 0.04]
+    # Number of rows: trajectory, CTE, heading, speed, steering cmd/fbk, steering rate, engagement, GPS fix
+    n_rows = 8
+    row_heights = [0.28, 0.11, 0.09, 0.11, 0.13, 0.11, 0.04, 0.04]
     subtitles = [
         "Trajectory (colored by cross-track error)",
         "Cross-Track Error (m)",
@@ -251,6 +251,7 @@ def build_figure(
         "Speed: Actual vs Target (m/s)",
         "Steering: Command vs Feedback (PWM)",
         "Steering Command Rate of Change (PWM/s)",
+        "Engagement Mode",
         "GPS Fix Type",
     ]
 
@@ -459,7 +460,43 @@ def build_figure(
     fig.add_hline(y=0, line_color="gray", line_width=0.5, row=6, col=1)
     fig.update_yaxes(title_text="dCmd/dt (PWM/s)", row=6, col=1)
 
-    # --- Row 7: GPS fix type timeline (all data) ---
+    # --- Row 7: Engagement mode timeline (all data) ---
+    def _engagement_color(r: BagfileRecord) -> str:
+        if not r.engaged_mode:
+            return "gray"
+        if r.override_steering:
+            return "blue"
+        if r.override_throttle:
+            return "pink"
+        return "green"
+
+    def _engagement_label(r: BagfileRecord) -> str:
+        if not r.engaged_mode:
+            return "Disengaged"
+        if r.override_steering:
+            return "Override steering"
+        if r.override_throttle:
+            return "Override throttle"
+        return "Engaged"
+
+    engagement_colors = [_engagement_color(r) for r in sorted_all]
+    engagement_labels = [_engagement_label(r) for r in sorted_all]
+    fig.add_trace(
+        go.Scatter(
+            x=t_rel_all,
+            y=[0] * len(sorted_all),
+            mode="markers",
+            marker={"color": engagement_colors, "size": 6, "symbol": "square"},
+            name="Engagement",
+            hovertext=engagement_labels,
+            showlegend=False,
+        ),
+        row=7,
+        col=1,
+    )
+    fig.update_yaxes(visible=False, row=7, col=1)
+
+    # --- Row 8: GPS fix type timeline (all data) ---
     gps_colors = [FIX_TYPE_COLORS.get(r.fix_type, "gray") for r in sorted_all]
     fig.add_trace(
         go.Scatter(
@@ -471,10 +508,10 @@ def build_figure(
             hovertext=[r.fix_type for r in sorted_all],
             showlegend=False,
         ),
-        row=7,
+        row=8,
         col=1,
     )
-    fig.update_yaxes(visible=False, row=7, col=1)
+    fig.update_yaxes(visible=False, row=8, col=1)
 
     # --- Gray shading for discarded time regions (rows 2-7) ---
     if trim_start is not None or trim_end is not None:
