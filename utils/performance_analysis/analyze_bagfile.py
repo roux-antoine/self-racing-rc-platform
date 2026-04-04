@@ -13,7 +13,6 @@ Usage:
 """
 
 import argparse
-import math
 import os
 from typing import Dict, List, Optional, Tuple
 
@@ -25,8 +24,8 @@ from analysis_utils import (
     resolve_waypoints,
     trim_records,
 )
-from geometry_utils_pkg.bagfile_loader import BagfileLoader, BagfileRecord
-from geometry_utils_pkg.geometry_utils import compute_cross_track_errors
+from bagfile_loader import BagfileLoader, BagfileRecord
+from geometry_utils_pkg.geometry_utils import compute_cross_track_errors, wrap_angle
 from plotly.subplots import make_subplots
 from vehicle_models_pkg.vehicle_models_constants import (
     STEERING_MAX_PWM,
@@ -37,18 +36,9 @@ from vehicle_models_pkg.vehicle_models_constants import (
 SATURATION_MARGIN = 2  # PWM units from limit to count as "saturated"
 
 
-# Keep as alias for backwards compatibility (imported by replay_lateral_models)
-load_waypoints = load_waypoints_from_file
-
-
 # ---------------------------------------------------------------------------
 # Metrics computation
 # ---------------------------------------------------------------------------
-def _wrap_angle(a: float) -> float:
-    """Wrap angle to [-pi, pi]."""
-    return (a + math.pi) % (2 * math.pi) - math.pi
-
-
 def compute_path_metrics(
     records: Dict[float, BagfileRecord], waypoints: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -71,7 +61,7 @@ def compute_path_metrics(
     seg_angles = np.arctan2(seg_vecs[:, 1], seg_vecs[:, 0])
     heading_err = np.array(
         [
-            _wrap_angle(r.state.angle - seg_angles[seg_idx[i]])
+            wrap_angle(r.state.angle - seg_angles[seg_idx[i]])
             for i, r in enumerate(sorted_records)
         ]
     )
@@ -137,16 +127,14 @@ def print_summary(
     print(f"  Cross-track error (mean):  {np.mean(abs_cte):.3f} m")
     print(f"  Cross-track error (RMS):   {rms_cte:.3f} m")
     print(f"  Cross-track error (max):   {np.max(abs_cte):.3f} m")
-    pct_over = np.sum(abs_cte > 0.5) / len(abs_cte) * 100
-    print(f"  Time with |CTE| > 0.5 m:  {pct_over:.1f}%")
     print(f"  Heading error (mean):      {np.mean(np.abs(he_deg)):.1f} deg")
     print(f"  Heading error (max):       {np.max(np.abs(he_deg)):.1f} deg")
 
     # Speed tracking
-    records_with_target = [r for r in sorted_records if r.target_speed is not None]
-    if records_with_target:
-        actual = np.array([r.state.vx for r in records_with_target])
-        target = np.array([r.target_speed for r in records_with_target])
+    records_with_target_speed = [r for r in sorted_records if r.target_speed is not None]
+    if records_with_target_speed:
+        actual = np.array([r.state.vx for r in records_with_target_speed])
+        target = np.array([r.target_speed for r in records_with_target_speed])
         errs = actual - target
         print(f"\n-- Speed Tracking --")
         print(f"  Speed error (mean):        {np.mean(errs):.3f} m/s")
@@ -187,7 +175,7 @@ FIX_TYPE_COLORS = {
     "R": "green",
     "F": "gold",
     "D": "red",
-    "A": "gray",
+    "A": "black",
     "N": "gray",
 }
 
@@ -313,10 +301,6 @@ def build_figure(
         row=2,
         col=1,
     )
-    for val in [0.5, -0.5]:
-        fig.add_hline(
-            y=val, line_dash="dash", line_color="salmon", line_width=1, row=2, col=1
-        )
     fig.add_hline(y=0, line_color="gray", line_width=0.5, row=2, col=1)
     fig.update_yaxes(title_text="CTE (m)", row=2, col=1)
 
@@ -468,7 +452,7 @@ def build_figure(
     fig.update_yaxes(visible=False, row=7, col=1)
 
     # --- Row 8: GPS fix type timeline (all data) ---
-    gps_colors = [FIX_TYPE_COLORS.get(r.fix_type, "gray") for r in sorted_all]
+    gps_colors = [FIX_TYPE_COLORS[r.fix_type] for r in sorted_all]
     fig.add_trace(
         go.Scatter(
             x=t_rel_all,

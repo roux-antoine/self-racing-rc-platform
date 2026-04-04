@@ -24,7 +24,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import plotly.graph_objs as go
 from analysis_utils import add_time_window_args, resolve_waypoints, trim_records
-from geometry_utils_pkg.bagfile_loader import BagfileLoader, BagfileRecord
+from bagfile_loader import BagfileLoader, BagfileRecord
 from geometry_utils_pkg.geometry_utils import compute_cross_track_errors
 from plotly.subplots import make_subplots
 from vehicle_models_pkg.vehicle_models import (

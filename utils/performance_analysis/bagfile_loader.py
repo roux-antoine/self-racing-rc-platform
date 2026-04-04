@@ -25,21 +25,20 @@ class BagfileRecord:
         self,
         state: State,
         steering_cmd: float,
+        throttle_cmd: float,
         fix_type: str,
         gps_msg_time: float,
         state_msg_time: float,
         arduino_msg_time: float,
+        engaged_mode: bool,
+        override_steering: bool,
+        override_throttle: bool,
+        target_curvature:float,
         steering_fbk: Optional[float] = None,
-        throttle_cmd: float = 0.0,
-        engaged_mode: bool = False,
-        override_steering: bool = False,
-        override_throttle: bool = False,
-        target_curvature: Optional[float] = None,
         target_speed: Optional[float] = None,
     ) -> None:
         self.state: State = state
         self.steering_cmd: float = steering_cmd
-        self.steering_fbk: Optional[float] = steering_fbk
         self.throttle_cmd: float = throttle_cmd
         self.fix_type: str = fix_type
         self.gps_msg_time: float = gps_msg_time
@@ -48,7 +47,8 @@ class BagfileRecord:
         self.engaged_mode: bool = engaged_mode
         self.override_steering: bool = override_steering
         self.override_throttle: bool = override_throttle
-        self.target_curvature: Optional[float] = target_curvature
+        self.target_curvature: float = target_curvature
+        self.steering_fbk: Optional[float] = steering_fbk
         self.target_speed: Optional[float] = target_speed
 
 
@@ -126,11 +126,14 @@ class BagfileLoader:
                 elif topic == "/arduino_logging":
                     arduino_timestamps.append(t.to_sec())
                     servo_cmds.append(msg.steering_cmd_final)
-                    # steering_fbks.append(msg.steering_fbk)  # HACK
                     throttle_cmds.append(msg.throttle_cmd_final)
                     engaged_modes.append(msg.engaged_mode)
                     override_steerings.append(msg.override_steering)
                     override_throttles.append(msg.override_throttle)
+                    if hasattr(msg, "steering_fbk"):
+                        steering_fbks.append(msg.steering_fbk)
+                    else:
+                        steering_fbks.append(None)
 
                 elif topic == "/gps_info":
                     gps_timestamps.append(t.to_sec())
@@ -147,7 +150,6 @@ class BagfileLoader:
                 elif topic == "/waypoints":
                     waypoints_msg = msg
 
-        self._has_target_curvature = len(target_curvature_timestamps) > 0
         self._has_target_speed = len(target_speed_timestamps) > 0
 
         # Extract waypoints from the latched /waypoints topic (single message)
@@ -198,40 +200,37 @@ class BagfileLoader:
 
             arduino_idx = arduino_timestamps.index(closest_arduino_time)
 
-            # Align optional topics (target_curvature, target_velocity)
-            aligned_target_curvature = None
-            if self._has_target_curvature:
-                closest_tc = [
-                    ts for ts in target_curvature_timestamps if ts >= gps_msg_time
-                ]
-                if closest_tc:
-                    if (closest_tc[0] - gps_msg_time) > 0.25:
-                        raise ValueError(
-                            f"Target curvature and GPS timestamps are too far apart: {closest_tc[0] - gps_msg_time}"
-                        )
-                    aligned_target_curvature = target_curvatures[
-                        target_curvature_timestamps.index(closest_tc[0])
-                    ]
-
+            # Align topic target_curvature
+            closest_tc = [
+                ts for ts in target_curvature_timestamps if ts >= gps_msg_time
+            ]
+            if (closest_tc[0] - gps_msg_time) > 0.25:
+                raise ValueError(
+                    f"Target curvature and GPS timestamps are too far apart: {closest_tc[0] - gps_msg_time}"
+                )
+            aligned_target_curvature = target_curvatures[
+                target_curvature_timestamps.index(closest_tc[0])
+            ]
+            
+            # Align topic target_velocity
             aligned_target_speed = None
             if self._has_target_speed:
                 closest_tv = [
                     ts for ts in target_speed_timestamps if ts >= gps_msg_time
                 ]
-                if closest_tv:
-                    if (closest_tv[0] - gps_msg_time) > 0.25:
-                        raise ValueError(
-                            f"Target velocity and GPS timestamps are too far apart: {closest_tv[0] - gps_msg_time}"
-                        )
-                    aligned_target_speed = target_speeds[
-                        target_speed_timestamps.index(closest_tv[0])
-                    ]
+                if (closest_tv[0] - gps_msg_time) > 0.25:
+                    raise ValueError(
+                        f"Target velocity and GPS timestamps are too far apart: {closest_tv[0] - gps_msg_time}"
+                    )
+                aligned_target_speed = target_speeds[
+                    target_speed_timestamps.index(closest_tv[0])
+                ]
 
             # Create a new BagfileRecord with the aligned timestamps
             bagfile_record = BagfileRecord(
                 state=state,
                 steering_cmd=servo_cmds[arduino_idx],
-                # steering_fbk=steering_fbks[arduino_idx],
+                steering_fbk=steering_fbks[arduino_idx],
                 throttle_cmd=throttle_cmds[arduino_idx],
                 fix_type=fix_types[gps_timestamps.index(gps_msg_time)],
                 gps_msg_time=gps_msg_time,

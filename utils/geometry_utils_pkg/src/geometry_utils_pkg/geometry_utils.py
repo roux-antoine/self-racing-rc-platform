@@ -167,6 +167,11 @@ def circle_line_segment_intersection(
             return intersections
 
 
+def wrap_angle(a: float) -> float:
+    """Wrap angle to [-pi, pi]."""
+    return (a + math.pi) % (2 * math.pi) - math.pi
+
+
 def compute_cross_track_errors(
     xs: np.ndarray, ys: np.ndarray, waypoints: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray]:
