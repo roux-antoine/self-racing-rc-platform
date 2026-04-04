@@ -24,18 +24,18 @@ class BagfileRecord:
         self,
         state: State,
         steering_cmd: float,
-        steering_fbk: float,
-        throttle_cmd: float,
         fix_type: str,
         gps_msg_time: float,
         state_msg_time: float,
         arduino_msg_time: float,
+        steering_fbk: Optional[float] = None,
+        throttle_cmd: float = 0.0,
         target_curvature: Optional[float] = None,
         target_speed: Optional[float] = None,
     ) -> None:
         self.state: State = state
         self.steering_cmd: float = steering_cmd
-        self.steering_fbk: float = steering_fbk
+        self.steering_fbk: Optional[float] = steering_fbk
         self.throttle_cmd: float = throttle_cmd
         self.fix_type: str = fix_type
         self.gps_msg_time: float = gps_msg_time
@@ -114,7 +114,7 @@ class BagfileLoader:
                 elif topic == "/arduino_logging":
                     arduino_timestamps.append(t.to_sec())
                     servo_cmds.append(msg.steering_cmd_final)
-                    steering_fbks.append(msg.steering_fbk)
+                    # steering_fbks.append(msg.steering_fbk)  # HACK 
                     throttle_cmds.append(msg.throttle_cmd_final)
 
                 elif topic == "/gps_info":
@@ -198,7 +198,7 @@ class BagfileLoader:
             bagfile_record = BagfileRecord(
                 state=state,
                 steering_cmd=servo_cmds[arduino_idx],
-                steering_fbk=steering_fbks[arduino_idx],
+                # steering_fbk=steering_fbks[arduino_idx],
                 throttle_cmd=throttle_cmds[arduino_idx],
                 fix_type=fix_types[gps_timestamps.index(gps_msg_time)],
                 gps_msg_time=gps_msg_time,

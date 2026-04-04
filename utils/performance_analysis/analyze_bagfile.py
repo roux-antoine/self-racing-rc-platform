@@ -95,6 +95,7 @@ def compute_path_metrics(
         best = np.argmin(dists_sq)
         seg_idx[i] = best
 
+
         # Signed CTE: cross product of segment direction with (pt - closest_on_seg)
         # Positive = point is to the left of the path direction
         dx = r.state.x - closest[best, 0]
@@ -350,7 +351,7 @@ def build_figure(
 
     # --- Row 5: Steering cmd vs feedback ---
     steer_cmds = [r.steering_cmd for r in sorted_records]
-    steer_fbks = [r.steering_fbk for r in sorted_records]
+    has_steering_fbk = any(r.steering_fbk is not None for r in sorted_records)
     fig.add_trace(
         go.Scatter(
             x=t_rel,
@@ -362,17 +363,19 @@ def build_figure(
         row=5,
         col=1,
     )
-    fig.add_trace(
-        go.Scatter(
-            x=t_rel,
-            y=steer_fbks,
-            mode="lines",
-            name="Steering fbk",
-            line={"color": "dodgerblue", "width": 1},
-        ),
-        row=5,
-        col=1,
-    )
+    if has_steering_fbk:
+        steer_fbks = [r.steering_fbk for r in sorted_records]
+        fig.add_trace(
+            go.Scatter(
+                x=t_rel,
+                y=steer_fbks,
+                mode="lines",
+                name="Steering fbk",
+                line={"color": "dodgerblue", "width": 1},
+            ),
+            row=5,
+            col=1,
+        )
     fig.add_hline(
         y=STEERING_MIN_PWM,
         line_dash="dot",
