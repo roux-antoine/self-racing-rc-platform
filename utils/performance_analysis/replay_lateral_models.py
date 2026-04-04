@@ -105,8 +105,7 @@ def forward_simulate_open_loop(
     for i in range(1, len(sorted_records)):
         dt = sorted_records[i].gps_msg_time - sorted_records[i - 1].gps_msg_time
         if dt <= 0:
-            model.states.append(model.states[-1])
-            continue
+            raise ValueError(f"Non-positive dt between records {i-1} and {i}")
 
         model.states[-1].vx = sorted_records[i - 1].state.vx
         model.step(dt=dt, cmd_steering=sorted_records[i - 1].steering_cmd)
@@ -130,7 +129,7 @@ def forward_simulate_one_step(
     for i in range(len(sorted_records) - 1):
         dt = sorted_records[i + 1].gps_msg_time - sorted_records[i].gps_msg_time
         if dt <= 0:
-            continue
+            raise ValueError(f"Non-positive dt between records {i-1} and {i}")
 
         r = sorted_records[i]
         model.states.clear()
@@ -607,9 +606,13 @@ def main():
             xs, ys = sim_fn(sorted_records, model)
             model_trajectories[name] = (xs, ys)
             model_offsets[name] = compute_pairwise_offsets(sorted_records, xs, ys)
-            if waypoints is not None:
+            if waypoints is not None and len(waypoints) >= 2:
                 cte, _ = compute_cross_track_errors(xs, ys, waypoints)
                 model_ctes[name] = cte
+            else:
+                raise ValueError(
+                    "Waypoints are required to compute CTE, but not found."
+                )
 
     # Print summary
     print_summary(sorted_records, args.models, model_cmds, model_ctes, model_offsets)

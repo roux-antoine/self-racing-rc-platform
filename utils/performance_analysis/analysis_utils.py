@@ -45,6 +45,11 @@ def trim_records(
     if start is None and end is None:
         return records, False
 
+    if end is not None and start is not None and end <= start:
+        raise ValueError(
+            f"End time ({end}s) must be greater than start time ({start}s)"
+        )
+
     bag_t0 = min(records.keys())
     abs_start = bag_t0 + start if start is not None else -float("inf")
     abs_end = bag_t0 + end if end is not None else float("inf")

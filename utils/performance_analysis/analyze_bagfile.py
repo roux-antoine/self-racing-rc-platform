@@ -89,6 +89,8 @@ def compute_steering_metrics(
 
     # Saturation
     n = len(cmds)
+    if STEERING_MIN_PWM + SATURATION_MARGIN >= STEERING_MAX_PWM - SATURATION_MARGIN:
+        raise ValueError("Saturation margin is too large, no valid range remains.")
     sat_left = np.sum(cmds <= STEERING_MIN_PWM + SATURATION_MARGIN) / n * 100
     sat_right = np.sum(cmds >= STEERING_MAX_PWM - SATURATION_MARGIN) / n * 100
     sat_total = sat_left + sat_right
