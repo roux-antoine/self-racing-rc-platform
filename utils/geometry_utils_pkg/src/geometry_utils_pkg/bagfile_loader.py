@@ -2,6 +2,7 @@ import argparse
 from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
 import plotly.graph_objs as go
 import rosbag
 from geometry_utils_pkg.geometry_utils import State
@@ -70,6 +71,7 @@ class BagfileLoader:
             target_curvatures = []
             target_speed_timestamps = []
             target_speeds = []
+            waypoints_msg = None
 
             for topic, msg, t in bag.read_messages(
                 topics=[
@@ -79,6 +81,7 @@ class BagfileLoader:
                     "/gps_info",
                     "/target_curvature",
                     "/target_velocity",
+                    "/waypoints",
                 ]
             ):
                 if topic == "/current_pose":
@@ -114,7 +117,7 @@ class BagfileLoader:
                 elif topic == "/arduino_logging":
                     arduino_timestamps.append(t.to_sec())
                     servo_cmds.append(msg.steering_cmd_final)
-                    # steering_fbks.append(msg.steering_fbk)  # HACK 
+                    # steering_fbks.append(msg.steering_fbk)  # HACK
                     throttle_cmds.append(msg.throttle_cmd_final)
 
                 elif topic == "/gps_info":
@@ -129,8 +132,22 @@ class BagfileLoader:
                     target_speed_timestamps.append(t.to_sec())
                     target_speeds.append(msg.twist.linear.x)
 
+                elif topic == "/waypoints":
+                    waypoints_msg = msg
+
         self._has_target_curvature = len(target_curvature_timestamps) > 0
         self._has_target_speed = len(target_speed_timestamps) > 0
+
+        # Extract waypoints from the latched /waypoints topic (single message)
+        if waypoints_msg is not None:
+            self.waypoints = np.array(
+                [
+                    [wp.pose.position.x, wp.pose.position.y]
+                    for wp in waypoints_msg.waypoints
+                ]
+            )
+        else:
+            self.waypoints = None
 
         # Align all msgs to the GPS timestamps
         for gps_msg_time in gps_timestamps:
@@ -172,7 +189,9 @@ class BagfileLoader:
             # Align optional topics (target_curvature, target_velocity)
             aligned_target_curvature = None
             if self._has_target_curvature:
-                closest_tc = [ts for ts in target_curvature_timestamps if ts >= gps_msg_time]
+                closest_tc = [
+                    ts for ts in target_curvature_timestamps if ts >= gps_msg_time
+                ]
                 if closest_tc:
                     if (closest_tc[0] - gps_msg_time) > 0.25:
                         raise ValueError(
@@ -184,7 +203,9 @@ class BagfileLoader:
 
             aligned_target_speed = None
             if self._has_target_speed:
-                closest_tv = [ts for ts in target_speed_timestamps if ts >= gps_msg_time]
+                closest_tv = [
+                    ts for ts in target_speed_timestamps if ts >= gps_msg_time
+                ]
                 if closest_tv:
                     if (closest_tv[0] - gps_msg_time) > 0.25:
                         raise ValueError(

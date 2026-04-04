@@ -19,9 +19,8 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import plotly.graph_objs as go
-from plotly.subplots import make_subplots
-
 from geometry_utils_pkg.bagfile_loader import BagfileLoader, BagfileRecord
+from plotly.subplots import make_subplots
 from vehicle_models_pkg.vehicle_models_constants import (
     STEERING_MAX_PWM,
     STEERING_MIN_PWM,
@@ -94,7 +93,6 @@ def compute_path_metrics(
 
         best = np.argmin(dists_sq)
         seg_idx[i] = best
-
 
         # Signed CTE: cross product of segment direction with (pt - closest_on_seg)
         # Positive = point is to the left of the path direction
@@ -187,8 +185,12 @@ def print_summary(
     print(f"  Saturation left:           {sat_left:.1f}%")
     print(f"  Saturation right:          {sat_right:.1f}%")
     print(f"  Saturation total:          {sat_total:.1f}%")
-    print(f"  Steering rate (mean |dCmd/dt|): {np.mean(np.abs(steering_rate)):.1f} PWM/s")
-    print(f"  Steering rate (max |dCmd/dt|):  {np.max(np.abs(steering_rate)):.1f} PWM/s")
+    print(
+        f"  Steering rate (mean |dCmd/dt|): {np.mean(np.abs(steering_rate)):.1f} PWM/s"
+    )
+    print(
+        f"  Steering rate (max |dCmd/dt|):  {np.max(np.abs(steering_rate)):.1f} PWM/s"
+    )
 
     # GPS quality breakdown
     fix_counts: Dict[str, int] = {}
@@ -196,7 +198,12 @@ def print_summary(
         fix_counts[r.fix_type] = fix_counts.get(r.fix_type, 0) + 1
     print(f"\n-- GPS Fix Quality --")
     for ft, count in sorted(fix_counts.items(), key=lambda x: -x[1]):
-        label = {"F": "RTK Fixed", "R": "RTK Float", "D": "Differential", "A": "Autonomous"}.get(ft, ft)
+        label = {
+            "F": "RTK Fixed",
+            "R": "RTK Float",
+            "D": "Differential",
+            "A": "Autonomous",
+        }.get(ft, ft)
         print(f"  {label} ({ft}): {count / len(sorted_records) * 100:.1f}%")
 
     print("================================\n")
@@ -293,13 +300,19 @@ def build_figure(
     # --- Row 2: CTE over time ---
     fig.add_trace(
         go.Scatter(
-            x=t_rel, y=cte, mode="lines", name="CTE", line={"color": "royalblue", "width": 1}
+            x=t_rel,
+            y=cte,
+            mode="lines",
+            name="CTE",
+            line={"color": "royalblue", "width": 1},
         ),
         row=2,
         col=1,
     )
     for val in [0.5, -0.5]:
-        fig.add_hline(y=val, line_dash="dash", line_color="salmon", line_width=1, row=2, col=1)
+        fig.add_hline(
+            y=val, line_dash="dash", line_color="salmon", line_width=1, row=2, col=1
+        )
     fig.add_hline(y=0, line_color="gray", line_width=0.5, row=2, col=1)
     fig.update_yaxes(title_text="CTE (m)", row=2, col=1)
 
@@ -440,7 +453,13 @@ def build_figure(
         height=1600,
         title_text="Autonomous Driving Performance Analysis",
         showlegend=True,
-        legend={"orientation": "h", "yanchor": "bottom", "y": 1.01, "xanchor": "center", "x": 0.5},
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.01,
+            "xanchor": "center",
+            "x": 0.5,
+        },
     )
 
     return fig
@@ -453,12 +472,15 @@ def main():
     parser = argparse.ArgumentParser(
         description="Analyze autonomous driving performance from a ROS bag file."
     )
-    parser.add_argument("--bag-path", type=str, required=True, help="Path to the ROS bag file")
+    parser.add_argument(
+        "--bag-path", type=str, required=True, help="Path to the ROS bag file"
+    )
     parser.add_argument(
         "--waypoints-path",
         type=str,
-        required=True,
-        help="Path to the waypoint file (space-separated x y [speed])",
+        default=None,
+        help="Path to the waypoint file (space-separated x y [speed]). "
+        "If not provided, waypoints are read from the /waypoints topic in the bag.",
     )
     parser.add_argument(
         "--output",
@@ -475,17 +497,29 @@ def main():
         print("Error: not enough aligned records to analyze.")
         return
 
-    waypoints = load_waypoints(args.waypoints_path)
+    if args.waypoints_path:
+        waypoints = load_waypoints(args.waypoints_path)
+    elif loader.waypoints is not None:
+        waypoints = loader.waypoints
+        print(f"Loaded {len(waypoints)} waypoints from /waypoints topic in bag")
+    else:
+        print("Error: no waypoints found in bag and --waypoints-path not provided.")
+        return
+
     if len(waypoints) < 2:
         print("Error: need at least 2 waypoints.")
         return
 
     # Compute metrics
     cte, heading_err, seg_idx = compute_path_metrics(records, waypoints)
-    times, steering_rate, sat_left, sat_right, sat_total = compute_steering_metrics(records)
+    times, steering_rate, sat_left, sat_right, sat_total = compute_steering_metrics(
+        records
+    )
 
     # Print summary
-    print_summary(records, cte, heading_err, sat_left, sat_right, sat_total, steering_rate)
+    print_summary(
+        records, cte, heading_err, sat_left, sat_right, sat_total, steering_rate
+    )
 
     # Build and save figure
     fig = build_figure(records, waypoints, cte, heading_err, steering_rate)
