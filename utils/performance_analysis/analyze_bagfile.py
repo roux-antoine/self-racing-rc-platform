@@ -131,7 +131,9 @@ def print_summary(
     print(f"  Heading error (max):       {np.max(np.abs(he_deg)):.1f} deg")
 
     # Speed tracking
-    records_with_target_speed = [r for r in sorted_records if r.target_speed is not None]
+    records_with_target_speed = [
+        r for r in sorted_records if r.target_speed is not None
+    ]
     if records_with_target_speed:
         actual = np.array([r.state.vx for r in records_with_target_speed])
         target = np.array([r.target_speed for r in records_with_target_speed])

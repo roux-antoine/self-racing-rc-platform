@@ -4,7 +4,6 @@ import os
 from typing import Dict, Optional, Tuple
 
 import numpy as np
-
 from bagfile_loader import BagfileLoader, BagfileRecord
 
 
@@ -51,8 +50,7 @@ def trim_records(
     abs_end = bag_t0 + end if end is not None else float("inf")
     trimmed = {t: r for t, r in records.items() if abs_start <= t <= abs_end}
     print(
-        f"Trimmed to [{start or 0:.1f}s, {end or '...'!s}s]: "
-        f"{len(trimmed)} records"
+        f"Trimmed to [{start or 0:.1f}s, {end or '...'!s}s]: " f"{len(trimmed)} records"
     )
     return trimmed, True
 

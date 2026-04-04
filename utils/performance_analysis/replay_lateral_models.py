@@ -144,6 +144,27 @@ def forward_simulate_one_step(
 
 
 # ---------------------------------------------------------------------------
+# Pairwise offset metrics
+# ---------------------------------------------------------------------------
+def compute_pairwise_offsets(
+    sorted_records: List[BagfileRecord],
+    sim_xs: np.ndarray,
+    sim_ys: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute the Euclidean distance between each simulated position and the
+    corresponding actual GPS position, along with the actual speed at each point.
+    """
+    actual_xs = np.array([r.state.x for r in sorted_records])
+    actual_ys = np.array([r.state.y for r in sorted_records])
+    speeds = np.array([r.state.vx for r in sorted_records])
+
+    offsets = np.sqrt((sim_xs - actual_xs) ** 2 + (sim_ys - actual_ys) ** 2)
+    # Preserve NaNs from simulation (e.g. one_step leaves index 0 as NaN)
+    return offsets, speeds
+
+
+# ---------------------------------------------------------------------------
 # Summary statistics
 # ---------------------------------------------------------------------------
 def print_summary(
@@ -151,6 +172,7 @@ def print_summary(
     model_names: List[str],
     model_cmds: Dict[str, np.ndarray],
     model_ctes: Dict[str, np.ndarray],
+    model_offsets: Dict[str, Tuple[np.ndarray, np.ndarray]] = {},
 ) -> None:
     actual = np.array([r.steering_cmd for r in sorted_records])
 
@@ -185,6 +207,23 @@ def print_summary(
                     f"    Cross-track error (max):    {np.max(np.abs(cte_valid)):.4f} m"
                 )
 
+        if name in model_offsets:
+            offsets, speeds = model_offsets[name]
+            valid_offsets = offsets[~np.isnan(offsets)]
+            if len(valid_offsets) > 0:
+                print(f"    Pairwise offset (mean):     {np.mean(valid_offsets):.4f} m")
+                print(
+                    f"    Pairwise offset (RMS):      {np.sqrt(np.mean(valid_offsets**2)):.4f} m"
+                )
+                print(f"    Pairwise offset (max):      {np.max(valid_offsets):.4f} m")
+                speed_threshold = 1.0
+                fast_mask = (~np.isnan(offsets)) & (speeds > speed_threshold)
+                if np.any(fast_mask):
+                    fast_offsets = offsets[fast_mask]
+                    print(
+                        f"    Pairwise offset (mean, >{speed_threshold} m/s): {np.mean(fast_offsets):.4f} m"
+                    )
+
     print("=============================================\n")
 
 
@@ -198,9 +237,11 @@ def build_figure(
     model_cmds: Dict[str, np.ndarray],
     model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray]],
     model_ctes: Dict[str, np.ndarray],
+    model_offsets: Dict[str, Tuple[np.ndarray, np.ndarray]] = {},
 ) -> go.Figure:
     has_trajectories = len(model_trajectories) > 0
     has_cte = len(model_ctes) > 0
+    has_offsets = len(model_offsets) > 0
 
     # Base rows: steering cmds, residuals, context, x-y path
     n_rows = 4
@@ -215,6 +256,10 @@ def build_figure(
         n_rows += 1
         row_heights.append(0.20)
         subtitles.append("Cross-Track Error (m)")
+    if has_offsets:
+        n_rows += 1
+        row_heights.append(0.20)
+        subtitles.append("Pairwise Offset: Simulated vs Actual (m)")
     if has_trajectories:
         n_rows += 1
         row_heights.append(0.20)
@@ -381,6 +426,27 @@ def build_figure(
         fig.add_hline(y=0, line_color="black", line_width=0.5, row=cte_row, col=1)
         fig.update_yaxes(title_text="CTE (m)", row=cte_row, col=1)
 
+    # --- Pairwise offset row (if simulated) ---
+    if has_offsets:
+        offset_row = next_row
+        next_row += 1
+        for name in model_names:
+            if name in model_offsets:
+                offsets, speeds = model_offsets[name]
+                fig.add_trace(
+                    go.Scatter(
+                        x=t_rel,
+                        y=offsets,
+                        mode="lines",
+                        name=f"{name} offset",
+                        line={"color": MODEL_COLORS.get(name, "gray"), "width": 1.5},
+                    ),
+                    row=offset_row,
+                    col=1,
+                )
+        fig.update_yaxes(title_text="Offset (m)", row=offset_row, col=1)
+        fig.update_xaxes(title_text="Time (s)", row=offset_row, col=1)
+
     # --- Simulated Trajectories (if simulated) ---
     sim_row = next_row
     if has_trajectories:
@@ -523,9 +589,10 @@ def main():
         model = MODEL_REGISTRY[name]()
         model_cmds[name] = recompute_steering_commands(sorted_records, model)
 
-    # Optionally forward-simulate trajectories and compute CTE
+    # Optionally forward-simulate trajectories, compute CTE and pairwise offsets
     model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
     model_ctes: Dict[str, np.ndarray] = {}
+    model_offsets: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
     if args.simulate:
         if args.simulate not in ["open_loop", "one_step"]:
             print(f"Error: invalid simulation mode '{args.simulate}'.")
@@ -539,12 +606,13 @@ def main():
             model = MODEL_REGISTRY[name]()
             xs, ys = sim_fn(sorted_records, model)
             model_trajectories[name] = (xs, ys)
+            model_offsets[name] = compute_pairwise_offsets(sorted_records, xs, ys)
             if waypoints is not None:
                 cte, _ = compute_cross_track_errors(xs, ys, waypoints)
                 model_ctes[name] = cte
 
     # Print summary
-    print_summary(sorted_records, args.models, model_cmds, model_ctes)
+    print_summary(sorted_records, args.models, model_cmds, model_ctes, model_offsets)
 
     # Build and save figure
     fig = build_figure(
@@ -554,6 +622,7 @@ def main():
         model_cmds,
         model_trajectories,
         model_ctes,
+        model_offsets,
     )
 
     if args.output:

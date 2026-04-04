@@ -33,7 +33,7 @@ class BagfileRecord:
         engaged_mode: bool,
         override_steering: bool,
         override_throttle: bool,
-        target_curvature:float,
+        target_curvature: float,
         steering_fbk: Optional[float] = None,
         target_speed: Optional[float] = None,
     ) -> None:
@@ -211,7 +211,7 @@ class BagfileLoader:
             aligned_target_curvature = target_curvatures[
                 target_curvature_timestamps.index(closest_tc[0])
             ]
-            
+
             # Align topic target_velocity
             aligned_target_speed = None
             if self._has_target_speed:
