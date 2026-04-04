@@ -9,11 +9,6 @@ from typing import List
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-
-
-sys.path.insert(
-    0, os.path.join(os.path.dirname(__file__), "..", "performance_analysis")
-)
 from bagfile_loader import BagfileLoader
 from geometry_utils_pkg.geometry_utils import fit_circle_to_points
 from plotly.subplots import make_subplots
