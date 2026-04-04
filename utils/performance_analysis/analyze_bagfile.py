@@ -14,16 +14,11 @@ Usage:
 
 import argparse
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 import plotly.graph_objs as go
-from analysis_utils import (
-    add_time_window_args,
-    load_waypoints_from_file,
-    resolve_waypoints,
-    trim_records,
-)
+from analysis_utils import add_time_window_args, resolve_waypoints, trim_records
 from bagfile_loader import BagfileLoader, BagfileRecord
 from geometry_utils_pkg.geometry_utils import compute_cross_track_errors, wrap_angle
 from plotly.subplots import make_subplots
@@ -138,11 +133,11 @@ def print_summary(
         actual = np.array([r.state.vx for r in records_with_target_speed])
         target = np.array([r.target_speed for r in records_with_target_speed])
         errs = actual - target
-        print(f"\n-- Speed Tracking --")
+        print("\n-- Speed Tracking --")
         print(f"  Speed error (mean):        {np.mean(errs):.3f} m/s")
         print(f"  Speed error (RMS):         {np.sqrt(np.mean(errs**2)):.3f} m/s")
 
-    print(f"\n-- Steering / Lateral Control --")
+    print("\n-- Steering / Lateral Control --")
     print(f"  Saturation left:           {sat_left:.1f}%")
     print(f"  Saturation right:          {sat_right:.1f}%")
     print(f"  Saturation total:          {sat_total:.1f}%")
@@ -157,7 +152,7 @@ def print_summary(
     fix_counts: Dict[str, int] = {}
     for r in sorted_records:
         fix_counts[r.fix_type] = fix_counts.get(r.fix_type, 0) + 1
-    print(f"\n-- GPS Fix Quality --")
+    print("\n-- GPS Fix Quality --")
     for ft, count in sorted(fix_counts.items(), key=lambda x: -x[1]):
         label = {
             "F": "RTK Fixed",

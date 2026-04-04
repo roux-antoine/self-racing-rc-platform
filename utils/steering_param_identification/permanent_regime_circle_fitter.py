@@ -9,7 +9,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from bagfile_loader import BagfileLoader
+from geometry_utils_pkg.bagfile_loader import BagfileLoader
 from geometry_utils_pkg.geometry_utils import fit_circle_to_points
 from plotly.subplots import make_subplots
 from vehicle_models_pkg.vehicle_models_constants import (
