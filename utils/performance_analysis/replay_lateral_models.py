@@ -19,13 +19,12 @@ Usage:
 
 import argparse
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import plotly.graph_objs as go
 from analysis_utils import add_time_window_args, resolve_waypoints, trim_records
 from bagfile_loader import BagfileLoader, BagfileRecord
-from geometry_utils_pkg.geometry_utils import compute_cross_track_errors
 from plotly.subplots import make_subplots
 from vehicle_models_pkg.vehicle_models import (
     CarModelBicyclePure,
@@ -170,7 +169,6 @@ def print_summary(
     sorted_records: List[BagfileRecord],
     model_names: List[str],
     model_cmds: Dict[str, np.ndarray],
-    model_ctes: Dict[str, np.ndarray],
     model_offsets: Dict[str, Tuple[np.ndarray, np.ndarray]] = {},
 ) -> None:
     actual = np.array([r.steering_cmd for r in sorted_records])
@@ -193,18 +191,6 @@ def print_summary(
         print(f"    Steering cmd error (max):   {np.max(np.abs(diff)):.2f} PWM")
         corr = np.corrcoef(actual[valid], cmds[valid])[0, 1]
         print(f"    Correlation with actual:    {corr:.4f}")
-
-        if name in model_ctes:
-            cte = model_ctes[name]
-            cte_valid = cte[~np.isnan(cte)]
-            if len(cte_valid) > 0:
-                print(f"    Cross-track error (mean):   {np.mean(cte_valid):+.4f} m")
-                print(
-                    f"    Cross-track error (RMS):    {np.sqrt(np.mean(cte_valid**2)):.4f} m"
-                )
-                print(
-                    f"    Cross-track error (max):    {np.max(np.abs(cte_valid)):.4f} m"
-                )
 
         if name in model_offsets:
             offsets, speeds = model_offsets[name]
@@ -230,38 +216,41 @@ def print_summary(
 # Plotly figure
 # ---------------------------------------------------------------------------
 def build_figure(
-    sorted_records: List[BagfileRecord],
+    all_sorted_records: List[BagfileRecord],
     waypoints,
     model_names: List[str],
     model_cmds: Dict[str, np.ndarray],
     model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray]],
-    model_ctes: Dict[str, np.ndarray],
     model_offsets: Dict[str, Tuple[np.ndarray, np.ndarray]] = {},
+    trim_start: Optional[float] = None,
+    trim_end: Optional[float] = None,
 ) -> go.Figure:
+    """Build the multi-panel Plotly figure.
+
+    all_sorted_records: full (untrimmed) sorted records from the bag.
+    model_cmds/model_trajectories/model_offsets: computed on trimmed records only.
+    trim_start/trim_end: relative times (seconds from bag start) defining the
+        active window.  Data outside this window is shown but grayed out.
+    """
     has_trajectories = len(model_trajectories) > 0
-    has_cte = len(model_ctes) > 0
     has_offsets = len(model_offsets) > 0
 
     # Base rows: steering cmds, residuals, context, x-y path
     n_rows = 4
-    row_heights = [0.30, 0.25, 0.20, 0.25]
+    row_heights = [0.30, 0.25, 0.20, 0.50]
     subtitles = [
         "Steering Command: Actual vs Models (PWM)",
         "Steering Command Residual: Model - Actual (PWM)",
         "Target Curvature & Speed Context",
         "Actual Path (X-Y)",
     ]
-    if has_cte:
-        n_rows += 1
-        row_heights.append(0.20)
-        subtitles.append("Cross-Track Error (m)")
     if has_offsets:
         n_rows += 1
         row_heights.append(0.20)
         subtitles.append("Pairwise Offset: Simulated vs Actual (m)")
     if has_trajectories:
         n_rows += 1
-        row_heights.append(0.20)
+        row_heights.append(0.50)
         subtitles.append("Forward-Simulated Trajectories")
     # Normalize row heights to sum to 1
     total = sum(row_heights)
@@ -275,18 +264,31 @@ def build_figure(
         vertical_spacing=0.05,
     )
 
-    times = np.array([r.gps_msg_time for r in sorted_records])
-    t_rel = times - times[0]
-    actual_cmds = np.array([r.steering_cmd for r in sorted_records])
+    all_times = np.array([r.gps_msg_time for r in all_sorted_records])
+    t0 = all_times[0]
+    t_rel_all = all_times - t0
 
-    # --- Row 1: Steering commands ---
+    # Build a boolean mask for the active (trimmed) window
+    active_start = trim_start if trim_start is not None else 0.0
+    active_end = trim_end if trim_end is not None else t_rel_all[-1]
+    active_mask = (t_rel_all >= active_start) & (t_rel_all <= active_end)
+    t_rel_active = t_rel_all[active_mask]
+
+    actual_cmds_all = np.array([r.steering_cmd for r in all_sorted_records])
+
+    # Legend name helper: row 1 → "legend", row N → "legendN"
+    def _legend_for_row(row: int) -> str:
+        return "legend" if row == 1 else f"legend{row}"
+
+    # --- Row 1: Steering commands (all data + model overlays on active) ---
     fig.add_trace(
         go.Scatter(
-            x=t_rel,
-            y=actual_cmds,
+            x=t_rel_all,
+            y=actual_cmds_all,
             mode="lines",
             name="Actual",
             line={"color": "black", "width": 2},
+            legend=_legend_for_row(1),
         ),
         row=1,
         col=1,
@@ -294,11 +296,12 @@ def build_figure(
     for name in model_names:
         fig.add_trace(
             go.Scatter(
-                x=t_rel,
+                x=t_rel_active,
                 y=model_cmds[name],
                 mode="lines",
                 name=name,
                 line={"color": MODEL_COLORS.get(name, "gray"), "width": 1.5},
+                legend=_legend_for_row(1),
             ),
             row=1,
             col=1,
@@ -323,17 +326,18 @@ def build_figure(
     )
     fig.update_yaxes(title_text="Steering cmd (PWM)", row=1, col=1)
 
-    # --- Row 2: Residuals ---
+    # --- Row 2: Residuals (active window only) ---
+    actual_cmds_active = actual_cmds_all[active_mask]
     for name in model_names:
-        residual = model_cmds[name] - actual_cmds
+        residual = model_cmds[name] - actual_cmds_active
         fig.add_trace(
             go.Scatter(
-                x=t_rel,
+                x=t_rel_active,
                 y=residual,
                 mode="lines",
-                name=f"{name} residual",
+                name=f"{name}",
                 line={"color": MODEL_COLORS.get(name, "gray"), "width": 1},
-                showlegend=False,
+                legend=_legend_for_row(2),
             ),
             row=2,
             col=1,
@@ -341,30 +345,32 @@ def build_figure(
     fig.add_hline(y=0, line_color="black", line_width=0.5, row=2, col=1)
     fig.update_yaxes(title_text="Model - Actual (PWM)", row=2, col=1)
 
-    # --- Row 3: Context (curvature and speed) ---
+    # --- Row 3: Context (curvature and speed, all data) ---
     curvatures = [
         r.target_curvature if r.target_curvature is not None else float("nan")
-        for r in sorted_records
+        for r in all_sorted_records
     ]
-    speeds = [r.state.vx for r in sorted_records]
+    speeds = [r.state.vx for r in all_sorted_records]
     fig.add_trace(
         go.Scatter(
-            x=t_rel,
+            x=t_rel_all,
             y=curvatures,
             mode="lines",
             name="Target curvature",
             line={"color": "tomato", "width": 1},
+            legend=_legend_for_row(3),
         ),
         row=3,
         col=1,
     )
     fig.add_trace(
         go.Scatter(
-            x=t_rel,
+            x=t_rel_all,
             y=speeds,
             mode="lines",
             name="Speed",
             line={"color": "steelblue", "width": 1},
+            legend=_legend_for_row(3),
         ),
         row=3,
         col=1,
@@ -381,20 +387,35 @@ def build_figure(
                 mode="lines",
                 line={"color": "lightgray", "width": 4},
                 name="Waypoints",
-                showlegend=True,
+                legend=_legend_for_row(xy_row),
             ),
             row=xy_row,
             col=1,
         )
-    actual_x = [r.state.x for r in sorted_records]
-    actual_y = [r.state.y for r in sorted_records]
+    all_xs = np.array([r.state.x for r in all_sorted_records])
+    all_ys = np.array([r.state.y for r in all_sorted_records])
+    # Discarded points in gray
+    if not np.all(active_mask):
+        fig.add_trace(
+            go.Scatter(
+                x=all_xs[~active_mask],
+                y=all_ys[~active_mask],
+                mode="markers",
+                marker={"color": "lightgray", "size": 4},
+                name="Discarded",
+                legend=_legend_for_row(xy_row),
+            ),
+            row=xy_row,
+            col=1,
+        )
     fig.add_trace(
         go.Scatter(
-            x=actual_x,
-            y=actual_y,
+            x=all_xs[active_mask],
+            y=all_ys[active_mask],
             mode="lines",
             name="Actual path",
             line={"color": "black", "width": 2},
+            legend=_legend_for_row(xy_row),
         ),
         row=xy_row,
         col=1,
@@ -404,50 +425,52 @@ def build_figure(
         title_text="Y (m)", scaleanchor=f"x{xy_row}", scaleratio=1, row=xy_row, col=1
     )
 
-    # --- CTE row (if simulated with waypoints) ---
-    next_row = 5
-    if has_cte:
-        cte_row = next_row
-        next_row += 1
-        for name in model_names:
-            if name in model_ctes:
-                fig.add_trace(
-                    go.Scatter(
-                        x=t_rel,
-                        y=model_ctes[name],
-                        mode="lines",
-                        name=f"{name} CTE",
-                        line={"color": MODEL_COLORS.get(name, "gray"), "width": 1.5},
-                    ),
-                    row=cte_row,
-                    col=1,
-                )
-        fig.add_hline(y=0, line_color="black", line_width=0.5, row=cte_row, col=1)
-        fig.update_yaxes(title_text="CTE (m)", row=cte_row, col=1)
-
-    # --- Pairwise offset row (if simulated) ---
+    # --- Pairwise offset row (if simulated, active window only) ---
     if has_offsets:
-        offset_row = next_row
-        next_row += 1
+        offset_row = 5
         for name in model_names:
             if name in model_offsets:
                 offsets, speeds = model_offsets[name]
                 fig.add_trace(
                     go.Scatter(
-                        x=t_rel,
+                        x=t_rel_active,
                         y=offsets,
                         mode="lines",
                         name=f"{name} offset",
                         line={"color": MODEL_COLORS.get(name, "gray"), "width": 1.5},
+                        legend=_legend_for_row(offset_row),
                     ),
                     row=offset_row,
                     col=1,
                 )
+        # Horizontal dotted lines at mean offset per model
+        for name in model_names:
+            if name in model_offsets:
+                offsets, _ = model_offsets[name]
+                valid_offsets = offsets[~np.isnan(offsets)]
+                if len(valid_offsets) > 0:
+                    mean_val = float(np.mean(valid_offsets))
+                    fig.add_trace(
+                        go.Scatter(
+                            x=[t_rel_active[0], t_rel_active[-1]],
+                            y=[mean_val, mean_val],
+                            mode="lines",
+                            name=f"{name} mean: {mean_val:.4f} m",
+                            line={
+                                "color": MODEL_COLORS.get(name, "gray"),
+                                "width": 1.5,
+                                "dash": "dot",
+                            },
+                            legend=_legend_for_row(offset_row),
+                        ),
+                        row=offset_row,
+                        col=1,
+                    )
         fig.update_yaxes(title_text="Offset (m)", row=offset_row, col=1)
         fig.update_xaxes(title_text="Time (s)", row=offset_row, col=1)
 
     # --- Simulated Trajectories (if simulated) ---
-    sim_row = next_row
+    sim_row = 5 + (1 if has_offsets else 0)
     if has_trajectories:
         if waypoints is not None:
             fig.add_trace(
@@ -457,19 +480,20 @@ def build_figure(
                     mode="lines",
                     line={"color": "lightgray", "width": 4},
                     name="Waypoints",
-                    showlegend=False,
+                    legend=_legend_for_row(sim_row),
                 ),
                 row=sim_row,
                 col=1,
             )
         fig.add_trace(
             go.Scatter(
-                x=actual_x,
-                y=actual_y,
-                mode="lines",
+                x=all_xs[active_mask],
+                y=all_ys[active_mask],
+                mode="lines+markers",
                 name="Actual path",
                 line={"color": "black", "width": 2},
-                showlegend=False,
+                marker={"size": 6, "color": "black"},
+                legend=_legend_for_row(sim_row),
             ),
             row=sim_row,
             col=1,
@@ -481,13 +505,15 @@ def build_figure(
                     go.Scatter(
                         x=xs,
                         y=ys,
-                        mode="lines",
+                        mode="lines+markers",
                         name=f"{name} sim",
                         line={
-                            "color": MODEL_COLORS.get(name, "gray"),
+                            "color": MODEL_COLORS[name],
                             "width": 1.5,
                             "dash": "dash",
                         },
+                        marker={"size": 6, "color": MODEL_COLORS[name]},
+                        legend=_legend_for_row(sim_row),
                     ),
                     row=sim_row,
                     col=1,
@@ -501,22 +527,61 @@ def build_figure(
             col=1,
         )
 
+    # --- Gray shading for discarded time regions (time-series rows) ---
+    if trim_start is not None or trim_end is not None:
+        time_series_rows = list(range(1, 4))  # rows 1-3 always present
+        if has_offsets:
+            time_series_rows.append(5)
+        for row in time_series_rows:
+            if trim_start is not None and trim_start > 0:
+                fig.add_vrect(
+                    x0=0,
+                    x1=trim_start,
+                    fillcolor="gray",
+                    opacity=0.15,
+                    line_width=0,
+                    row=row,
+                    col=1,
+                )
+            if trim_end is not None and trim_end < t_rel_all[-1]:
+                fig.add_vrect(
+                    x0=trim_end,
+                    x1=t_rel_all[-1],
+                    fillcolor="gray",
+                    opacity=0.15,
+                    line_width=0,
+                    row=row,
+                    col=1,
+                )
+
     # Shared time axis label
     for row in range(1, 4):
         fig.update_xaxes(title_text="", row=row, col=1)
     fig.update_xaxes(title_text="Time (s)", row=3, col=1)
 
+    # Position one legend per subplot, inside the plot area (top-right)
+    legend_layout = {}
+    for row in range(1, n_rows + 1):
+        # Get the y-domain of this subplot's yaxis
+        yaxis_key = "yaxis" if row == 1 else f"yaxis{row}"
+        domain = fig.layout[yaxis_key].domain
+        legend_key = "legend" if row == 1 else f"legend{row}"
+        legend_layout[legend_key] = {
+            "x": 1.0,
+            "xanchor": "right",
+            "y": domain[1],
+            "yanchor": "top",
+            "bgcolor": "rgba(255,255,255,0.7)",
+            "bordercolor": "lightgray",
+            "borderwidth": 1,
+            "font": {"size": 10},
+        }
+
     fig.update_layout(
-        height=300 + n_rows * 350,
+        height=300 + n_rows * 500,
         title_text="Lateral Model Comparison",
         showlegend=True,
-        legend={
-            "orientation": "h",
-            "yanchor": "bottom",
-            "y": 1.01,
-            "xanchor": "center",
-            "x": 0.5,
-        },
+        **legend_layout,
     )
     return fig
 
@@ -560,18 +625,19 @@ def main():
 
     # Load data using shared BagfileLoader
     loader = BagfileLoader(args.bag_path)
-    records = loader.bagfile_records_dicts
-    if len(records) < 2:
+    all_records = loader.bagfile_records_dicts
+    if len(all_records) < 2:
         print("Error: not enough aligned records.")
         return
 
-    # Trim to time window
-    records, _ = trim_records(records, args.start, args.end)
-    if len(records) < 2:
+    # Trim records to [start, end] window for metrics (plots use all data)
+    trimmed_records, _ = trim_records(all_records, args.start, args.end)
+    if len(trimmed_records) < 2:
         print("Error: not enough records after trimming.")
         return
 
-    sorted_records = sorted(records.values(), key=lambda r: r.gps_msg_time)
+    sorted_records = sorted(trimmed_records.values(), key=lambda r: r.gps_msg_time)
+    all_sorted_records = sorted(all_records.values(), key=lambda r: r.gps_msg_time)
 
     n_with_curv = sum(1 for r in sorted_records if r.target_curvature is not None)
     if n_with_curv == 0:
@@ -588,9 +654,8 @@ def main():
         model = MODEL_REGISTRY[name]()
         model_cmds[name] = recompute_steering_commands(sorted_records, model)
 
-    # Optionally forward-simulate trajectories, compute CTE and pairwise offsets
+    # Optionally forward-simulate trajectories, pairwise offsets
     model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
-    model_ctes: Dict[str, np.ndarray] = {}
     model_offsets: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
     if args.simulate:
         if args.simulate not in ["open_loop", "one_step"]:
@@ -606,26 +671,25 @@ def main():
             xs, ys = sim_fn(sorted_records, model)
             model_trajectories[name] = (xs, ys)
             model_offsets[name] = compute_pairwise_offsets(sorted_records, xs, ys)
-            if waypoints is not None and len(waypoints) >= 2:
-                cte, _ = compute_cross_track_errors(xs, ys, waypoints)
-                model_ctes[name] = cte
-            else:
-                raise ValueError(
-                    "Waypoints are required to compute CTE, but not found."
-                )
 
     # Print summary
-    print_summary(sorted_records, args.models, model_cmds, model_ctes, model_offsets)
+    print_summary(
+        sorted_records=sorted_records,
+        model_names=args.models,
+        model_cmds=model_cmds,
+        model_offsets=model_offsets,
+    )
 
-    # Build and save figure
+    # Build figure with all data, gray-out discarded sections
     fig = build_figure(
-        sorted_records,
+        all_sorted_records,
         waypoints,
         args.models,
         model_cmds,
         model_trajectories,
-        model_ctes,
         model_offsets,
+        trim_start=args.start,
+        trim_end=args.end,
     )
 
     if args.output:
