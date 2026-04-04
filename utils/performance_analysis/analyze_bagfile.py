@@ -15,7 +15,7 @@ Usage:
 import argparse
 import math
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import plotly.graph_objs as go
@@ -222,16 +222,24 @@ FIX_TYPE_COLORS = {
 
 
 def build_figure(
-    records: Dict[float, BagfileRecord],
+    all_records: Dict[float, BagfileRecord],
     waypoints: np.ndarray,
     cte: np.ndarray,
     heading_err: np.ndarray,
     steering_rate: np.ndarray,
+    trim_start: Optional[float] = None,
+    trim_end: Optional[float] = None,
 ) -> go.Figure:
-    """Build the multi-panel Plotly figure."""
-    sorted_records = sorted(records.values(), key=lambda r: r.gps_msg_time)
+    """Build the multi-panel Plotly figure.
 
-    has_target_speed = any(r.target_speed is not None for r in sorted_records)
+    all_records: full (untrimmed) records from the bag.
+    cte/heading_err/steering_rate: computed on trimmed records only.
+    trim_start/trim_end: relative times (seconds from bag start) defining the
+        active window.  Data outside this window is shown but grayed out.
+    """
+    sorted_all = sorted(all_records.values(), key=lambda r: r.gps_msg_time)
+
+    has_target_speed = any(r.target_speed is not None for r in sorted_all)
 
     # Number of rows: trajectory, CTE, heading, speed, steering cmd/fbk, steering rate, GPS fix
     n_rows = 7
@@ -255,9 +263,14 @@ def build_figure(
         specs=[[{"secondary_y": False}]] * n_rows,
     )
 
-    times = np.array([r.gps_msg_time for r in sorted_records])
-    t0 = times[0]
-    t_rel = times - t0
+    all_times = np.array([r.gps_msg_time for r in sorted_all])
+    t0 = all_times[0]
+    t_rel_all = all_times - t0
+
+    # Build a boolean mask for the active (trimmed) window
+    active_start = trim_start if trim_start is not None else 0.0
+    active_end = trim_end if trim_end is not None else t_rel_all[-1]
+    active_mask = (t_rel_all >= active_start) & (t_rel_all <= active_end)
 
     # --- Row 1: Trajectory ---
     fig.add_trace(
@@ -272,13 +285,30 @@ def build_figure(
         row=1,
         col=1,
     )
-    xs = [r.state.x for r in sorted_records]
-    ys = [r.state.y for r in sorted_records]
+    all_xs = np.array([r.state.x for r in sorted_all])
+    all_ys = np.array([r.state.y for r in sorted_all])
+
+    # Discarded points in gray
+    if not np.all(active_mask):
+        fig.add_trace(
+            go.Scatter(
+                x=all_xs[~active_mask],
+                y=all_ys[~active_mask],
+                mode="markers",
+                marker={"color": "lightgray", "size": 4},
+                name="Discarded",
+                showlegend=True,
+            ),
+            row=1,
+            col=1,
+        )
+
+    # Active points colored by CTE
     abs_cte = np.abs(cte)
     fig.add_trace(
         go.Scatter(
-            x=xs,
-            y=ys,
+            x=all_xs[active_mask],
+            y=all_ys[active_mask],
             mode="markers",
             marker={
                 "color": abs_cte,
@@ -298,9 +328,11 @@ def build_figure(
     fig.update_yaxes(title_text="Y (m)", scaleanchor="x", scaleratio=1, row=1, col=1)
 
     # --- Row 2: CTE over time ---
+    # Plot over active window only (metrics are only computed there)
+    t_rel_active = t_rel_all[active_mask]
     fig.add_trace(
         go.Scatter(
-            x=t_rel,
+            x=t_rel_active,
             y=cte,
             mode="lines",
             name="CTE",
@@ -319,7 +351,7 @@ def build_figure(
     # --- Row 3: Heading error ---
     fig.add_trace(
         go.Scatter(
-            x=t_rel,
+            x=t_rel_active,
             y=np.degrees(heading_err),
             mode="lines",
             name="Heading error",
@@ -331,11 +363,11 @@ def build_figure(
     fig.add_hline(y=0, line_color="gray", line_width=0.5, row=3, col=1)
     fig.update_yaxes(title_text="Heading err (deg)", row=3, col=1)
 
-    # --- Row 4: Speed ---
-    actual_speeds = [r.state.vx for r in sorted_records]
+    # --- Row 4: Speed (all data, with gray shading for discarded) ---
+    actual_speeds = [r.state.vx for r in sorted_all]
     fig.add_trace(
         go.Scatter(
-            x=t_rel,
+            x=t_rel_all,
             y=actual_speeds,
             mode="lines",
             name="Actual speed",
@@ -347,11 +379,11 @@ def build_figure(
     if has_target_speed:
         target_sp = [
             r.target_speed if r.target_speed is not None else float("nan")
-            for r in sorted_records
+            for r in sorted_all
         ]
         fig.add_trace(
             go.Scatter(
-                x=t_rel,
+                x=t_rel_all,
                 y=target_sp,
                 mode="lines",
                 name="Target speed",
@@ -362,12 +394,12 @@ def build_figure(
         )
     fig.update_yaxes(title_text="Speed (m/s)", row=4, col=1)
 
-    # --- Row 5: Steering cmd vs feedback ---
-    steer_cmds = [r.steering_cmd for r in sorted_records]
-    has_steering_fbk = any(r.steering_fbk is not None for r in sorted_records)
+    # --- Row 5: Steering cmd vs feedback (all data) ---
+    steer_cmds = [r.steering_cmd for r in sorted_all]
+    has_steering_fbk = any(r.steering_fbk is not None for r in sorted_all)
     fig.add_trace(
         go.Scatter(
-            x=t_rel,
+            x=t_rel_all,
             y=steer_cmds,
             mode="lines",
             name="Steering cmd",
@@ -377,10 +409,10 @@ def build_figure(
         col=1,
     )
     if has_steering_fbk:
-        steer_fbks = [r.steering_fbk for r in sorted_records]
+        steer_fbks = [r.steering_fbk for r in sorted_all]
         fig.add_trace(
             go.Scatter(
-                x=t_rel,
+                x=t_rel_all,
                 y=steer_fbks,
                 mode="lines",
                 name="Steering fbk",
@@ -411,8 +443,8 @@ def build_figure(
     )
     fig.update_yaxes(title_text="Steering cmd (PWM)", row=5, col=1)
 
-    # --- Row 6: Steering rate ---
-    t_rate = (t_rel[:-1] + t_rel[1:]) / 2  # midpoints
+    # --- Row 6: Steering rate (active window only) ---
+    t_rate = (t_rel_active[:-1] + t_rel_active[1:]) / 2  # midpoints
     fig.add_trace(
         go.Scatter(
             x=t_rate,
@@ -427,22 +459,46 @@ def build_figure(
     fig.add_hline(y=0, line_color="gray", line_width=0.5, row=6, col=1)
     fig.update_yaxes(title_text="dCmd/dt (PWM/s)", row=6, col=1)
 
-    # --- Row 7: GPS fix type timeline ---
-    gps_colors = [FIX_TYPE_COLORS.get(r.fix_type, "gray") for r in sorted_records]
+    # --- Row 7: GPS fix type timeline (all data) ---
+    gps_colors = [FIX_TYPE_COLORS.get(r.fix_type, "gray") for r in sorted_all]
     fig.add_trace(
         go.Scatter(
-            x=t_rel,
-            y=[0] * len(sorted_records),
+            x=t_rel_all,
+            y=[0] * len(sorted_all),
             mode="markers",
             marker={"color": gps_colors, "size": 6, "symbol": "square"},
             name="GPS fix",
-            hovertext=[r.fix_type for r in sorted_records],
+            hovertext=[r.fix_type for r in sorted_all],
             showlegend=False,
         ),
         row=7,
         col=1,
     )
     fig.update_yaxes(visible=False, row=7, col=1)
+
+    # --- Gray shading for discarded time regions (rows 2-7) ---
+    if trim_start is not None or trim_end is not None:
+        for row in range(2, n_rows + 1):
+            if trim_start is not None and trim_start > 0:
+                fig.add_vrect(
+                    x0=0,
+                    x1=trim_start,
+                    fillcolor="gray",
+                    opacity=0.15,
+                    line_width=0,
+                    row=row,
+                    col=1,
+                )
+            if trim_end is not None and trim_end < t_rel_all[-1]:
+                fig.add_vrect(
+                    x0=trim_end,
+                    x1=t_rel_all[-1],
+                    fillcolor="gray",
+                    opacity=0.15,
+                    line_width=0,
+                    row=row,
+                    col=1,
+                )
 
     # Shared x-axis label only on bottom
     for row in range(2, n_rows):
@@ -483,6 +539,18 @@ def main():
         "If not provided, waypoints are read from the /waypoints topic in the bag.",
     )
     parser.add_argument(
+        "--start",
+        type=float,
+        default=None,
+        help="Start time in seconds from the beginning of the bag (discard earlier data)",
+    )
+    parser.add_argument(
+        "--end",
+        type=float,
+        default=None,
+        help="End time in seconds from the beginning of the bag (discard later data)",
+    )
+    parser.add_argument(
         "--output",
         type=str,
         default=None,
@@ -492,10 +560,28 @@ def main():
 
     # Load data using shared BagfileLoader
     loader = BagfileLoader(args.bag_path)
-    records = loader.bagfile_records_dicts
-    if len(records) < 2:
+    all_records = loader.bagfile_records_dicts
+    if len(all_records) < 2:
         print("Error: not enough aligned records to analyze.")
         return
+
+    # Trim records to [start, end] window for metrics (plots use all data)
+    bag_t0 = min(all_records.keys())
+    if args.start is not None or args.end is not None:
+        abs_start = bag_t0 + args.start if args.start is not None else -float("inf")
+        abs_end = bag_t0 + args.end if args.end is not None else float("inf")
+        trimmed_records = {
+            t: r for t, r in all_records.items() if abs_start <= t <= abs_end
+        }
+        print(
+            f"Trimmed to [{args.start or 0:.1f}s, {args.end or '...'!s}s]: "
+            f"{len(trimmed_records)} records"
+        )
+        if len(trimmed_records) < 2:
+            print("Error: not enough records after trimming.")
+            return
+    else:
+        trimmed_records = all_records
 
     if args.waypoints_path:
         waypoints = load_waypoints(args.waypoints_path)
@@ -510,19 +596,27 @@ def main():
         print("Error: need at least 2 waypoints.")
         return
 
-    # Compute metrics
-    cte, heading_err, seg_idx = compute_path_metrics(records, waypoints)
+    # Compute metrics on trimmed records only
+    cte, heading_err, seg_idx = compute_path_metrics(trimmed_records, waypoints)
     times, steering_rate, sat_left, sat_right, sat_total = compute_steering_metrics(
-        records
+        trimmed_records
     )
 
     # Print summary
     print_summary(
-        records, cte, heading_err, sat_left, sat_right, sat_total, steering_rate
+        trimmed_records, cte, heading_err, sat_left, sat_right, sat_total, steering_rate
     )
 
-    # Build and save figure
-    fig = build_figure(records, waypoints, cte, heading_err, steering_rate)
+    # Build figure with all data, gray-out discarded sections
+    fig = build_figure(
+        all_records,
+        waypoints,
+        cte,
+        heading_err,
+        steering_rate,
+        trim_start=args.start,
+        trim_end=args.end,
+    )
 
     if args.output:
         out_path = args.output
