@@ -19,6 +19,12 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import plotly.graph_objs as go
+from analysis_utils import (
+    add_time_window_args,
+    load_waypoints_from_file,
+    resolve_waypoints,
+    trim_records,
+)
 from geometry_utils_pkg.bagfile_loader import BagfileLoader, BagfileRecord
 from geometry_utils_pkg.geometry_utils import compute_cross_track_errors
 from plotly.subplots import make_subplots
@@ -31,20 +37,8 @@ from vehicle_models_pkg.vehicle_models_constants import (
 SATURATION_MARGIN = 2  # PWM units from limit to count as "saturated"
 
 
-# ---------------------------------------------------------------------------
-# Waypoint loading
-# ---------------------------------------------------------------------------
-def load_waypoints(path: str) -> np.ndarray:
-    """Load waypoint file (space-separated x y [speed]). Returns Nx2 array of (x, y)."""
-    points = []
-    with open(path) as f:
-        for line in f:
-            parts = line.strip().split()
-            if len(parts) >= 2:
-                points.append((float(parts[0]), float(parts[1])))
-    wp = np.array(points)
-    print(f"Loaded {len(wp)} waypoints from {os.path.basename(path)}")
-    return wp
+# Keep as alias for backwards compatibility (imported by replay_lateral_models)
+load_waypoints = load_waypoints_from_file
 
 
 # ---------------------------------------------------------------------------
@@ -552,18 +546,7 @@ def main():
         help="Path to the waypoint file (space-separated x y [speed]). "
         "If not provided, waypoints are read from the /waypoints topic in the bag.",
     )
-    parser.add_argument(
-        "--start",
-        type=float,
-        default=None,
-        help="Start time in seconds from the beginning of the bag (discard earlier data)",
-    )
-    parser.add_argument(
-        "--end",
-        type=float,
-        default=None,
-        help="End time in seconds from the beginning of the bag (discard later data)",
-    )
+    add_time_window_args(parser)
     parser.add_argument(
         "--output",
         type=str,
@@ -580,29 +563,13 @@ def main():
         return
 
     # Trim records to [start, end] window for metrics (plots use all data)
-    bag_t0 = min(all_records.keys())
-    if args.start is not None or args.end is not None:
-        abs_start = bag_t0 + args.start if args.start is not None else -float("inf")
-        abs_end = bag_t0 + args.end if args.end is not None else float("inf")
-        trimmed_records = {
-            t: r for t, r in all_records.items() if abs_start <= t <= abs_end
-        }
-        print(
-            f"Trimmed to [{args.start or 0:.1f}s, {args.end or '...'!s}s]: "
-            f"{len(trimmed_records)} records"
-        )
-        if len(trimmed_records) < 2:
-            print("Error: not enough records after trimming.")
-            return
-    else:
-        trimmed_records = all_records
+    trimmed_records, _ = trim_records(all_records, args.start, args.end)
+    if len(trimmed_records) < 2:
+        print("Error: not enough records after trimming.")
+        return
 
-    if args.waypoints_path:
-        waypoints = load_waypoints(args.waypoints_path)
-    elif loader.waypoints is not None:
-        waypoints = loader.waypoints
-        print(f"Loaded {len(waypoints)} waypoints from /waypoints topic in bag")
-    else:
+    waypoints = resolve_waypoints(loader, args.waypoints_path)
+    if waypoints is None:
         print("Error: no waypoints found in bag and --waypoints-path not provided.")
         return
 

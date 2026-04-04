@@ -23,7 +23,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import plotly.graph_objs as go
-from analyze_bagfile import load_waypoints
+from analysis_utils import add_time_window_args, resolve_waypoints, trim_records
 from geometry_utils_pkg.bagfile_loader import BagfileLoader, BagfileRecord
 from geometry_utils_pkg.geometry_utils import compute_cross_track_errors
 from plotly.subplots import make_subplots
@@ -484,6 +484,7 @@ def main():
         choices=["open_loop", "one_step"],
         help="Forward-simulate trajectories: 'open_loop' or 'one_step'",
     )
+    add_time_window_args(parser)
     parser.add_argument(
         "--output",
         type=str,
@@ -499,6 +500,12 @@ def main():
         print("Error: not enough aligned records.")
         return
 
+    # Trim to time window
+    records, _ = trim_records(records, args.start, args.end)
+    if len(records) < 2:
+        print("Error: not enough records after trimming.")
+        return
+
     sorted_records = sorted(records.values(), key=lambda r: r.gps_msg_time)
 
     n_with_curv = sum(1 for r in sorted_records if r.target_curvature is not None)
@@ -508,13 +515,7 @@ def main():
         )
         return
 
-    if args.waypoints_path:
-        waypoints = load_waypoints(args.waypoints_path)
-    elif loader.waypoints is not None:
-        waypoints = loader.waypoints
-        print(f"Loaded {len(waypoints)} waypoints from bag /waypoints topic")
-    else:
-        waypoints = None
+    waypoints = resolve_waypoints(loader, args.waypoints_path)
 
     # Recompute steering commands per model
     model_cmds: Dict[str, np.ndarray] = {}
