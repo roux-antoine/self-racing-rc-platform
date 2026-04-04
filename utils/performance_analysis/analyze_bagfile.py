@@ -20,6 +20,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import plotly.graph_objs as go
 from geometry_utils_pkg.bagfile_loader import BagfileLoader, BagfileRecord
+from geometry_utils_pkg.geometry_utils import compute_cross_track_errors
 from plotly.subplots import make_subplots
 from vehicle_models_pkg.vehicle_models_constants import (
     STEERING_MAX_PWM,
@@ -65,45 +66,21 @@ def compute_path_metrics(
 
     Returns (cte_array, heading_err_array, seg_idx_array).
     """
-    # Precompute segment vectors and lengths
-    seg_starts = waypoints[:-1]  # (N-1, 2)
-    seg_ends = waypoints[1:]
-    seg_vecs = seg_ends - seg_starts  # (N-1, 2)
-    seg_lens_sq = np.sum(seg_vecs**2, axis=1)  # (N-1,)
-    seg_lens_sq[seg_lens_sq == 0] = 1e-12  # avoid div-by-zero for degenerate segments
-    seg_angles = np.arctan2(seg_vecs[:, 1], seg_vecs[:, 0])  # tangent angle per segment
-
     sorted_records = sorted(records.values(), key=lambda r: r.gps_msg_time)
-    n = len(sorted_records)
-    cte = np.zeros(n)
-    heading_err = np.zeros(n)
-    seg_idx = np.zeros(n, dtype=int)
+    xs = np.array([r.state.x for r in sorted_records])
+    ys = np.array([r.state.y for r in sorted_records])
 
-    for i, r in enumerate(sorted_records):
-        pt = np.array([r.state.x, r.state.y])
+    cte, seg_idx = compute_cross_track_errors(xs, ys, waypoints)
 
-        # Project onto each segment: t = dot(pt - start, seg_vec) / |seg_vec|^2
-        diffs = pt - seg_starts  # (N-1, 2)
-        t_params = np.sum(diffs * seg_vecs, axis=1) / seg_lens_sq
-        t_clamped = np.clip(t_params, 0.0, 1.0)
-
-        # Closest point on each segment
-        closest = seg_starts + t_clamped[:, np.newaxis] * seg_vecs  # (N-1, 2)
-        dists_sq = np.sum((pt - closest) ** 2, axis=1)
-
-        best = np.argmin(dists_sq)
-        seg_idx[i] = best
-
-        # Signed CTE: cross product of segment direction with (pt - closest_on_seg)
-        # Positive = point is to the left of the path direction
-        dx = r.state.x - closest[best, 0]
-        dy = r.state.y - closest[best, 1]
-        seg_dir = seg_vecs[best]
-        cross = seg_dir[0] * dy - seg_dir[1] * dx
-        cte[i] = math.copysign(math.sqrt(dists_sq[best]), cross)
-
-        # Heading error
-        heading_err[i] = _wrap_angle(r.state.angle - seg_angles[best])
+    # Heading error per segment
+    seg_vecs = waypoints[1:] - waypoints[:-1]
+    seg_angles = np.arctan2(seg_vecs[:, 1], seg_vecs[:, 0])
+    heading_err = np.array(
+        [
+            _wrap_angle(r.state.angle - seg_angles[seg_idx[i]])
+            for i, r in enumerate(sorted_records)
+        ]
+    )
 
     return cte, heading_err, seg_idx
 

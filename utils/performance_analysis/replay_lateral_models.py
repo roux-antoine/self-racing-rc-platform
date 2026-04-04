@@ -23,10 +23,10 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import plotly.graph_objs as go
-from plotly.subplots import make_subplots
-
 from analyze_bagfile import load_waypoints
 from geometry_utils_pkg.bagfile_loader import BagfileLoader, BagfileRecord
+from geometry_utils_pkg.geometry_utils import compute_cross_track_errors
+from plotly.subplots import make_subplots
 from vehicle_models_pkg.vehicle_models import (
     CarModelBicyclePure,
     CarModelBicycleV0,
@@ -88,17 +88,15 @@ def recompute_steering_commands(
 # ---------------------------------------------------------------------------
 # Forward simulation
 # ---------------------------------------------------------------------------
-def forward_simulate(
+def forward_simulate_open_loop(
     sorted_records: List[BagfileRecord], model: CarModelBicyclePure
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Starting from the first record's pose, integrate the bicycle model forward
-    using the *actual recorded* steering commands and speeds.
+    Fully open-loop: start from the first record's pose and integrate forward
+    without ever resetting to the actual GPS position.
 
-    This shows: "given what the car actually commanded, where does this model
+    Shows: "given what the car actually commanded, where does this model
     think the car would end up?"
-
-    Returns (xs, ys) arrays of simulated positions.
     """
     model.states.clear()
     r0 = sorted_records[0]
@@ -110,13 +108,38 @@ def forward_simulate(
             model.states.append(model.states[-1])
             continue
 
-        # Update the model's speed to match the actual recorded speed
         model.states[-1].vx = sorted_records[i - 1].state.vx
-
         model.step(dt=dt, cmd_steering=sorted_records[i - 1].steering_cmd)
 
     xs = np.array([s.x for s in model.states])
     ys = np.array([s.y for s in model.states])
+    return xs, ys
+
+
+def forward_simulate_one_step(
+    sorted_records: List[BagfileRecord], model: CarModelBicyclePure
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    One-step prediction: at each timestep, reset the model to the actual
+    recorded pose, then step once. The predicted position shows how well the
+    model predicts the *next* GPS fix given the current state and command.
+    """
+    xs = np.full(len(sorted_records), float("nan"))
+    ys = np.full(len(sorted_records), float("nan"))
+
+    for i in range(len(sorted_records) - 1):
+        dt = sorted_records[i + 1].gps_msg_time - sorted_records[i].gps_msg_time
+        if dt <= 0:
+            continue
+
+        r = sorted_records[i]
+        model.states.clear()
+        model.init(x=r.state.x, y=r.state.y, vx=r.state.vx, angle=r.state.angle)
+        model.step(dt=dt, cmd_steering=r.steering_cmd)
+
+        xs[i + 1] = model.states[-1].x
+        ys[i + 1] = model.states[-1].y
+
     return xs, ys
 
 
@@ -127,6 +150,7 @@ def print_summary(
     sorted_records: List[BagfileRecord],
     model_names: List[str],
     model_cmds: Dict[str, np.ndarray],
+    model_ctes: Dict[str, np.ndarray],
 ) -> None:
     actual = np.array([r.steering_cmd for r in sorted_records])
 
@@ -149,6 +173,18 @@ def print_summary(
         corr = np.corrcoef(actual[valid], cmds[valid])[0, 1]
         print(f"    Correlation with actual:    {corr:.4f}")
 
+        if name in model_ctes:
+            cte = model_ctes[name]
+            cte_valid = cte[~np.isnan(cte)]
+            if len(cte_valid) > 0:
+                print(f"    Cross-track error (mean):   {np.mean(cte_valid):+.4f} m")
+                print(
+                    f"    Cross-track error (RMS):    {np.sqrt(np.mean(cte_valid**2)):.4f} m"
+                )
+                print(
+                    f"    Cross-track error (max):    {np.max(np.abs(cte_valid)):.4f} m"
+                )
+
     print("=============================================\n")
 
 
@@ -161,18 +197,31 @@ def build_figure(
     model_names: List[str],
     model_cmds: Dict[str, np.ndarray],
     model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray]],
+    model_ctes: Dict[str, np.ndarray],
 ) -> go.Figure:
     has_trajectories = len(model_trajectories) > 0
-    n_rows = 4 if has_trajectories else 3
-    row_heights = [0.35, 0.25, 0.20, 0.20] if has_trajectories else [0.40, 0.30, 0.30]
+    has_cte = len(model_ctes) > 0
 
+    # Base rows: steering cmds, residuals, context, x-y path
+    n_rows = 4
+    row_heights = [0.30, 0.25, 0.20, 0.25]
     subtitles = [
         "Steering Command: Actual vs Models (PWM)",
         "Steering Command Residual: Model - Actual (PWM)",
         "Target Curvature & Speed Context",
+        "Actual Path (X-Y)",
     ]
+    if has_cte:
+        n_rows += 1
+        row_heights.append(0.20)
+        subtitles.append("Cross-Track Error (m)")
     if has_trajectories:
+        n_rows += 1
+        row_heights.append(0.20)
         subtitles.append("Forward-Simulated Trajectories")
+    # Normalize row heights to sum to 1
+    total = sum(row_heights)
+    row_heights = [h / total for h in row_heights]
 
     fig = make_subplots(
         rows=n_rows,
@@ -211,12 +260,22 @@ def build_figure(
             col=1,
         )
     fig.add_hline(
-        y=STEERING_MIN_PWM, line_dash="dot", line_color="gray", row=1, col=1,
-        annotation_text="min", annotation_position="bottom left",
+        y=STEERING_MIN_PWM,
+        line_dash="dot",
+        line_color="gray",
+        row=1,
+        col=1,
+        annotation_text="min",
+        annotation_position="bottom left",
     )
     fig.add_hline(
-        y=STEERING_MAX_PWM, line_dash="dot", line_color="gray", row=1, col=1,
-        annotation_text="max", annotation_position="top left",
+        y=STEERING_MAX_PWM,
+        line_dash="dot",
+        line_color="gray",
+        row=1,
+        col=1,
+        annotation_text="max",
+        annotation_position="top left",
     )
     fig.update_yaxes(title_text="Steering cmd (PWM)", row=1, col=1)
 
@@ -268,7 +327,62 @@ def build_figure(
     )
     fig.update_yaxes(title_text="Curvature (1/m) / Speed (m/s)", row=3, col=1)
 
-    # --- Row 4: Trajectories (if simulated) ---
+    # --- Row 4: Actual X-Y path ---
+    xy_row = 4
+    if waypoints is not None:
+        fig.add_trace(
+            go.Scatter(
+                x=waypoints[:, 0],
+                y=waypoints[:, 1],
+                mode="lines",
+                line={"color": "lightgray", "width": 4},
+                name="Waypoints",
+                showlegend=True,
+            ),
+            row=xy_row,
+            col=1,
+        )
+    actual_x = [r.state.x for r in sorted_records]
+    actual_y = [r.state.y for r in sorted_records]
+    fig.add_trace(
+        go.Scatter(
+            x=actual_x,
+            y=actual_y,
+            mode="lines",
+            name="Actual path",
+            line={"color": "black", "width": 2},
+        ),
+        row=xy_row,
+        col=1,
+    )
+    fig.update_xaxes(title_text="X (m)", row=xy_row, col=1)
+    fig.update_yaxes(
+        title_text="Y (m)", scaleanchor=f"x{xy_row}", scaleratio=1, row=xy_row, col=1
+    )
+
+    # --- CTE row (if simulated with waypoints) ---
+    next_row = 5
+    if has_cte:
+        cte_row = next_row
+        next_row += 1
+        for name in model_names:
+            if name in model_ctes:
+                fig.add_trace(
+                    go.Scatter(
+                        x=t_rel,
+                        y=model_ctes[name],
+                        mode="lines",
+                        name=f"{name} CTE",
+                        line={"color": MODEL_COLORS.get(name, "gray"), "width": 1.5},
+                    ),
+                    row=cte_row,
+                    col=1,
+                )
+        fig.add_hline(y=0, line_color="black", line_width=0.5, row=cte_row, col=1)
+        fig.update_yaxes(title_text="CTE (m)", row=cte_row, col=1)
+
+    # --- Simulated Trajectories (if simulated) ---
+    sim_row = next_row
     if has_trajectories:
         if waypoints is not None:
             fig.add_trace(
@@ -278,13 +392,11 @@ def build_figure(
                     mode="lines",
                     line={"color": "lightgray", "width": 4},
                     name="Waypoints",
-                    showlegend=True,
+                    showlegend=False,
                 ),
-                row=4,
+                row=sim_row,
                 col=1,
             )
-        actual_x = [r.state.x for r in sorted_records]
-        actual_y = [r.state.y for r in sorted_records]
         fig.add_trace(
             go.Scatter(
                 x=actual_x,
@@ -292,8 +404,9 @@ def build_figure(
                 mode="lines",
                 name="Actual path",
                 line={"color": "black", "width": 2},
+                showlegend=False,
             ),
-            row=4,
+            row=sim_row,
             col=1,
         )
         for name in model_names:
@@ -311,20 +424,22 @@ def build_figure(
                             "dash": "dash",
                         },
                     ),
-                    row=4,
+                    row=sim_row,
                     col=1,
                 )
-        fig.update_xaxes(title_text="X (m)", row=4, col=1)
+        fig.update_xaxes(title_text="X (m)", row=sim_row, col=1)
         fig.update_yaxes(
-            title_text="Y (m)", scaleanchor="x", scaleratio=1, row=4, col=1
+            title_text="Y (m)",
+            scaleanchor=f"x{sim_row}",
+            scaleratio=1,
+            row=sim_row,
+            col=1,
         )
 
     # Shared time axis label
-    for row in range(1, n_rows + 1):
+    for row in range(1, 4):
         fig.update_xaxes(title_text="", row=row, col=1)
     fig.update_xaxes(title_text="Time (s)", row=3, col=1)
-    if has_trajectories:
-        fig.update_xaxes(title_text="X (m)", row=4, col=1)
 
     fig.update_layout(
         height=300 + n_rows * 350,
@@ -366,8 +481,8 @@ def main():
     )
     parser.add_argument(
         "--simulate",
-        action="store_true",
-        help="Forward-simulate trajectories using each model (adds trajectory plot)",
+        choices=["open_loop", "one_step"],
+        help="Forward-simulate trajectories: 'open_loop' or 'one_step'",
     )
     parser.add_argument(
         "--output",
@@ -388,12 +503,18 @@ def main():
 
     n_with_curv = sum(1 for r in sorted_records if r.target_curvature is not None)
     if n_with_curv == 0:
-        print("Error: no /target_curvature data found in bag. Cannot recompute steering commands.")
+        print(
+            "Error: no /target_curvature data found in bag. Cannot recompute steering commands."
+        )
         return
 
-    waypoints = None
     if args.waypoints_path:
         waypoints = load_waypoints(args.waypoints_path)
+    elif loader.waypoints is not None:
+        waypoints = loader.waypoints
+        print(f"Loaded {len(waypoints)} waypoints from bag /waypoints topic")
+    else:
+        waypoints = None
 
     # Recompute steering commands per model
     model_cmds: Dict[str, np.ndarray] = {}
@@ -401,19 +522,38 @@ def main():
         model = MODEL_REGISTRY[name]()
         model_cmds[name] = recompute_steering_commands(sorted_records, model)
 
-    # Optionally forward-simulate trajectories
+    # Optionally forward-simulate trajectories and compute CTE
     model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+    model_ctes: Dict[str, np.ndarray] = {}
     if args.simulate:
+        if args.simulate not in ["open_loop", "one_step"]:
+            print(f"Error: invalid simulation mode '{args.simulate}'.")
+            return
+        sim_fn = (
+            forward_simulate_one_step
+            if args.simulate == "one_step"
+            else forward_simulate_open_loop
+        )
         for name in args.models:
             model = MODEL_REGISTRY[name]()
-            xs, ys = forward_simulate(sorted_records, model)
+            xs, ys = sim_fn(sorted_records, model)
             model_trajectories[name] = (xs, ys)
+            if waypoints is not None:
+                cte, _ = compute_cross_track_errors(xs, ys, waypoints)
+                model_ctes[name] = cte
 
     # Print summary
-    print_summary(sorted_records, args.models, model_cmds)
+    print_summary(sorted_records, args.models, model_cmds, model_ctes)
 
     # Build and save figure
-    fig = build_figure(sorted_records, waypoints, args.models, model_cmds, model_trajectories)
+    fig = build_figure(
+        sorted_records,
+        waypoints,
+        args.models,
+        model_cmds,
+        model_trajectories,
+        model_ctes,
+    )
 
     if args.output:
         out_path = args.output
