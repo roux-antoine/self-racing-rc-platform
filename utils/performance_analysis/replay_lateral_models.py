@@ -135,7 +135,7 @@ def forward_simulate_one_step(
     for i in range(len(sorted_records) - 1):
         dt = sorted_records[i + 1].gps_msg_time - sorted_records[i].gps_msg_time
         if dt <= 0:
-            raise ValueError(f"Non-positive dt between records {i-1} and {i}")
+            raise ValueError(f"Non-positive dt between records {i} and {i+1}")
 
         r = sorted_records[i]
         model.states.clear()
@@ -205,9 +205,13 @@ def print_summary(
     sorted_records: List[BagfileRecord],
     model_names: List[str],
     model_cmds: Dict[str, np.ndarray],
-    model_offsets: Dict[str, Tuple[np.ndarray, np.ndarray]] = {},
-    model_yaw_offsets: Dict[str, np.ndarray] = {},
+    model_offsets: Optional[Dict[str, Tuple[np.ndarray, np.ndarray]]] = None,
+    model_yaw_offsets: Optional[Dict[str, np.ndarray]] = None,
 ) -> None:
+    if model_offsets is None:
+        model_offsets = {}
+    if model_yaw_offsets is None:
+        model_yaw_offsets = {}
     actual = np.array([r.steering_cmd for r in sorted_records])
 
     print("\n===== LATERAL MODEL COMPARISON SUMMARY =====")
@@ -283,8 +287,8 @@ def build_figure(
     model_names: List[str],
     model_cmds: Dict[str, np.ndarray],
     model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
-    model_offsets: Dict[str, Tuple[np.ndarray, np.ndarray]] = {},
-    model_yaw_offsets: Dict[str, np.ndarray] = {},
+    model_offsets: Optional[Dict[str, Tuple[np.ndarray, np.ndarray]]] = None,
+    model_yaw_offsets: Optional[Dict[str, np.ndarray]] = None,
     trim_start: Optional[float] = None,
     trim_end: Optional[float] = None,
 ) -> go.Figure:
@@ -296,6 +300,10 @@ def build_figure(
     trim_start/trim_end: relative times (seconds from bag start) defining the
         active window.  Data outside this window is shown but grayed out.
     """
+    if model_offsets is None:
+        model_offsets = {}
+    if model_yaw_offsets is None:
+        model_yaw_offsets = {}
     has_trajectories = len(model_trajectories) > 0
     has_offsets = len(model_offsets) > 0
     has_yaw_offsets = len(model_yaw_offsets) > 0
@@ -830,7 +838,7 @@ def main():
         nargs="+",
         default=["V0", "V3"],
         choices=list(MODEL_REGISTRY.keys()),
-        help="Which models to compare (default: all)",
+        help="Which models to compare (default: V0 V3)",
     )
     parser.add_argument(
         "--simulate",

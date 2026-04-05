@@ -451,7 +451,7 @@ def build_figure(
     fig.update_yaxes(visible=False, row=7, col=1)
 
     # --- Row 8: GPS fix type timeline (all data) ---
-    gps_colors = [FIX_TYPE_COLORS[r.fix_type] for r in sorted_all]
+    gps_colors = [FIX_TYPE_COLORS.get(r.fix_type, "gray") for r in sorted_all]
     fig.add_trace(
         go.Scatter(
             x=t_rel_all,
