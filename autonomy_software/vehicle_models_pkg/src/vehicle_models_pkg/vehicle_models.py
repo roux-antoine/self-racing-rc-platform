@@ -251,14 +251,32 @@ class CarModelBicycleV2(CarModelBicycleSpeedToParam):
 
 class CarModelBicycleV3(CarModelBicycleSpeedToParam):
     """
-    Similar to V2, but with updated params based on the 2025-07-20 San Mateo bagfiles (still steady-state circle fitting)
+    Similar to V2, they were estimated from steady-state circle fitting, but using scripts in the folder steering_param_identification
+    The bags were from the 2025-07-20 San Mateo testing session
     """
 
     SPEEDS_TO_PARAM_MAPPING: dict = {
-        2: 12.67852795,
-        3: 12.29078091,
-        4: 10.12400495,
-        5: 9.71443423,
-        6: 9.55109679,
-        7: 10.15111903,
+        2: 12.67,
+        3: 12.29,
+        4: 10.12,
+        5: 9.71,
+        6: 9.55,
+        7: 10.15,
+    }
+
+
+class CarModelBicycleV4(CarModelBicycleSpeedToParam):
+    """
+    Similar to V2 and V3, but estimted using the script trajectory_based_identification.py, which optimizes the parameters based on the
+    entire trajectory and not just steady-state circle fitting.
+    The bags were from the 20250824 Cañada College testing session
+    """
+
+    SPEEDS_TO_PARAM_MAPPING: dict = {
+        2.0: 4.31,
+        3.0: 2.91,
+        4.0: 2.34,
+        5.0: 2.80,
+        6.0: 2.20,
+        7.0: 4.24,
     }
