@@ -25,6 +25,7 @@ import numpy as np
 import plotly.graph_objs as go
 from analysis_utils import add_time_window_args, resolve_waypoints, trim_records
 from bagfile_loader import BagfileLoader, BagfileRecord
+from geometry_utils_pkg.geometry_utils import wrap_angle
 from plotly.subplots import make_subplots
 from vehicle_models_pkg.vehicle_models import (
     CarModelBicyclePure,
@@ -89,13 +90,15 @@ def recompute_steering_commands(
 # ---------------------------------------------------------------------------
 def forward_simulate_open_loop(
     sorted_records: List[BagfileRecord], model: CarModelBicyclePure
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Fully open-loop: start from the first record's pose and integrate forward
     without ever resetting to the actual GPS position.
 
     Shows: "given what the car actually commanded, where does this model
     think the car would end up?"
+
+    Returns (xs, ys, angles).
     """
     model.states.clear()
     r0 = sorted_records[0]
@@ -111,19 +114,23 @@ def forward_simulate_open_loop(
 
     xs = np.array([s.x for s in model.states])
     ys = np.array([s.y for s in model.states])
-    return xs, ys
+    angles = np.array([s.angle for s in model.states])
+    return xs, ys, angles
 
 
 def forward_simulate_one_step(
     sorted_records: List[BagfileRecord], model: CarModelBicyclePure
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     One-step prediction: at each timestep, reset the model to the actual
     recorded pose, then step once. The predicted position shows how well the
     model predicts the *next* GPS fix given the current state and command.
+
+    Returns (xs, ys, angles).
     """
     xs = np.full(len(sorted_records), float("nan"))
     ys = np.full(len(sorted_records), float("nan"))
+    angles = np.full(len(sorted_records), float("nan"))
 
     for i in range(len(sorted_records) - 1):
         dt = sorted_records[i + 1].gps_msg_time - sorted_records[i].gps_msg_time
@@ -137,8 +144,9 @@ def forward_simulate_one_step(
 
         xs[i + 1] = model.states[-1].x
         ys[i + 1] = model.states[-1].y
+        angles[i + 1] = model.states[-1].angle
 
-    return xs, ys
+    return xs, ys, angles
 
 
 # ---------------------------------------------------------------------------
@@ -150,16 +158,44 @@ def compute_pairwise_offsets(
     sim_ys: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Compute the Euclidean distance between each simulated position and the
+    Compute the signed lateral offset between each simulated position and the
     corresponding actual GPS position, along with the actual speed at each point.
+
+    Sign convention (same as CTE): positive = simulated point is to the left
+    of the travel direction, negative = to the right.  Determined by the cross
+    product of the heading vector and the (actual → simulated) vector.
     """
     actual_xs = np.array([r.state.x for r in sorted_records])
     actual_ys = np.array([r.state.y for r in sorted_records])
     speeds = np.array([r.state.vx for r in sorted_records])
+    headings = np.array([r.state.angle for r in sorted_records])
 
-    offsets = np.sqrt((sim_xs - actual_xs) ** 2 + (sim_ys - actual_ys) ** 2)
+    dx = sim_xs - actual_xs
+    dy = sim_ys - actual_ys
+    dist = np.sqrt(dx**2 + dy**2)
+
+    # Cross product of heading unit vector × offset vector gives signed lateral
+    cross = np.cos(headings) * dy - np.sin(headings) * dx
+    offsets = np.sign(cross) * dist
+
     # Preserve NaNs from simulation (e.g. one_step leaves index 0 as NaN)
     return offsets, speeds
+
+
+def compute_yaw_offsets(
+    sorted_records: List[BagfileRecord],
+    sim_angles: np.ndarray,
+) -> np.ndarray:
+    """
+    Compute the signed yaw offset (predicted angle - actual angle), wrapped
+    to [-pi, pi].  Positive = model predicts more counter-clockwise (left),
+    negative = more clockwise (right).
+    """
+    actual_angles = np.array([r.state.angle for r in sorted_records])
+    yaw_offsets = np.array(
+        [wrap_angle(s - a) for s, a in zip(sim_angles, actual_angles)]
+    )
+    return yaw_offsets
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +206,7 @@ def print_summary(
     model_names: List[str],
     model_cmds: Dict[str, np.ndarray],
     model_offsets: Dict[str, Tuple[np.ndarray, np.ndarray]] = {},
+    model_yaw_offsets: Dict[str, np.ndarray] = {},
 ) -> None:
     actual = np.array([r.steering_cmd for r in sorted_records])
 
@@ -196,11 +233,18 @@ def print_summary(
             offsets, speeds = model_offsets[name]
             valid_offsets = offsets[~np.isnan(offsets)]
             if len(valid_offsets) > 0:
-                print(f"    Pairwise offset (mean):     {np.mean(valid_offsets):.4f} m")
+                print(
+                    f"    Pairwise offset (mean):     {np.mean(valid_offsets):+.4f} m  (+left/-right)"
+                )
+                print(
+                    f"    Pairwise |offset| (mean):   {np.mean(np.abs(valid_offsets)):.4f} m"
+                )
                 print(
                     f"    Pairwise offset (RMS):      {np.sqrt(np.mean(valid_offsets**2)):.4f} m"
                 )
-                print(f"    Pairwise offset (max):      {np.max(valid_offsets):.4f} m")
+                print(
+                    f"    Pairwise |offset| (max):    {np.max(np.abs(valid_offsets)):.4f} m"
+                )
                 speed_threshold = 1.0
                 fast_mask = (~np.isnan(offsets)) & (speeds > speed_threshold)
                 if np.any(fast_mask):
@@ -208,6 +252,24 @@ def print_summary(
                     print(
                         f"    Pairwise offset (mean, >{speed_threshold} m/s): {np.mean(fast_offsets):.4f} m"
                     )
+
+        if name in model_yaw_offsets:
+            yaw = model_yaw_offsets[name]
+            valid_yaw = yaw[~np.isnan(yaw)]
+            if len(valid_yaw) > 0:
+                yaw_deg = np.degrees(valid_yaw)
+                print(
+                    f"    Yaw offset (mean):          {np.mean(yaw_deg):+.2f} deg  (+left/-right)"
+                )
+                print(
+                    f"    Yaw |offset| (mean):        {np.mean(np.abs(yaw_deg)):.2f} deg"
+                )
+                print(
+                    f"    Yaw offset (RMS):           {np.sqrt(np.mean(yaw_deg**2)):.2f} deg"
+                )
+                print(
+                    f"    Yaw |offset| (max):         {np.max(np.abs(yaw_deg)):.2f} deg"
+                )
 
     print("=============================================\n")
 
@@ -220,20 +282,23 @@ def build_figure(
     waypoints,
     model_names: List[str],
     model_cmds: Dict[str, np.ndarray],
-    model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray]],
+    model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
     model_offsets: Dict[str, Tuple[np.ndarray, np.ndarray]] = {},
+    model_yaw_offsets: Dict[str, np.ndarray] = {},
     trim_start: Optional[float] = None,
     trim_end: Optional[float] = None,
 ) -> go.Figure:
     """Build the multi-panel Plotly figure.
 
     all_sorted_records: full (untrimmed) sorted records from the bag.
-    model_cmds/model_trajectories/model_offsets: computed on trimmed records only.
+    model_cmds/model_trajectories/model_offsets/model_yaw_offsets: computed
+        on trimmed records only.
     trim_start/trim_end: relative times (seconds from bag start) defining the
         active window.  Data outside this window is shown but grayed out.
     """
     has_trajectories = len(model_trajectories) > 0
     has_offsets = len(model_offsets) > 0
+    has_yaw_offsets = len(model_yaw_offsets) > 0
 
     # Base rows: steering cmds, residuals, context, x-y path
     n_rows = 4
@@ -251,6 +316,10 @@ def build_figure(
         n_rows += 1
         row_heights.append(0.30)
         subtitles.append("Offset vs Speed")
+    if has_yaw_offsets:
+        n_rows += 1
+        row_heights.append(0.20)
+        subtitles.append("Yaw Offset: Simulated vs Actual (deg)")
     if has_trajectories:
         n_rows += 1
         row_heights.append(0.50)
@@ -452,13 +521,13 @@ def build_figure(
                 offsets, _ = model_offsets[name]
                 valid_offsets = offsets[~np.isnan(offsets)]
                 if len(valid_offsets) > 0:
-                    mean_val = float(np.mean(valid_offsets))
+                    mean_val = float(np.mean(np.abs(valid_offsets)))
                     fig.add_trace(
                         go.Scatter(
                             x=[t_rel_active[0], t_rel_active[-1]],
                             y=[mean_val, mean_val],
                             mode="lines",
-                            name=f"{name} mean: {mean_val:.4f} m",
+                            name=f"{name} mean |offset|: {mean_val:.4f} m",
                             line={
                                 "color": MODEL_COLORS.get(name, "gray"),
                                 "width": 1.5,
@@ -469,7 +538,8 @@ def build_figure(
                         row=offset_row,
                         col=1,
                     )
-        fig.update_yaxes(title_text="Offset (m)", row=offset_row, col=1)
+        fig.add_hline(y=0, line_color="gray", line_width=0.5, row=offset_row, col=1)
+        fig.update_yaxes(title_text="Offset (m, +left/-right)", row=offset_row, col=1)
         fig.update_xaxes(title_text="Time (s)", row=offset_row, col=1)
 
         # --- Offset vs Speed scatter ---
@@ -497,8 +567,57 @@ def build_figure(
         fig.update_xaxes(title_text="Speed (m/s)", row=speed_offset_row, col=1)
         fig.update_yaxes(title_text="Offset (m)", row=speed_offset_row, col=1)
 
+    # --- Yaw Offset over time ---
+    next_row = 5 + (2 if has_offsets else 0)
+    if has_yaw_offsets:
+        yaw_row = next_row
+        next_row += 1
+        for name in model_names:
+            if name in model_yaw_offsets:
+                yaw = np.degrees(model_yaw_offsets[name])
+                fig.add_trace(
+                    go.Scatter(
+                        x=t_rel_active,
+                        y=yaw,
+                        mode="lines",
+                        name=f"{name}",
+                        line={"color": MODEL_COLORS.get(name, "gray"), "width": 1.5},
+                        legend=_legend_for_row(yaw_row),
+                    ),
+                    row=yaw_row,
+                    col=1,
+                )
+        # Mean |yaw offset| lines
+        for name in model_names:
+            if name in model_yaw_offsets:
+                yaw = np.degrees(model_yaw_offsets[name])
+                valid_yaw = yaw[~np.isnan(yaw)]
+                if len(valid_yaw) > 0:
+                    mean_val = float(np.mean(np.abs(valid_yaw)))
+                    fig.add_trace(
+                        go.Scatter(
+                            x=[t_rel_active[0], t_rel_active[-1]],
+                            y=[mean_val, mean_val],
+                            mode="lines",
+                            name=f"{name} mean |yaw|: {mean_val:.2f} deg",
+                            line={
+                                "color": MODEL_COLORS.get(name, "gray"),
+                                "width": 1.5,
+                                "dash": "dot",
+                            },
+                            legend=_legend_for_row(yaw_row),
+                        ),
+                        row=yaw_row,
+                        col=1,
+                    )
+        fig.add_hline(y=0, line_color="gray", line_width=0.5, row=yaw_row, col=1)
+        fig.update_yaxes(
+            title_text="Yaw offset (deg, +left/-right)", row=yaw_row, col=1
+        )
+        fig.update_xaxes(title_text="Time (s)", row=yaw_row, col=1)
+
     # --- Simulated Trajectories (if simulated) ---
-    sim_row = 5 + (2 if has_offsets else 0)
+    sim_row = next_row
     if has_trajectories:
         if waypoints is not None:
             fig.add_trace(
@@ -530,7 +649,7 @@ def build_figure(
         active_ys = all_ys[active_mask]
         for name in model_names:
             if name in model_trajectories:
-                xs, ys = model_trajectories[name]
+                xs, ys, sim_angles = model_trajectories[name]
                 fig.add_trace(
                     go.Scatter(
                         x=xs,
@@ -568,6 +687,58 @@ def build_figure(
                     row=sim_row,
                     col=1,
                 )
+        # Yaw arrows: short line segments showing heading direction
+        # Compute a reasonable arrow length from the path extent
+        arrow_len = 0.01 * max(np.ptp(active_xs), np.ptp(active_ys), 0.1)
+
+        # Actual headings (black arrows)
+        actual_angles = np.array([r.state.angle for r in all_sorted_records])[
+            active_mask
+        ]
+        arrow_x: List[Optional[float]] = []
+        arrow_y: List[Optional[float]] = []
+        for ax, ay, ang in zip(active_xs, active_ys, actual_angles):
+            arrow_x.extend([ax, ax + arrow_len * np.cos(ang), None])
+            arrow_y.extend([ay, ay + arrow_len * np.sin(ang), None])
+        fig.add_trace(
+            go.Scatter(
+                x=arrow_x,
+                y=arrow_y,
+                mode="lines",
+                line={"color": "black", "width": 1.5},
+                name="Actual yaw",
+                legend=_legend_for_row(sim_row),
+            ),
+            row=sim_row,
+            col=1,
+        )
+
+        # Simulated headings (per-model colored arrows)
+        for name in model_names:
+            if name in model_trajectories:
+                xs, ys, sim_angles = model_trajectories[name]
+                sarrow_x: List[Optional[float]] = []
+                sarrow_y: List[Optional[float]] = []
+                for sx, sy, sa in zip(xs, ys, sim_angles):
+                    if not np.isnan(sx):
+                        sarrow_x.extend([sx, sx + arrow_len * np.cos(sa), None])
+                        sarrow_y.extend([sy, sy + arrow_len * np.sin(sa), None])
+                fig.add_trace(
+                    go.Scatter(
+                        x=sarrow_x,
+                        y=sarrow_y,
+                        mode="lines",
+                        line={
+                            "color": MODEL_COLORS.get(name, "gray"),
+                            "width": 1.5,
+                        },
+                        name=f"{name} yaw",
+                        legend=_legend_for_row(sim_row),
+                    ),
+                    row=sim_row,
+                    col=1,
+                )
+
         fig.update_xaxes(title_text="X (m)", row=sim_row, col=1)
         fig.update_yaxes(
             title_text="Y (m)",
@@ -582,6 +753,8 @@ def build_figure(
         time_series_rows = list(range(1, 4))  # rows 1-3 always present
         if has_offsets:
             time_series_rows.append(5)
+        if has_yaw_offsets:
+            time_series_rows.append(5 + (2 if has_offsets else 0))
         for row in time_series_rows:
             if trim_start is not None and trim_start > 0:
                 fig.add_vrect(
@@ -655,7 +828,7 @@ def main():
     parser.add_argument(
         "--models",
         nargs="+",
-        default=["V0", "V1", "V2", "V3"],
+        default=["V0", "V3"],
         choices=list(MODEL_REGISTRY.keys()),
         help="Which models to compare (default: all)",
     )
@@ -705,8 +878,9 @@ def main():
         model_cmds[name] = recompute_steering_commands(sorted_records, model)
 
     # Optionally forward-simulate trajectories, pairwise offsets
-    model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+    model_trajectories: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
     model_offsets: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+    model_yaw_offsets: Dict[str, np.ndarray] = {}
     if args.simulate:
         if args.simulate not in ["open_loop", "one_step"]:
             print(f"Error: invalid simulation mode '{args.simulate}'.")
@@ -718,9 +892,10 @@ def main():
         )
         for name in args.models:
             model = MODEL_REGISTRY[name]()
-            xs, ys = sim_fn(sorted_records, model)
-            model_trajectories[name] = (xs, ys)
+            xs, ys, angles = sim_fn(sorted_records, model)
+            model_trajectories[name] = (xs, ys, angles)
             model_offsets[name] = compute_pairwise_offsets(sorted_records, xs, ys)
+            model_yaw_offsets[name] = compute_yaw_offsets(sorted_records, angles)
 
     # Print summary
     print_summary(
@@ -728,6 +903,7 @@ def main():
         model_names=args.models,
         model_cmds=model_cmds,
         model_offsets=model_offsets,
+        model_yaw_offsets=model_yaw_offsets,
     )
 
     # Build figure with all data, gray-out discarded sections
@@ -738,6 +914,7 @@ def main():
         model_cmds,
         model_trajectories,
         model_offsets,
+        model_yaw_offsets,
         trim_start=args.start,
         trim_end=args.end,
     )
