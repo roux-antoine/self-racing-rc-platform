@@ -269,10 +269,10 @@ class CarModelBicycleV3(CarModelBicycleV2):
 
             # If speed is below the minimum, use the minimum speed's coefficient
             if speed <= sorted_speeds[0]:
-                coeff = self.SPEEDS_TO_COEFF_MAPPING[sorted_speeds[0]]
+                coeff = self.SPEEDS_TO_COEFF_MAPPING[sorted_speeds[0]] * speed
             # If speed is above the maximum, use the maximum speed's coefficient
             elif speed >= sorted_speeds[-1]:
-                coeff = self.SPEEDS_TO_COEFF_MAPPING[sorted_speeds[-1]]
+                coeff = self.SPEEDS_TO_COEFF_MAPPING[sorted_speeds[-1]] * speed
             else:
                 # Find the two speeds that bound the current speed
                 for i in range(len(sorted_speeds) - 1):
@@ -286,7 +286,9 @@ class CarModelBicycleV3(CarModelBicycleV2):
 
                         # Weight factor: 0 means use lower_coeff, 1 means use upper_coeff
                         weight = (speed - lower_speed) / (upper_speed - lower_speed)
-                        coeff = lower_coeff * (1 - weight) + upper_coeff * weight
+                        coeff = (
+                            lower_coeff * (1 - weight) + upper_coeff * weight
+                        ) * speed
                         break
 
         return coeff
