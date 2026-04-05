@@ -248,6 +248,9 @@ def build_figure(
         n_rows += 1
         row_heights.append(0.20)
         subtitles.append("Pairwise Offset: Simulated vs Actual (m)")
+        n_rows += 1
+        row_heights.append(0.30)
+        subtitles.append("Offset vs Speed")
     if has_trajectories:
         n_rows += 1
         row_heights.append(0.50)
@@ -469,8 +472,33 @@ def build_figure(
         fig.update_yaxes(title_text="Offset (m)", row=offset_row, col=1)
         fig.update_xaxes(title_text="Time (s)", row=offset_row, col=1)
 
+        # --- Offset vs Speed scatter ---
+        speed_offset_row = offset_row + 1
+        for name in model_names:
+            if name in model_offsets:
+                offsets, speeds = model_offsets[name]
+                valid = ~np.isnan(offsets)
+                fig.add_trace(
+                    go.Scatter(
+                        x=speeds[valid],
+                        y=offsets[valid],
+                        mode="markers",
+                        name=f"{name}",
+                        marker={
+                            "color": MODEL_COLORS.get(name, "gray"),
+                            "size": 4,
+                            "opacity": 0.6,
+                        },
+                        legend=_legend_for_row(speed_offset_row),
+                    ),
+                    row=speed_offset_row,
+                    col=1,
+                )
+        fig.update_xaxes(title_text="Speed (m/s)", row=speed_offset_row, col=1)
+        fig.update_yaxes(title_text="Offset (m)", row=speed_offset_row, col=1)
+
     # --- Simulated Trajectories (if simulated) ---
-    sim_row = 5 + (1 if has_offsets else 0)
+    sim_row = 5 + (2 if has_offsets else 0)
     if has_trajectories:
         if waypoints is not None:
             fig.add_trace(
@@ -498,6 +526,8 @@ def build_figure(
             row=sim_row,
             col=1,
         )
+        active_xs = all_xs[active_mask]
+        active_ys = all_ys[active_mask]
         for name in model_names:
             if name in model_trajectories:
                 xs, ys = model_trajectories[name]
@@ -514,6 +544,26 @@ def build_figure(
                         },
                         marker={"size": 6, "color": MODEL_COLORS[name]},
                         legend=_legend_for_row(sim_row),
+                    ),
+                    row=sim_row,
+                    col=1,
+                )
+                # Dotted gray lines connecting each simulated point to
+                # the corresponding actual point (visualizes the offset)
+                seg_x = []
+                seg_y = []
+                for j, (sx, sy) in enumerate(zip(xs, ys)):
+                    if not (np.isnan(sx) or np.isnan(sy)):
+                        seg_x.extend([active_xs[j], sx, None])
+                        seg_y.extend([active_ys[j], sy, None])
+                fig.add_trace(
+                    go.Scatter(
+                        x=seg_x,
+                        y=seg_y,
+                        mode="lines",
+                        line={"color": "gray", "width": 1, "dash": "dot"},
+                        name=f"{name} offset",
+                        showlegend=False,
                     ),
                     row=sim_row,
                     col=1,
