@@ -11,7 +11,7 @@ The model being optimized follows the CarModelBicycleSpeedToParam structure:
 where param(speed) is linearly interpolated from a set of (speed, param) pairs.
 
 The optimizer finds the coefficient values that minimize:
-    cost = mean(lateral_offset^2) + yaw_weight * mean(yaw_offset^2)
+    cost = mean(position_error^2) + yaw_weight * mean(yaw_error^2)
 computed via one-step forward simulation against recorded GPS positions.
 
 Usage:
@@ -87,15 +87,15 @@ def compute_one_step_cost(
     min_speed: float = 0.5,
 ) -> Tuple[float, Dict[str, float]]:
     """
-    Run one-step forward simulation and return the cost (mean squared lateral
-    offset + yaw_weight * mean squared yaw offset).
+    Run one-step forward simulation and return the cost (mean squared position
+    error + yaw_weight * mean squared yaw error).
 
     Also returns a dict of diagnostic metrics.
 
     Records with speed below min_speed are skipped (near-stationary data is
     noisy and uninformative for steering identification).
     """
-    lateral_sq_sum = 0.0
+    position_sq_sum = 0.0
     yaw_sq_sum = 0.0
     n = 0
 
@@ -121,11 +121,11 @@ def compute_one_step_cost(
 
         pred = model.states[-1]
 
-        # Lateral offset (signed, same convention as replay_lateral_models.py)
+        # Squared Euclidean position error
         dx = pred.x - r_next.state.x
         dy = pred.y - r_next.state.y
 
-        lateral_sq_sum += dx**2 + dy**2
+        position_sq_sum += dx**2 + dy**2
 
         # Yaw offset
         yaw_err = wrap_angle(pred.angle - r_next.state.angle)
@@ -140,14 +140,14 @@ def compute_one_step_cost(
             "rms_yaw_deg": float("nan"),
         }
 
-    mean_lateral_sq = lateral_sq_sum / n
+    mean_position_sq = position_sq_sum / n
     mean_yaw_sq = yaw_sq_sum / n
 
-    cost = mean_lateral_sq + yaw_weight * mean_yaw_sq
+    cost = mean_position_sq + yaw_weight * mean_yaw_sq
 
     metrics = {
         "n": n,
-        "rms_offset_m": np.sqrt(mean_lateral_sq),
+        "rms_offset_m": np.sqrt(mean_position_sq),
         "rms_yaw_deg": np.degrees(np.sqrt(mean_yaw_sq)),
     }
     return cost, metrics
