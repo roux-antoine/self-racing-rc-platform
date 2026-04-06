@@ -4,8 +4,8 @@ import rospy
 import tf
 from dynamic_reconfigure.server import Server
 from dynamic_reconfigure_pkg.cfg import lateral_controllerConfig
-from geometry_msgs.msg import PoseStamped, TwistStamped
-from geometry_utils_pkg.geometry_utils import State
+from geometry_msgs.msg import PointStamped, PoseStamped, TwistStamped
+from geometry_utils_pkg.geometry_utils import State, compute_curvature
 from std_msgs.msg import Float32, Float64
 from vehicle_models_pkg.vehicle_models import CarModelBicycleV1, CarModelBicycleV2
 
@@ -31,8 +31,8 @@ class LateralController:
             raise ValueError(f"Unknown controller type: {self.vehicle_model_type}")
 
         # Variables
-        target_curvature_topic_name = rospy.get_param(
-            "~target_curvature_topic_name", "target_curvature"
+        target_point_topic_name = rospy.get_param(
+            "~target_point_topic_name", "target_point"
         )
         current_pose_topic_name = rospy.get_param(
             "~current_pose_topic_name", "current_pose"
@@ -41,15 +41,15 @@ class LateralController:
             "~steering_pwm_cmd_topic_name", "steering_pwm_cmd"
         )
         self.current_state = State()
-        self.target_curvature = 0
+        self.target_point_state = None
         self.rate = rospy.Rate(rate)
         self.current_velocity = 0
 
         # Subscribers
         rospy.Subscriber(
-            target_curvature_topic_name,
-            Float64,
-            self.target_curvature_callback,
+            target_point_topic_name,
+            PointStamped,
+            self.target_point_callback,
         )
         rospy.Subscriber(
             current_pose_topic_name,
@@ -72,6 +72,11 @@ class LateralController:
         self.steering_cmd_pub = rospy.Publisher(
             steering_pwm_cmd_topic_name,
             Float32,
+            queue_size=10,
+        )
+        self.target_curvature_pub = rospy.Publisher(
+            "target_curvature",
+            Float64,
             queue_size=10,
         )
 
@@ -101,12 +106,11 @@ class LateralController:
 
         self.current_state.angle = yaw
 
-    def target_curvature_callback(self, msg: Float64):
+    def target_point_callback(self, msg: PointStamped):
         """
-        Callback function to retrieve the target curvature
+        Callback to receive the target point from the target generator
         """
-
-        self.target_curvature = msg.data
+        self.target_point_state = State(x=msg.point.x, y=msg.point.y)
 
     def callback_current_velocity(self, twist_msg: TwistStamped):
         """
@@ -122,13 +126,29 @@ class LateralController:
 
         while not rospy.is_shutdown():
 
+            if self.target_point_state is None:
+                rospy.logwarn_throttle(1.0, "No target point received yet, waiting...")
+                self.rate.sleep()
+                continue
+
+            # Compute curvature from current pose and target point
+            curvature = compute_curvature(
+                current_state=self.current_state,
+                target_state=self.target_point_state,
+            )
+
+            # Publish curvature for debug / introspection
+            curvature_msg = Float64()
+            curvature_msg.data = curvature
+            self.target_curvature_pub.publish(curvature_msg)
+
             # Compute the commands based on the controller
-            if abs(self.target_curvature) < 1e-3:
+            if abs(curvature) < 1e-3:
                 steering_command_pwm = self.STEERING_IDLE_PWM
             else:
                 steering_command_pwm = (
                     self.vehicle_model.compute_steering_command_from_radius(
-                        radius=1 / self.target_curvature,
+                        radius=1 / curvature,
                         speed=self.current_velocity,
                     )
                 )

@@ -6,15 +6,13 @@ import rospy
 import tf
 from dynamic_reconfigure.server import Server
 from dynamic_reconfigure_pkg.cfg import target_generatorConfig
-from geometry_msgs.msg import PoseStamped, TwistStamped
+from geometry_msgs.msg import PointStamped, PoseStamped, TwistStamped
 from geometry_utils_pkg.geometry_utils import (
     State,
     circle_line_segment_intersection,
-    compute_curvature,
     plane_distance,
 )
 from self_racing_car_msgs.msg import WaypointArray
-from std_msgs.msg import Float64
 from visualization_msgs.msg import Marker
 
 
@@ -66,9 +64,14 @@ class TargetGenerator:
         )
 
         """ Publishers """
-        self.target_curvature_pub = rospy.Publisher(
-            "target_curvature",
-            Float64,
+
+        target_point_topic_name = rospy.get_param(
+            "~target_point_topic_name", "target_point"
+        )
+
+        self.target_point_pub = rospy.Publisher(
+            target_point_topic_name,
+            PointStamped,
             queue_size=10,
         )
         self.target_velocity_pub = rospy.Publisher(
@@ -76,7 +79,6 @@ class TargetGenerator:
             TwistStamped,
             queue_size=10,
         )
-        # self.target_gen_debug_pub = rospy.Publisher("target_generator_debug", TBD, queue_size=10)
         self.target_point_marker_pub = rospy.Publisher(
             "target_point_marker",
             Marker,
@@ -93,7 +95,6 @@ class TargetGenerator:
         self, config, level
     ):  # pylint: disable=unused-argument
         self.lookahead_distance = config["lookahead_distance"]
-        self.curvature_min = config["curvature_min"]
         self.speed_scale_factor = config["speed_scale_factor"]
         self.loop_over_waypoints = config["loop_over_waypoints"]
         if config["velocity_mode"] == VelocityModeEnum.MANUAL_INPUT_SPEED.value:
@@ -165,27 +166,17 @@ class TargetGenerator:
                     y=self.waypoints.waypoints[-1].pose.position.y,
                 )
 
-                # Set curvature to minimum, so the steering is frozen to zero
-                curvature = self.curvature_min
-
             # Nominal situation
             else:
 
                 """Get target point"""
                 targetPoint = self.getTargetPoint(nextWaypointId)
 
-                # NOTE: it'd be cleaner to have the curvature calculation in the controller instead
-
-                """ Compute target curvature """
-                curvature = compute_curvature(
-                    current_state=self.current_state, target_state=targetPoint
-                )
-
             """ Publish target point marker """
             self.publish_target_point_marker(targetPoint)
 
-            """ Publish target curvature """
-            self.publish_target_curvature(curvature)
+            """ Publish target point """
+            self.publish_target_point(targetPoint)
 
             """ Compute target speed """
             if self.velocity_mode == VelocityModeEnum.MANUAL_INPUT_SPEED:
@@ -388,15 +379,18 @@ class TargetGenerator:
 
         self.target_velocity_pub.publish(twist_msg)
 
-    def publish_target_curvature(self, curvature: float):
+    def publish_target_point(self, targetPoint: State):
         """
-        Publishes the Float64 target curvature
+        Publishes the PointStamped target point
         """
 
-        curvature_msg = Float64()
-        curvature_msg.data = curvature
+        point_msg = PointStamped()
+        point_msg.header.stamp = rospy.Time.now()
+        point_msg.header.frame_id = "world"
+        point_msg.point.x = targetPoint.x
+        point_msg.point.y = targetPoint.y
 
-        self.target_curvature_pub.publish(curvature_msg)
+        self.target_point_pub.publish(point_msg)
 
 
 if __name__ == "__main__":
