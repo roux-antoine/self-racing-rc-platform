@@ -1,5 +1,5 @@
 import math
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 
@@ -165,6 +165,59 @@ def circle_line_segment_intersection(
             return [intersections[0]]
         else:
             return intersections
+
+
+def wrap_angle(a: float) -> float:
+    """Wrap angle to [-pi, pi]."""
+    return (a + math.pi) % (2 * math.pi) - math.pi
+
+
+def compute_cross_track_errors(
+    xs: np.ndarray, ys: np.ndarray, waypoints: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute signed cross-track error for each (x, y) point against a polyline.
+
+    Positive CTE = point is to the left of the path direction.
+
+    Args:
+        xs: 1-D array of x coordinates (may contain NaN).
+        ys: 1-D array of y coordinates (may contain NaN).
+        waypoints: (M, 2) array of waypoint (x, y) defining the reference path.
+
+    Returns:
+        (cte, seg_idx) where cte is the signed cross-track error array and
+        seg_idx is the index of the nearest segment for each point.
+    """
+    seg_starts = waypoints[:-1]
+    seg_ends = waypoints[1:]
+    seg_vecs = seg_ends - seg_starts
+    seg_lens_sq = np.sum(seg_vecs**2, axis=1)
+    seg_lens_sq[seg_lens_sq == 0] = 1e-12
+
+    n = len(xs)
+    cte = np.full(n, float("nan"))
+    seg_idx = np.zeros(n, dtype=int)
+
+    for i in range(n):
+        if np.isnan(xs[i]) or np.isnan(ys[i]):
+            continue
+        pt = np.array([xs[i], ys[i]])
+        diffs = pt - seg_starts
+        t_params = np.sum(diffs * seg_vecs, axis=1) / seg_lens_sq
+        t_clamped = np.clip(t_params, 0.0, 1.0)
+        closest = seg_starts + t_clamped[:, np.newaxis] * seg_vecs
+        dists_sq = np.sum((pt - closest) ** 2, axis=1)
+
+        best = np.argmin(dists_sq)
+        seg_idx[i] = best
+
+        dx = xs[i] - closest[best, 0]
+        dy = ys[i] - closest[best, 1]
+        cross = seg_vecs[best, 0] * dy - seg_vecs[best, 1] * dx
+        cte[i] = math.copysign(math.sqrt(dists_sq[best]), cross)
+
+    return cte, seg_idx
 
 
 def fit_circle_to_points(points: List[tuple]) -> tuple:
