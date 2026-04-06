@@ -177,6 +177,8 @@ class CarModelBicycleSpeedToParam(CarModelBicyclePure):
 
     Meaning models of the form: radius = coeff / steering_diff , where coeff is obtained by interpolating the SPEEDS_TO_PARAM_MAPPING
     dict based on the current speed.
+
+    WARNING: coeff != params --> The coeff is the value used to compute the radius, while the params are the values used to compute the coeff
     """
 
     SPEEDS_TO_PARAM_MAPPING: dict = {}
@@ -242,10 +244,10 @@ class CarModelBicycleV2(CarModelBicycleSpeedToParam):
     They were estimated from steady-state circle fitting, using scripts in the folder steering_param_identification_old
     """
 
-    SPEEDS_TO_PARAM_MAPPING: dict = {  # here, params were computed as: steering_diff * radius of circle at the given speed
-        1.5: 27 * 1.25,
-        5: 24 * 2.3,
-        8: 26 * 4,
+    SPEEDS_TO_PARAM_MAPPING: dict = {
+        1.5: 27 * 1.25 / 1.5,
+        5: 24 * 2.3 / 5,
+        8: 26 * 4 / 8,
     }
 
 
@@ -267,7 +269,7 @@ class CarModelBicycleV3(CarModelBicycleSpeedToParam):
 
 class CarModelBicycleV4(CarModelBicycleSpeedToParam):
     """
-    Similar to V2 and V3, but estimted using the script trajectory_based_identification.py, which optimizes the parameters based on the
+    Similar to V2 and V3, but estimated using the script trajectory_based_identification.py, which optimizes the parameters based on the
     entire trajectory and not just steady-state circle fitting.
     The bags were from the 20250824 Cañada College testing session
     """

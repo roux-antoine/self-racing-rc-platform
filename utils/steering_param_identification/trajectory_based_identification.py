@@ -17,13 +17,15 @@ computed via one-step forward simulation against recorded GPS positions.
 Usage:
     python trajectory_based_identification.py \
         --bag-paths bag1.bag bag2.bag \
-        --speeds 2 3 4 5 6 7
+        --speeds 2 3 4 5 6 7 \
+        --base-model V3
 
     # Use a held-out bag for validation:
     python trajectory_based_identification.py \
         --bag-paths train1.bag train2.bag \
         --validation-bag-path val.bag \
-        --speeds 2 3 4 5 6 7
+        --speeds 2 3 4 5 6 7 \
+        --base-model V3 \
 """
 
 import argparse
