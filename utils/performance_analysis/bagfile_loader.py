@@ -163,8 +163,8 @@ class BagfileLoader:
         else:
             self.waypoints = None
 
-        # Align all msgs to the GPS timestamps
-        for gps_msg_time in gps_timestamps:
+        # Align all msgs to the GPS timestamps (we leave out the last GPS message in case the stack was stopped right after a GPS message)
+        for gps_msg_time in gps_timestamps[:-1]:
 
             # Find the closest pose timestamp
             closest_pose_time = [ts for ts in pose_timestamps if ts >= gps_msg_time][0]

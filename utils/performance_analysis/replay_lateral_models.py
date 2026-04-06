@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pylint: disable=too-many-lines
 """
 Replay lateral control with different vehicle models.
 
@@ -33,6 +34,8 @@ from vehicle_models_pkg.vehicle_models import (
     CarModelBicycleV1,
     CarModelBicycleV2,
     CarModelBicycleV3,
+    CarModelBicycleV3B,
+    CarModelBicycleV4,
 )
 from vehicle_models_pkg.vehicle_models_constants import (
     STEERING_IDLE_PWM,
@@ -41,11 +44,13 @@ from vehicle_models_pkg.vehicle_models_constants import (
 )
 
 
-MODEL_REGISTRY: Dict[str, type] = {
+MODEL_REGISTRY = {
     "V0": CarModelBicycleV0,
     "V1": CarModelBicycleV1,
     "V2": CarModelBicycleV2,
     "V3": CarModelBicycleV3,
+    "V3B": CarModelBicycleV3B,
+    "V4": CarModelBicycleV4,
 }
 
 MODEL_COLORS = {
@@ -53,6 +58,8 @@ MODEL_COLORS = {
     "V1": "green",
     "V2": "dodgerblue",
     "V3": "mediumpurple",
+    "V3B": "purple",
+    "V4": "crimson",
 }
 
 
@@ -274,6 +281,75 @@ def print_summary(
                 print(
                     f"    Yaw |offset| (max):         {np.max(np.abs(yaw_deg)):.2f} deg"
                 )
+
+        # --- Speed-stratified metrics ---
+        if name in model_offsets:
+            offsets, speeds = model_offsets[name]
+            speed_bins = [(0, 2), (2, 4), (4, 6), (6, float("inf"))]
+            bin_results = []
+            for lo, hi in speed_bins:
+                mask = (~np.isnan(offsets)) & (speeds >= lo) & (speeds < hi)
+                if np.any(mask):
+                    rms = np.sqrt(np.mean(offsets[mask] ** 2))
+                    bin_results.append((lo, hi, np.sum(mask), rms))
+            if bin_results:
+                print("    --- Speed-stratified offset (RMS) ---")
+                for lo, hi, n, rms in bin_results:
+                    hi_str = f"{hi:.0f}" if hi != float("inf") else "+"
+                    label = f"{lo:.0f}-{hi_str} m/s"
+                    print(f"      {label:>10s}: {rms:.4f} m  (n={n})")
+
+        # --- Transient vs steady-state split ---
+        if name in model_offsets:
+            offsets, speeds = model_offsets[name]
+            steering_cmds = np.array([r.steering_cmd for r in sorted_records])
+            times = np.array([r.gps_msg_time for r in sorted_records])
+            is_transient = np.zeros(len(sorted_records), dtype=bool)
+            for i in range(len(sorted_records)):
+                window_mask = (times >= times[i] - 0.5) & (times <= times[i])
+                if np.any(window_mask):
+                    cmd_range = np.max(steering_cmds[window_mask]) - np.min(
+                        steering_cmds[window_mask]
+                    )
+                    is_transient[i] = cmd_range > 2.0
+
+            valid = ~np.isnan(offsets)
+            steady_mask = valid & ~is_transient
+            trans_mask = valid & is_transient
+            if np.any(steady_mask) or np.any(trans_mask):
+                print("    --- Transient vs steady-state offset ---")
+                if np.any(steady_mask):
+                    rms_ss = np.sqrt(np.mean(offsets[steady_mask] ** 2))
+                    print(
+                        f"      Steady-state: {rms_ss:.4f} m RMS  (n={np.sum(steady_mask)})"
+                    )
+                if np.any(trans_mask):
+                    rms_tr = np.sqrt(np.mean(offsets[trans_mask] ** 2))
+                    print(
+                        f"      Transient:    {rms_tr:.4f} m RMS  (n={np.sum(trans_mask)})"
+                    )
+
+        # --- Left/right asymmetry ---
+        if name in model_offsets:
+            offsets, speeds = model_offsets[name]
+            steering_cmds = np.array([r.steering_cmd for r in sorted_records])
+            valid = ~np.isnan(offsets)
+            left_mask = valid & (steering_cmds < STEERING_IDLE_PWM)
+            right_mask = valid & (steering_cmds > STEERING_IDLE_PWM)
+            if np.any(left_mask) or np.any(right_mask):
+                print("    --- Left/right steering asymmetry ---")
+                if np.any(left_mask):
+                    mean_l = np.mean(offsets[left_mask])
+                    rms_l = np.sqrt(np.mean(offsets[left_mask] ** 2))
+                    print(
+                        f"      Left  (cmd<{STEERING_IDLE_PWM}): mean={mean_l:+.4f} m, RMS={rms_l:.4f} m  (n={np.sum(left_mask)})"
+                    )
+                if np.any(right_mask):
+                    mean_r = np.mean(offsets[right_mask])
+                    rms_r = np.sqrt(np.mean(offsets[right_mask] ** 2))
+                    print(
+                        f"      Right (cmd>{STEERING_IDLE_PWM}): mean={mean_r:+.4f} m, RMS={rms_r:.4f} m  (n={np.sum(right_mask)})"
+                    )
 
     print("=============================================\n")
 
@@ -836,9 +912,9 @@ def main():
     parser.add_argument(
         "--models",
         nargs="+",
-        default=["V0", "V3"],
+        default=["V0", "V3", "V3B"],
         choices=list(MODEL_REGISTRY.keys()),
-        help="Which models to compare (default: V0 V3)",
+        help="Which models to compare (default: V0 V3 V3B)",
     )
     parser.add_argument(
         "--simulate",

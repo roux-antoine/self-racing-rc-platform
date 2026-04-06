@@ -267,11 +267,28 @@ class CarModelBicycleV3(CarModelBicycleSpeedToParam):
     }
 
 
+class CarModelBicycleV3B(CarModelBicycleSpeedToParam):
+    """
+    Same as V3, but using the bags from the 2025-08-24 Cañada College testing session
+    """
+
+    SPEEDS_TO_PARAM_MAPPING: dict = {
+        2: 15.46,
+        3: 10.22,
+        4: 8.90,
+        5: 9.42,
+        6: 10.13,
+        7: 10.44,
+    }
+
+
 class CarModelBicycleV4(CarModelBicycleSpeedToParam):
     """
     Similar to V2 and V3, but estimated using the script trajectory_based_identification.py, which optimizes the parameters based on the
     entire trajectory and not just steady-state circle fitting.
-    The bags were from the 20250824 Cañada College testing session
+    The bags were from the 2025-08-24 Cañada College testing session
+
+    WARNING: I think these params won't work IRL, because they have an explicit reliance on the yaw_angles at each position. Which we know are very imprecise.
     """
 
     SPEEDS_TO_PARAM_MAPPING: dict = {
