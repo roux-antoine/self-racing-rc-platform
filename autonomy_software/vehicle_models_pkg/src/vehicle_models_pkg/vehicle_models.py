@@ -242,6 +242,7 @@ class CarModelBicycleV2(CarModelBicycleSpeedToParam):
     """
     These are the params from the first attempt at parameter fitting (2023-2024), i.e. the V2 model.
     They were estimated from steady-state circle fitting, using scripts in the folder steering_param_identification_old
+    The bags were from the Shoreline parking lot testing session
     """
 
     SPEEDS_TO_PARAM_MAPPING: dict = {

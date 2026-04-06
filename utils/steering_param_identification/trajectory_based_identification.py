@@ -37,7 +37,7 @@ import numpy as np
 from scipy.optimize import differential_evolution
 
 
-# Add performance_analysis to path so we can import its modules
+# Add performance_analysis to path so we can import its modules, HACK...
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PERF_ANALYSIS_DIR = os.path.join(SCRIPT_DIR, "..", "performance_analysis")
 sys.path.insert(0, PERF_ANALYSIS_DIR)
