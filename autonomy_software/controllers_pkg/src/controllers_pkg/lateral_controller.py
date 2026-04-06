@@ -44,6 +44,7 @@ class LateralController:
         self.target_point_state = None
         self.rate = rospy.Rate(rate)
         self.current_velocity = 0
+        self.last_steering_cmd = None
 
         # Subscribers
         rospy.Subscriber(
@@ -86,6 +87,8 @@ class LateralController:
         self.STEERING_IDLE_PWM = config["steering_idle_pwm"]
         self.STEERING_MAX_PWM = config["steering_max_pwm"]
         self.STEERING_MIN_PWM = config["steering_min_pwm"]
+        self.delay_compensation_enabled = config["delay_compensation_enabled"]
+        self.actuation_delay_s = config["actuation_delay_s"]
         return config
 
     def current_pose_callback(self, msg: PoseStamped):
@@ -131,9 +134,26 @@ class LateralController:
                 self.rate.sleep()
                 continue
 
-            # Compute curvature from current pose and target point
+            # Optionally predict future state to compensate for actuation delay
+            if self.delay_compensation_enabled and self.last_steering_cmd is not None:
+                predictor = type(self.vehicle_model)()
+                predictor.init(
+                    x=self.current_state.x,
+                    y=self.current_state.y,
+                    vx=self.current_velocity,
+                    angle=self.current_state.angle,
+                )
+                predictor.step(
+                    dt=self.actuation_delay_s,
+                    cmd_steering=self.last_steering_cmd,
+                )
+                reference_state = predictor.states[-1]
+            else:
+                reference_state = self.current_state
+
+            # Compute curvature from reference state and target point
             curvature = compute_curvature(
-                current_state=self.current_state,
+                current_state=reference_state,
                 target_state=self.target_point_state,
             )
 
@@ -158,6 +178,9 @@ class LateralController:
                 steering_command_pwm = self.STEERING_MAX_PWM
             elif steering_command_pwm < self.STEERING_MIN_PWM:
                 steering_command_pwm = self.STEERING_MIN_PWM
+
+            # Store for next iteration's delay compensation
+            self.last_steering_cmd = steering_command_pwm
 
             # Publish steering output
             self.steering_cmd_pub.publish(steering_command_pwm)

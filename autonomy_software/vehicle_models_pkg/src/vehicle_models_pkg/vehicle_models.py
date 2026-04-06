@@ -172,44 +172,49 @@ class CarModelBicycleV1(CarModelBicyclePure):
         ) * np.arctan(WHEELBASE / radius)
 
 
-class CarModelBicycleV2(CarModelBicyclePure):
-    """Models the car behavior as a kinematic bicycle model.
+class CarModelBicycleSpeedToParam(CarModelBicyclePure):
+    """Base class for models that assume that the car is moving in a circular path, with a constant radius determined by the steering command,
 
-    The model assumes that the car is moving in a circular path, with a constant radius determined by the steering command,
-    with the first attempt at parameter fitting (2023-2024), i.e. the V2 model.
+    Meaning models of the form: radius = coeff / steering_diff , where coeff is obtained by interpolating the SPEEDS_TO_PARAM_MAPPING
+    dict based on the current speed.
+
+    WARNING: coeff != params --> The coeff is the value used to compute the radius, while the params are the values used to compute the coeff
     """
 
-    UPPER_BOUND_REGION_1: float = 1.5  # m/s
-    UPPER_BOUND_REGION_2: float = 5  # m/s
-    UPPER_BOUND_REGION_3: float = 8  # m/s
-    # Coeffs are computed as: steering_diff * radius of circle at the given speed
-    COEFF_REGION_1: float = 27 * 1.25
-    COEFF_REGION_2: float = 24 * 2.3
-    COEFF_REGION_3: float = 26 * 4
+    SPEEDS_TO_PARAM_MAPPING: dict = {}
 
     def _compute_coefficient(self, speed: float) -> float:
-        """Compute the coefficient used to compute the required turning radius, see model description for more details."""
+        """Compute the coefficient by interpolating the speed-to-param mapping and multiplying by the speed.
+
+        Meaning: coeff = param(speed) * speed, where param(speed) is obtained by interpolating the SPEEDS_TO_PARAM_MAPPING dict based on the current speed.
+
+        """
+        if not self.SPEEDS_TO_PARAM_MAPPING:
+            raise ValueError("SPEEDS_TO_PARAM_MAPPING cannot be empty!")
 
         if speed < 0:
             raise ValueError("Speed cannot be negative!")
         if speed == 0:
-            coeff = self.VERY_LARGE_RADIUS
-        elif 0 < speed <= self.UPPER_BOUND_REGION_1:
-            coeff = self.COEFF_REGION_1
-        elif self.UPPER_BOUND_REGION_1 < speed <= self.UPPER_BOUND_REGION_2:
-            coeff = self.COEFF_REGION_1 + (speed - self.UPPER_BOUND_REGION_1) * (
-                self.COEFF_REGION_2 - self.COEFF_REGION_1
-            ) / (self.UPPER_BOUND_REGION_2 - self.UPPER_BOUND_REGION_1)
-        elif self.UPPER_BOUND_REGION_2 < speed <= self.UPPER_BOUND_REGION_3:
-            coeff = self.COEFF_REGION_2 + (speed - self.UPPER_BOUND_REGION_2) * (
-                self.COEFF_REGION_3 - self.COEFF_REGION_2
-            ) / (self.UPPER_BOUND_REGION_3 - self.UPPER_BOUND_REGION_2)
-        elif speed > self.UPPER_BOUND_REGION_3:
-            coeff = self.COEFF_REGION_3
-        else:
-            raise ValueError("This should never happen!")
+            return self.VERY_LARGE_COEFF
 
-        return coeff
+        sorted_speeds = sorted(self.SPEEDS_TO_PARAM_MAPPING.keys())
+
+        if speed <= sorted_speeds[0]:
+            param_at_speed = self.SPEEDS_TO_PARAM_MAPPING[sorted_speeds[0]]
+        elif speed >= sorted_speeds[-1]:
+            param_at_speed = self.SPEEDS_TO_PARAM_MAPPING[sorted_speeds[-1]]
+        else:
+            for i in range(len(sorted_speeds) - 1):
+                if sorted_speeds[i] <= speed <= sorted_speeds[i + 1]:
+                    lower_speed = sorted_speeds[i]
+                    upper_speed = sorted_speeds[i + 1]
+                    lower_param = self.SPEEDS_TO_PARAM_MAPPING[lower_speed]
+                    upper_param = self.SPEEDS_TO_PARAM_MAPPING[upper_speed]
+                    weight = (speed - lower_speed) / (upper_speed - lower_speed)
+                    param_at_speed = lower_param * (1 - weight) + upper_param * weight
+                    break
+
+        return param_at_speed * speed
 
     def compute_radius_from_steering_command(
         self, cmd_steering: float, speed: float
@@ -219,74 +224,79 @@ class CarModelBicycleV2(CarModelBicyclePure):
             return self.VERY_LARGE_RADIUS
         else:
             coeff = self._compute_coefficient(speed)
-            radius = (
-                STEERING_DIRECTION_FACTOR * coeff / (cmd_steering - STEERING_IDLE_PWM)
-            )
-            return radius
+            steering_diff = cmd_steering - STEERING_IDLE_PWM
+            return STEERING_DIRECTION_FACTOR * coeff / steering_diff
 
     def compute_steering_command_from_radius(
         self, radius: float, speed: float
     ) -> float:
         """Obtained by inversing the compute_radius_from_steering_command function."""
-        if abs(radius) < 1e-3:
+        if abs(radius) < 0.1:
             return STEERING_IDLE_PWM
         else:
             coeff = self._compute_coefficient(speed)
             return STEERING_IDLE_PWM + STEERING_DIRECTION_FACTOR * (coeff / radius)
 
 
-class CarModelBicycleV3(CarModelBicycleV2):
-    """Models the car behavior as a kinematic bicycle model.
-
-    The model assumes that the car is moving in a circular path, with a constant radius determined by the steering command,
-    with the second attempt at parameter fitting (Oct 2025), i.e. the V3 model.
-
-    UNTESTED for now, will be tested once we have the simulator
-    TODO later: try to unify the V2 and V3 with a base class called region-based
+class CarModelBicycleV2(CarModelBicycleSpeedToParam):
+    """
+    These are the params from the first attempt at parameter fitting (2023-2024), i.e. the V2 model.
+    They were estimated from steady-state circle fitting, using scripts in the folder steering_param_identification_old
+    The bags were from the Shoreline parking lot testing session
     """
 
-    SPEEDS_TO_COEFF_MAPPING = {
-        # mapping of the coeff associated with each speed region, for the San Mateo 2025-07-20 bags
-        # TODO modify the logic to use the center of the region
-        2: 12.67852795,
-        3: 12.29078091,
-        4: 10.12400495,
-        5: 9.71443423,
-        6: 9.55109679,
-        7: 10.15111903,
+    SPEEDS_TO_PARAM_MAPPING: dict = {
+        1.5: 27 * 1.25 / 1.5,
+        5: 24 * 2.3 / 5,
+        8: 26 * 4 / 8,
     }
 
-    def _compute_coefficient(self, speed: float) -> float:
-        """Compute the coefficient used to compute the required turning radius, see model description for more details."""
 
-        if speed < 0:
-            raise ValueError("Speed cannot be negative!")
-        if speed == 0:
-            coeff = self.VERY_LARGE_COEFF
-        else:  # NOTE not very efficient, let's see if we can do better
-            # Get sorted speeds from the mapping
-            sorted_speeds = sorted(self.SPEEDS_TO_COEFF_MAPPING.keys())
+class CarModelBicycleV3(CarModelBicycleSpeedToParam):
+    """
+    Similar to V2, they were estimated from steady-state circle fitting, but using scripts in the folder steering_param_identification
+    The bags were from the 2025-07-20 San Mateo testing session
+    """
 
-            # If speed is below the minimum, use the minimum speed's coefficient
-            if speed <= sorted_speeds[0]:
-                coeff = self.SPEEDS_TO_COEFF_MAPPING[sorted_speeds[0]]
-            # If speed is above the maximum, use the maximum speed's coefficient
-            elif speed >= sorted_speeds[-1]:
-                coeff = self.SPEEDS_TO_COEFF_MAPPING[sorted_speeds[-1]]
-            else:
-                # Find the two speeds that bound the current speed
-                for i in range(len(sorted_speeds) - 1):
-                    if sorted_speeds[i] <= speed <= sorted_speeds[i + 1]:
-                        lower_speed = sorted_speeds[i]
-                        upper_speed = sorted_speeds[i + 1]
+    SPEEDS_TO_PARAM_MAPPING: dict = {
+        2: 12.67,
+        3: 12.29,
+        4: 10.12,
+        5: 9.71,
+        6: 9.55,
+        7: 10.15,
+    }
 
-                        # Compute weighted average between the two coefficients
-                        lower_coeff = self.SPEEDS_TO_COEFF_MAPPING[lower_speed]
-                        upper_coeff = self.SPEEDS_TO_COEFF_MAPPING[upper_speed]
 
-                        # Weight factor: 0 means use lower_coeff, 1 means use upper_coeff
-                        weight = (speed - lower_speed) / (upper_speed - lower_speed)
-                        coeff = lower_coeff * (1 - weight) + upper_coeff * weight
-                        break
+class CarModelBicycleV3B(CarModelBicycleSpeedToParam):
+    """
+    Same as V3, but using the bags from the 2025-08-24 Cañada College testing session
+    """
 
-        return coeff
+    SPEEDS_TO_PARAM_MAPPING: dict = {
+        2: 15.46,
+        3: 10.22,
+        4: 8.90,
+        5: 9.42,
+        6: 10.13,
+        7: 10.44,
+    }
+
+
+class CarModelBicycleV4(CarModelBicycleSpeedToParam):
+    """
+    Similar to V2 and V3, but estimated using the script trajectory_based_identification.py, which optimizes the parameters based on the
+    entire trajectory and not just steady-state circle fitting.
+    The bags were from the 2025-08-24 Cañada College testing session
+
+    WARNING: I think these params won't work IRL, because they have an explicit reliance on the yaw_angles at each position. Which we know are very imprecise.
+    """
+
+    SPEEDS_TO_PARAM_MAPPING: dict = {
+        2.0: 4.31,
+        3.0: 2.91,
+        4.0: 2.34,
+        5.0: 2.80,
+        6.0: 2.20,
+        7.0: 4.24,
+    }

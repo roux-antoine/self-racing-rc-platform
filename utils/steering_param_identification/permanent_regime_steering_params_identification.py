@@ -412,10 +412,10 @@ if __name__ == "__main__":
         help="Path to the CSV file from permanent_regime_circle_fitter.py",
     )
     parser.add_argument(
-        "--plot-basics",
+        "--no-plot-basics",
         action="store_true",
-        default=True,
-        help="Plot basic information about the CSV data (default: True)",
+        default=False,
+        help="Do not plot basic information about the CSV data (default: False)",
     )
     parser.add_argument(
         "--plot-individual-fits",
@@ -428,6 +428,6 @@ if __name__ == "__main__":
 
     main(
         csv_path=args.csv_path,
-        plot_basics=args.plot_basics,
+        plot_basics=not args.no_plot_basics,
         plot_individual_fits=args.plot_individual_fits,
     )

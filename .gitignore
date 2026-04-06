@@ -2,3 +2,6 @@ venv
 .DS_Store
 __pycache__
 utils/geometry_utils_pkg/src/geometry_utils_pkg.egg-info
+bags
+.catkin_tools
+.cache
